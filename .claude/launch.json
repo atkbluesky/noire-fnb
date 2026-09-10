@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "noire-hub",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3001
+    },
+    {
+      "name": "noire-hub-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--port", "4173"],
+      "port": 4173
+    }
+  ]
+}

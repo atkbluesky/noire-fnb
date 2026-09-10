@@ -1,0 +1,35 @@
+{
+  "name": "noire-analytics-hub",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "scripts": {
+    "build:data": "node scripts/build-data.mjs",
+    "predev": "npm run build:data",
+    "dev": "node ./node_modules/vite/bin/vite.js",
+    "prebuild": "npm run build:data",
+    "build": "node ./node_modules/typescript/bin/tsc && node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "echarts": "^5.5.0",
+    "echarts-for-react": "^3.0.2",
+    "lucide-react": "^0.395.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.19",
+    "exceljs": "^4.4.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.13"
+  }
+}

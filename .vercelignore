@@ -1,0 +1,33 @@
+# Vercel chỉ build trang tĩnh từ src/ — không cần và không nên mang theo:
+
+# Kho dữ liệu thô (ETL chạy ở máy local, xem docs/30_RUNBOOK_VAN_HANH.md §4)
+L0_input/
+
+# Cache đọc Excel + chỉ mục hoá đơn
+_cache/
+
+# Nhật ký chạy ETL
+qa_log_*.txt
+
+# Kho lưu bản cũ đã ngừng dùng (lane HTML tĩnh, wireframe, JSON gốc)
+_archive/
+
+# Bản JSON ở gốc dự án — app đọc bản trong src/data/ (do scripts/build-data.mjs sinh)
+/data.json
+/data_mkt.json
+
+# Script ETL lane dữ liệu THÔ (Python không chạy trên Vercel).
+# Lane dữ liệu ĐÃ XỬ LÝ chạy bằng Node: data_input/*.xlsx → scripts/build-data.mjs
+build_hub.py
+build_mkt.py
+run_pipeline.py
+check_input.py
+tools/
+
+# Tài liệu
+docs/
+
+# ─── PHẢI GIỮ LẠI, đừng thêm vào file này ────────────────────────────
+# data_input/          nguồn sự thật — bước prebuild đọc nó
+# data_contract.json   hợp đồng schema — build-data.mjs đọc nó
+# scripts/             loader Node

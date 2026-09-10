@@ -1,0 +1,324 @@
+# 15 · HỢP ĐỒNG DỮ LIỆU VÀO — CẤU TRÚC BA TẦNG
+
+> **Nguồn sự thật của hợp đồng là [`../data_contract.json`](../data_contract.json)**, không
+> phải file này. `scripts/build-data.mjs` (Node) và `tools/*.py` (Python) cùng đọc nó, và
+> phần bảng sheet ở §4 dưới đây được **sinh lại** từ nó bằng `python tools/gen_contract_doc.py`.
+>
+> Cần hướng dẫn thao tác từng bước? → [`16_CAP_NHAT_HANG_THANG.md`](16_CAP_NHAT_HANG_THANG.md)
+
+---
+
+## 1. Hai lane — khác nhau ở đâu
+
+| | Lane THÔ | Lane ĐÃ XỬ LÝ *(lane chính)* |
+|---|---|---|
+| Đầu vào | export gốc iPOS / Meta / Google / Zalo | Excel đã tổng hợp |
+| Thư mục | `05 Data Raw/` · `09 Tracking Sales Tool/` | **`data_input/`** |
+| Bộ máy | `tools/build_month.py` (Python) | **`scripts/build-data.mjs` (Node)** |
+| Việc chính | gỡ bảy cái bẫy dữ liệu thô | **kiểm tra hợp đồng** + tính chỉ số dẫn xuất |
+| Chạy ở đâu | chỉ máy local | **máy local VÀ Vercel** |
+| Thời gian | ~1 phút/tháng | **dưới 1 giây** |
+| Lên GitHub | không | **có — đây là nguồn sự thật** |
+
+Lane thô là nơi *sinh ra* dữ liệu đã xử lý. Nếu bạn có sẵn file đã tổng hợp từ nơi khác thì
+bỏ qua lane thô hoàn toàn — điền tay vào `data_input/monthly/YYYY-MM.xlsx` cũng đúng.
+
+---
+
+## 2. Luồng chạy thật
+
+```
+   dữ liệu thô                    data_input/                     dashboard
+   ───────────                    ───────────                     ─────────
+   05 Data Raw/          python    01_master.xlsx      npm run     src/data/*.json
+   09 Tracking Sales  ─────────▶   02_snapshot.xlsx  ──────────▶   (không commit)
+                      build_month  monthly/*.xlsx     build:data         │
+                                          │                              ▼
+                                          │  git push              localhost:3001
+                                          ▼                              │
+                                    Vercel kéo repo ──▶ npm run build ──▶ deploy
+```
+
+**Điểm mấu chốt:** `src/data/*.json` **không nằm trong git** (`.gitignore` đã loại). Chúng
+là sản phẩm sinh ra, không phải nguồn. Nguồn sự thật là **Excel trong `data_input/`**.
+
+Hệ quả: không còn cảnh hai bản JSON lệch nhau, và mỗi lần đổi số chỉ cần commit file Excel.
+
+---
+
+## 3. Ba tầng file
+
+```
+data_input/
+├── 01_master.xlsx      TẦNG A · chiều & kế hoạch (đổi khi có thay đổi)
+├── 02_snapshot.xlsx    TẦNG C · bảng luỹ kế toàn kỳ
+└── monthly/
+    ├── 2026-07.xlsx    TẦNG B · một tháng một file
+    └── 2026-08.xlsx
+```
+
+**Loader quét ĐỆ QUY mọi `.xlsx` trong `data_input/`** và gộp các sheet cùng tên. Thứ tự đọc
+là thứ tự alphabet của **đường dẫn**, nên `01_master` < `02_snapshot` < `monthly/…` — số liệu
+tháng luôn đè lên bản khai chung khi trùng khoá.
+
+### Tháng lấy từ tên file
+
+Với file nằm trong `monthly/`, loader đọc `YYYY-MM` từ **tên file** và tự điền vào cột tháng
+của mọi dòng bỏ trống. Đây là cơ chế khiến "mỗi tháng chỉ cần thả một file" chạy được: người
+nộp không phải gõ lại `2026-09` vào từng dòng của hai chục sheet.
+
+Nếu một dòng CÓ ghi tháng mà lệch với tháng của file, **chốt #14 báo** — copy-paste sót là
+cách phổ biến nhất để nhân đôi số của một tháng.
+
+### Khử trùng theo khoá tự nhiên
+
+Mỗi sheet có một **khoá tự nhiên** khai ở hợp đồng. Sau khi đọc hết, loader khử trùng theo
+khoá đó, **dòng đọc sau thắng**. Nộp lại một tháng (đặt tên `2026-09_v2.xlsx` để cạnh bản gốc)
+là *thay thế* đúng những dòng đó, không phải cộng thêm.
+
+Khoá phải là khoá **thật**. Ví dụ `product` có khoá `ma + name + cat + grp` chứ không phải
+`ma`: cùng một mã món xuất hiện ở hai nhóm menu khác nhau là chuyện bình thường, khử trùng
+theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
+
+---
+
+## 4. Sheet và cột
+
+<!-- AUTO:SHEETS -->
+### TẦNG A · `01_master.xlsx` — CHIỀU & KẾ HOẠCH
+
+Đổi khi có cửa hàng mới, target quý mới, ngân sách mới, đối tác mới. KHÔNG phải file nộp hằng tháng.
+
+| Sheet | Cột | Khoá tự nhiên | Loader tự tính |
+|---|---|---|---|
+| `dim_store` | **code** · **brand** · **tier** · **name** · open | code | — |
+| `dim_target` | **month** · **store** · **target** | month + store | — |
+| `dim_cogs` | _brand_ · **ma** · name · cogs · pct | brand + ma | — |
+| `budget_brand` | _brand_ · budget · plan | brand | — |
+| `budget_extra` | _name_ · plan | name | — |
+| `budget_channel` | _channel_ · _source_ · plan | channel + source | — |
+| `budget_store` | _store_ · brand · target · meta · google · zalo · total · pct | store | — |
+| `partners` | **code** · **name** · kind · brand · start · end · status · media · note · issued · used · rev · disc | code | use_rate |
+| `partner_camp` | _code_ · name · _cid_ · mech · rate | code + cid | — |
+| `pre_analytics` | _name_ · _brand_ · kind · roi · nc | name + brand | — |
+| `crm_target` | _month_ · _kpi_ · target | month + kpi | — |
+| `system_tools` | _root_ · files · loc · dirs | root | — |
+| `system_dashboards` | _path_ · _name_ · kb | path + name | — |
+| `system_caches` | _path_ · files · mb | path | — |
+
+- **`dim_store`** — Danh mục cửa hàng. tier ∈ flagship|core|satellite|popup · brand ∈ NCB|NDC|NJFB|OTHER
+- **`dim_target`** — Target doanh thu theo cửa hàng × tháng. Được phép khai cả tháng tương lai.
+- **`dim_cogs`** — Bảng giá vốn theo mã món — nuôi cảnh báo món có giá vốn bất thường.
+- **`budget_brand`** — Ngân sách marketing theo brand. Các cột tên YYYY-MM là ngân sách từng tháng.
+- **`budget_extra`** — Ngân sách ngoài brand (Chạy Tiệc, CRM…).
+- **`budget_channel`** — Ngân sách theo kênh × nguồn túi tiền.
+- **`budget_store`** — Phân bổ ngân sách quảng cáo theo cửa hàng.
+- **`partners`** — Danh mục đối tác. issued/used/rev/disc là luỹ kế toàn chương trình.
+- **`partner_camp`** — Cầu nối đối tác ↔ Campaign ID iPOS — để truy vết doanh thu về đúng đối tác.
+- **`pre_analytics`** — Chương trình đề xuất cho kỳ tới (M7 Pre-Analytics).
+- **`crm_target`** — KPI CRM cam kết theo tháng. kpi ∈ member|oa
+- **`system_tools`** — Kiểm toán phân mảnh hệ thống — nuôi tab D2.
+- **`system_dashboards`** — Danh sách dashboard HTML rời rạc — nuôi tab D2.
+- **`system_caches`** — Cache trùng lặp — nuôi tab D2.
+
+### TẦNG B · `monthly/YYYY-MM.xlsx` — SỰ THẬT THEO THÁNG
+
+Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự điền từ tên file** — bỏ trống cũng đúng.
+
+| Sheet | Cột | Khoá tự nhiên | Loader tự tính |
+|---|---|---|---|
+| `budget_nonmedia` | _month_ · _item_ · budget · actual | month + item | use_rate |
+| `partner_month` | _month_ · _code_ · issued · used · rev · disc | month + code | use_rate |
+| `store_month` | **month** · **store** · **net** · **guest** · **tc** · gross · disc · voucher | month + store | ta · aov · brand · tier |
+| `daily` | **date** · **store** · **net** · guest · tc | date + store | — |
+| `coverage` | _month_ · days_data · days_month · first · last | month | partial |
+| `daypart` | _month_ · _daypart_ · net · tc · guest | month + daypart | — |
+| `channel` | _month_ · _channel_ · net · tc | month + channel | — |
+| `identify` | **month** · **bills** · **id_bills** · items | month | rate |
+| `nature` | **month** · **nature** · **brand** · **rev** · disc · bills | month + nature + brand | — |
+| `recon` | **month** · **store** · **net** · net_item · net_bill · tc · tc_bill · guest · guest_bill | month + store | d_bill |
+| `cogs_cov` | _month_ · rev · rev_cov · sku · sku_cov | month | pct |
+| `ads_month` | _month_ · spend · reach · impr · n | month | — |
+| `ads_brand` | _month_ · _brand_ · spend · reach | month + brand | — |
+| `ads_objective` | _month_ · _objective_ · spend · result | month + objective | — |
+| `ads_campaign_detail` | _month_ · _brand_ · _objective_ · _campaign_ · spend · reach · impr · result | month + brand + objective + campaign | cpr |
+| `ads_google` | _month_ · _campaign_ · store · brand · status · budget_day · spend · conv · clicks · impr | month + campaign | cpa |
+| `gads_channel` | _month_ · _channel_ · impr · clicks · conv · spend | month + channel | — |
+| `gads_kw` | _month_ · _kw_ · clicks · impr · spend · conv | month + kw | — |
+| `voucher_month` | _m_ · _brand_ · used · rev · disc | m + brand | — |
+| `voucher_join` | _m_ · n · hit | m | rate |
+| `oa` | _month_ · follows · msgs · views · menu · content · days | month | — |
+| `member` | _month_ · member · oa · days | month | — |
+| `social_month` | **month** · **platform** · **brand** · _page_ · followers · follows · unfollows · reach · impr · views · profile_views · clicks · likes · comments · shares · saves · engage · posts · spend · days | month + platform + brand + page | net_follow · er · reach_rate · per_post · cpm · audience · unit |
+| `social_post` | _date_ · _platform_ · _brand_ · _page_ · format · _title_ · reach · views · impr · likes · comments · shares · saves · clicks · watch_avg · spend · link | date + platform + brand + page + title | engage · audience · er · unit |
+| `social_target` | _month_ · _platform_ · _kpi_ · target | month + platform + kpi | — |
+| `aggregator` | **month** · **platform** · brand · _store_ · sales · orders · items · guests · discount · commission · ads_spend · note | month + platform + store | aov · take_rate · net_after |
+| `booking` | **month** · _outlet_ · _etype_ · _source_ · **status** · leads · guests · exp · closed | month + outlet + etype + source + status | — |
+| `lead_month` | _m_ · leads · exp | m | — |
+| `lead_source` | _month_ · _src_ · leads · exp | month + src | — |
+| `lead_type` | _month_ · _etype_ · leads · exp | month + etype | — |
+
+- **`budget_nonmedia`** — Chi phí NGOÀI media theo tháng: KOL/KOC, POSM & in ấn, sản xuất nội dung, quà tặng, sự kiện.
+- **`partner_month`** — Kết quả đối tác THEO THÁNG — tách khỏi con số luỹ kế ở sheet partners.
+- **`store_month`** — XƯƠNG SỐNG của hệ thống. net = doanh thu thuần · guest = số khách · tc = số hoá đơn.
+- **`daily`** — Doanh thu theo NGÀY × cửa hàng. Ngày phải nằm trong tháng của file.
+- **`coverage`** — Số ngày THỰC CÓ dữ liệu — nhận diện tháng chưa trọn kỳ. Không khai thì loader suy từ daily.
+- **`daypart`** — Doanh thu theo khung giờ trong ngày.
+- **`channel`** — Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…).
+- **`identify`** — Tỷ lệ hoá đơn nhận diện được khách — trần trên của mọi phép quy doanh thu về khách. `items` = số dòng món đã xử lý trong tháng, nuôi thẻ đếm ở tab D1.
+- **`nature`** — Bản chất chương trình khuyến mãi. nature ∈ COMMERCIAL|INTERNAL|PARTNER|LOYALTY
+- **`recon`** — Đối soát ba tầng: bảng tháng ↔ bảng món ↔ bảng hoá đơn.
+- **`cogs_cov`** — Độ phủ giá vốn theo tháng.
+- **`ads_month`** — Meta Ads tổng theo tháng. CHỈ cộng dòng cấp campaign — cộng cả adset là nhân đôi.
+- **`ads_brand`** — Meta Ads theo brand. Nhãn `Tuyển dụng` không phải marketing thương hiệu.
+- **`ads_objective`** — Meta Ads theo mục tiêu chiến dịch.
+- **`ads_campaign_detail`** — Chi tiết từng chiến dịch Meta trong tháng.
+- **`ads_google`** — Google Ads theo chiến dịch. Đã loại dòng 'Tổng số: …'.
+- **`gads_channel`** — Google Ads theo kênh phân phối (Maps, Tìm kiếm, YouTube…).
+- **`gads_kw`** — Google Ads theo cụm từ tìm kiếm. Đã loại dòng 'Tổng số: …'.
+- **`voucher_month`** — Voucher đã dùng theo tháng × brand.
+- **`voucher_join`** — Tỷ lệ voucher khớp được với hoá đơn trong cùng tháng.
+- **`oa`** — Zalo OA. follows = Quan tâm · views = Xem trang thông tin OA · menu = Tương tác thanh menu · content = Xem nội dung.
+- **`member`** — Member đăng ký mới & OA follow mới theo tháng (số toàn chuỗi).
+- **`social_month`** — Fanpage & TikTok. Facebook điền reach · TikTok điền views — KHÔNG gộp hai cột. platform ∈ FACEBOOK|TIKTOK|INSTAGRAM|YOUTUBE|ZALO
+- **`social_post`** — Bài đăng / video. watch_avg tính bằng GIÂY.
+- **`social_target`** — KPI social cam kết theo tháng, ví dụ kpi = net_follow hoặc er.
+- **`aggregator`** — Nền tảng trung gian (GrabFood, ShopeeFood, Dining City…). sales = doanh thu ghi nhận trên nền tảng.
+- **`booking`** — Booking tiệc & sự kiện — gộp theo tháng SỰ KIỆN × outlet × loại × nguồn × trạng thái. status ∈ Pending|Tentative|Confirmed|Lost
+- **`lead_month`** — Lead tiệc theo tháng. Loader tự sinh từ sheet booking nếu sheet này trống.
+- **`lead_source`** — Lead tiệc theo nguồn. Loader tự sinh từ sheet booking nếu sheet này trống.
+- **`lead_type`** — Lead tiệc theo loại sự kiện. Loader tự sinh từ sheet booking nếu sheet này trống.
+
+### TẦNG C · `02_snapshot.xlsx` — BẢNG LUỸ KẾ TOÀN KỲ
+
+Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, không nối thêm.
+
+| Sheet | Cột | Khoá tự nhiên | Loader tự tính |
+|---|---|---|---|
+| `product` | **ma** · **name** · _cat_ · _grp_ · **qty** · **rev** · cogs | ma + name + cat + grp | has_cogs · cm · cm_pct · mclass |
+| `category` | _cat_ · qty · rev | cat | — |
+| `group` | _grp_ · qty · rev | grp | — |
+| `heat` | _dow_ · _hour_in_ · net · tc | dow + hour_in | — |
+| `zone` | _store_ · _zone_ · net · tc | store + zone | — |
+| `staff` | _store_ · _name_ · net · tc · guest | store + name | aov |
+| `payment` | _pttt_ · net · tc | pttt | — |
+| `dwell` | _store_ · n · mean · median | store | — |
+| `repeat` | _label_ · n | label | — |
+| `campaigns` | _name_ · _nature_ · _brand_ · rev · bills | name + nature + brand | — |
+| `voucher_prog` | _prog_ · _brand_ · issued · used · rev · disc | prog + brand | rate |
+| `social_format` | _platform_ · _format_ · posts · reach · views · engage | platform + format | er |
+
+- **`product`** — Bảng món LUỸ KẾ toàn kỳ. Nếu cắt top-N thì bắt buộc khai tổng thật ở _stats.
+- **`category`** — Cơ cấu theo Loại món — tính trên TOÀN BỘ SKU, không chỉ phần đã cắt.
+- **`group`** — Cơ cấu theo Nhóm món — tính trên TOÀN BỘ SKU.
+- **`heat`** — Ma trận giờ vào × thứ. dow: 0 = Thứ 2 … 6 = Chủ nhật.
+- **`zone`** — Doanh thu theo khu vực bàn.
+- **`staff`** — Doanh thu theo nhân viên phục vụ.
+- **`payment`** — Doanh thu theo phương thức thanh toán.
+- **`dwell`** — Thời gian ngồi bàn (phút). Bỏ trống `store` = số toàn chuỗi.
+- **`repeat`** — Phân bố số lần quay lại của khách nhận diện được.
+- **`campaigns`** — Chương trình khuyến mãi luỹ kế toàn kỳ.
+- **`voucher_prog`** — Chương trình voucher luỹ kế toàn kỳ.
+- **`social_format`** — Hiệu quả theo định dạng bài đăng — chỉ cần khi social_post đã cắt top-N.
+
+### TẦNG D · `_stats` — đặt ở file nào cũng được
+
+Cửa thoát cho con số tổng mà bảng đã cắt top-N không suy lại được.
+
+| Sheet | Cột | Khoá tự nhiên | Loader tự tính |
+|---|---|---|---|
+| `_stats` | _table_ · _field_ · value | table + field | — |
+
+- **`_stats`** — Cửa thoát cho con số tổng mà bảng đã cắt top-N không suy lại được. Loader ƯU TIÊN giá trị ở đây. Dòng product_stat/covers khai kỳ mà bảng luỹ kế thực sự phủ — M2 hiện dòng này.
+
+> Cột **đậm** là bắt buộc · cột _nghiêng_ nằm trong khoá tự nhiên (trùng khoá thì file đọc sau thắng).
+<!-- /AUTO:SHEETS -->
+
+---
+
+## 5. Sheet `_stats` — cửa thoát cho con số tổng
+
+Một số bảng bị **cắt top-N** khi xuất (ví dụ `product` chỉ giữ 700 mã bán chạy nhất). Tính
+lại tổng từ bảng đã cắt sẽ ra số sai. Sheet `_stats` cho phép khai giá trị đúng:
+
+| table | field | value |
+|---|---|---|
+| `product_stat` | `sku` | 1439 |
+| `menu_median` | `qty` | 216 |
+| `meta` | `cogs_coverage` | 0.4627 |
+
+Loader **ưu tiên giá trị ở `_stats`**, chỉ tự tính khi không có khai báo. Giá trị dạng danh
+sách được ghi JSON và loader tự giải mã ngược.
+
+> Trung vị cắt ma trận Menu Engineering **bắt buộc** phải khai ở đây nếu `product` đã cắt
+> top-N — tính trên tập đã cắt sẽ đẩy trung vị lên và xếp sai hạng Star/Plow-horse/Puzzle/Dog.
+
+**Đừng khai ở `_stats` những con số loader tính được.** Khai cứng là đóng băng: bản trước khai
+`gads_stat.period = "1 tháng 8, 2026 – 26 tháng 8"` và `member_stat.total = 94`, nên mỗi lần
+nộp tháng mới hai con số đó vẫn nói kỳ cũ. Cả hai đã được gỡ và tính lại từ dữ liệu.
+
+---
+
+## 6. Mười lăm chốt kiểm tra
+
+Chi tiết ngưỡng và cách xử lý: [`40_QA_GATES.md`](40_QA_GATES.md).
+
+**Chốt 1–4 là chốt gác cổng: fail thì build DỪNG** (thoát mã 1), Vercel báo lỗi deploy. Đây
+là chủ ý — thà không deploy còn hơn phát tán số sai. Chốt 5–15 fail thì vẫn build, nhưng
+hiện đỏ ở tab D1.
+
+Nếu loader gặp lỗi mà `src/data/data.json` cũ vẫn còn, nó **giữ bản cũ và cho build tiếp** —
+app không bao giờ trắng trang vì một file Excel hỏng.
+
+---
+
+## 7. Quy tắc điền dữ liệu
+
+**❶ Ô trống ≠ số 0.** Ô trống nghĩa là *chưa đo được*; số 0 nghĩa là *đã đo và bằng không*.
+Loader giữ nguyên phân biệt này và màn hình hiển thị `—` cho ô trống.
+
+Đây không phải quy ước hình thức. Ba chỗ trong bản trước đã hiện `0` cho dữ liệu chưa đo và
+nói sai hẳn nghĩa: `use_rate` của đối tác thành "0,0% — chương trình thất bại", `take_rate`
+của GrabFood thành "nền tảng không giữ đồng nào", và số bài đăng Fanpage thành "tháng này
+không đăng gì". Cả ba đã sửa thành `—`.
+
+**❷ Đừng điền cột dẫn xuất.** Cột ở mục *Loader tự tính* của bảng §4. Điền tay sẽ bị ghi đè,
+và nếu công thức của bạn khác thì số sẽ lệch với phần còn lại của hệ thống (vi phạm NT2).
+
+**❸ Giữ nguyên tên sheet và tên cột.** Cột lạ được bỏ qua im lặng — thoải mái thêm cột ghi
+chú riêng. Sheet lạ thì chốt #14 báo.
+
+**❹ Ngày `YYYY-MM-DD`, tháng `YYYY-MM`.** Loader nhận cả ô Date của Excel.
+
+**❺ Ô công thức được đọc theo kết quả**, không đọc công thức.
+
+---
+
+## 8. Lệnh
+
+```bash
+python tools/build_month.py 2026-09     # dữ liệu thô → data_input/monthly/2026-09.xlsx
+python tools/build_month.py --all       # dựng lại mọi tháng có trong nguồn
+python tools/gen_contract_doc.py        # sinh lại §4 của tài liệu này từ hợp đồng
+
+npm run build:data                      # data_input/ → src/data/*.json + 15 chốt QA
+npm run build:data -- --v               # thêm chi tiết từng sheet đọc được
+npm run dev                             # localhost:3001
+npm run build                           # build production (Vercel dùng lệnh này)
+```
+
+---
+
+## 9. Di trú từ bộ 4 workbook cũ
+
+Bản trước dùng `01_master` · `02_sales` · `03_marketing` · `04_social`. Chuyển sang cấu trúc
+ba tầng bằng một lệnh:
+
+```bash
+python tools/split_to_monthly.py
+```
+
+Bản cũ được dời vào `_archive/data_input_v1/` chứ không xoá. Sáu sheet bị cố ý bỏ khi di trú
+vì bản cũ là ảnh chụp lệch kỳ — `ads_campaign_detail` (top-40 gộp cả 8 tháng), `ads_google` ·
+`gads_channel` · `gads_kw` (ảnh chụp 01–26/08), `lead_month` · `lead_source` · `lead_type`
+(dừng ở 05/2026). Tất cả được `tools/build_month.py` dựng lại đúng tháng từ dữ liệu thô.

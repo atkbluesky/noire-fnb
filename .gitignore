@@ -1,0 +1,53 @@
+# ─── Phụ thuộc & build ────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# ─── Dữ liệu SINH RA TỰ ĐỘNG từ data_input/*.xlsx ────────────────────
+# Nguồn sự thật là Excel trong data_input/, không phải hai file này.
+# Chạy `npm run build:data` (hoặc npm run dev / build) để sinh lại.
+src/data/data.json
+src/data/data_mkt.json
+src/data/daily.json
+src/data/product.json
+
+# ─── Lane dữ liệu thô (chỉ tồn tại ở máy local, KHÔNG đẩy lên GitHub) ─
+L0_input/
+!L0_input/README.md
+!L0_input/**/.gitkeep
+_cache/
+qa_log_*.txt
+
+# ─── Sản phẩm lane thô Python (chỉ tồn tại ở máy local) ──────────────
+/data.json
+/data_mkt.json
+
+# ─── Kho lưu bản cũ đã ngừng dùng ────────────────────────────────────
+_archive/
+
+# ─── Python ─────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ─── Hệ điều hành / IDE ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# ─── data_input/ PHẢI được commit — gỡ luật *.xlsx của repo cha ──────
+# .gitignore ở gốc repo (Code System/) loại toàn bộ *.xlsx cho dự án
+# google_maps_reviews_system. Luật đó cũng chặn luôn data_input/ của dự án này,
+# tức là nguồn sự thật sẽ không lên GitHub và bước prebuild trên Vercel sẽ
+# chết với lỗi "data_input/ chưa có file .xlsx nào".
+!data_input/**/*.xlsx
+
+# ─── File tạm của Excel khi đang mở ──────────────────────────────────
+# Đặt SAU dòng phủ định ở trên: luật khớp cuối cùng thắng, nên file ~$ vẫn bị loại.
+~$*.xlsx
+~$*.xls
+
+# ─── File .bak rác sinh ra khi ghi đè workbook ────────────────────────
+*.bak

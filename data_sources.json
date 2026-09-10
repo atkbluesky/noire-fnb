@@ -1,0 +1,500 @@
+{
+  "_about": "NOIRE ANALYTICS HUB — SỔ ĐĂNG KÝ NGUỒN DỮ LIỆU L0 (single source of truth).",
+  "_rule": "Thêm nguồn / thêm tháng / thêm cửa hàng = sửa file này + thả file vào đúng thư mục. KHÔNG sửa code ETL (NT3).",
+  "_note_path": "Mọi 'dir' tính từ gốc dữ liệu. Gốc dữ liệu = L0_input/ (mặc định), hoặc biến môi trường NOIRE_ROOT, hoặc cây HIGHGATE gốc. Xem docs/10_L0_INPUT_CONTRACT.md.",
+  "version": "1.0",
+  "updated": "2026-09-10",
+  "root_resolution": {
+    "order": [
+      "$NOIRE_ROOT",
+      "<project>/L0_input",
+      "<project>/..",
+      "D:\\PROJECT\\3. HIGHGATE 5.2026"
+    ],
+    "hub_marker": "05 Data Raw",
+    "mkt_marker": "04 Marketing Campaigns | 10 Partnership Analytics"
+  },
+  "sources": [
+    {
+      "id": "S01_item",
+      "layer": "L2",
+      "produces": "fact_item",
+      "grain": "1 dòng = 1 món trong 1 hoá đơn",
+      "etl": "build_hub.py :: load_items()",
+      "dir": "05 Data Raw/01 Sales Revenue/2. Báo Cáo bán hàng 2026",
+      "pattern": "*.xlsx",
+      "month_regex": "(?:tháng|thang|T)\\s*(\\d{1,2})[\\.\\s]*(\\d{4})",
+      "example": "Báo cáo bán hàng tháng 8.2026.xlsx",
+      "cadence": "hàng tháng",
+      "required": true,
+      "header_row": 1,
+      "cache": "_cache/ITEM_<YYYY-MM>.pkl",
+      "traps": [
+        "Có dòng 'Tổng' lẫn trong dữ liệu — nạp nhầm là nhân đôi toàn bộ",
+        "File ~60MB: đọc bằng openpyxl read_only, KHÔNG dùng pd.read_excel"
+      ],
+      "key_columns": [
+        "Cửa hàng",
+        "Mã hàng",
+        "Tên hàng",
+        "Nhóm món",
+        "Loại món",
+        "Mã hoá đơn",
+        "Thời gian",
+        "Giờ",
+        "Số lượng",
+        "Giá",
+        "Giá bán",
+        "Thành tiền",
+        "Tổng tiền",
+        "Tên CTKM",
+        "Mã voucher"
+      ],
+      "feeds_modules": [
+        "M1",
+        "M2",
+        "M8",
+        "R1"
+      ]
+    },
+    {
+      "id": "S02_bill",
+      "layer": "L2",
+      "produces": "fact_bill",
+      "grain": "1 dòng = 1 hoá đơn",
+      "etl": "build_hub.py :: load_bills()",
+      "dir": "05 Data Raw/01 Sales Revenue/1. Bảng Kê HD 2026",
+      "pattern": "*.xlsx",
+      "month_regex": "(?:tháng|thang|T)\\s*(\\d{1,2})[\\.\\s]*(\\d{4})",
+      "example": "accounting_sale T8.2026.xlsx",
+      "cadence": "hàng tháng",
+      "required": true,
+      "header_row": 1,
+      "cache": "_cache/BILL_<YYYY-MM>.pkl",
+      "traps": [
+        "Dòng tổng trá hình: cột 'Mã hoá đơn' ghi 'TẠI CHỖ' / 'MANG VỀ' / 'GRAB'",
+        "Ô rỗng của iPOS là ký tự vô hình \\u200b — không làm sạch thì tỷ lệ nhận diện khách báo 100%"
+      ],
+      "key_columns": [
+        "Cửa hàng",
+        "Mã hoá đơn",
+        "Số HĐ",
+        "Số khách",
+        "Nguồn",
+        "Khu vực",
+        "Ngày chứng từ",
+        "Giờ vào",
+        "Giờ ra",
+        "Bàn",
+        "PTTT",
+        "Tổng tiền",
+        "Nhân viên",
+        "Số điện thoại"
+      ],
+      "feeds_modules": [
+        "M0",
+        "M1",
+        "M3",
+        "M9",
+        "R1"
+      ],
+      "also_produces": "_cache/bill_index.pkl (build_mkt.py cần để join voucher ↔ hoá đơn)"
+    },
+    {
+      "id": "S03_daily",
+      "layer": "L2",
+      "produces": "fact_sales_daily",
+      "grain": "ngày × cửa hàng",
+      "etl": "build_hub.py :: load_daily()",
+      "dir": "05 Data Raw/01 Sales Revenue/Doanh thu 2026",
+      "pattern": "revenue-report-group-by-date*.xlsx | revenue_by_stores_per_day*.xlsx",
+      "example": "revenue-report-group-by-date T1-T7.xlsx",
+      "cadence": "hàng tháng (hoặc dồn nhiều tháng 1 file)",
+      "required": false,
+      "header_row": 1,
+      "feeds_modules": [
+        "M1"
+      ]
+    },
+    {
+      "id": "S04_monthly",
+      "layer": "L2",
+      "produces": "fact_sales_monthly",
+      "grain": "tháng × cửa hàng",
+      "role": "NGUỒN ĐỐI SOÁT — không phải nguồn lấy số",
+      "etl": "build_hub.py :: load_monthly()",
+      "dir": "05 Data Raw/01 Sales Revenue/Doanh thu 2026",
+      "pattern": "*.xlsx (loại trừ group-by-date / per_day)",
+      "example": "revenue-report tháng 8.2026.xlsx",
+      "cadence": "hàng tháng",
+      "required": true,
+      "header_row": 1,
+      "traps": [
+        "Có dòng 'TỔNG:' — phải loại"
+      ],
+      "key_columns": [
+        "Số khách",
+        "Số HĐ",
+        "Doanh thu Gross",
+        "Doanh thu Net",
+        "Giảm giá",
+        "Chiết khấu",
+        "Hoa hồng",
+        "Phiếu GG"
+      ],
+      "feeds_modules": [
+        "D1",
+        "M1"
+      ],
+      "qa_gates": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "S05_bom",
+      "layer": "L1",
+      "produces": "dim_product (COGS)",
+      "grain": "1 mã món",
+      "etl": "build_hub.py :: load_bom()",
+      "dir": "02 Products/02 Costing BOM/BOM Update T7.2026",
+      "pattern": "NOIRE_COGS_CHUAN_ALL_BRANDS_2026_CleanData.xlsx",
+      "sheet": "01_COGS_ALL",
+      "header_row": 3,
+      "cadence": "khi Bếp/Cost control cập nhật",
+      "required": false,
+      "blocking": "Độ phủ hiện 46,3% doanh thu — chặn M2, CM%, Prime Cost (chốt QA #8)",
+      "feeds_modules": [
+        "M2",
+        "R1"
+      ]
+    },
+    {
+      "id": "S06_target",
+      "layer": "L1",
+      "produces": "dim_target",
+      "grain": "cửa hàng × tháng",
+      "etl": "build_hub.py — mục M",
+      "dir": "05 Data Raw/01 Sales Revenue",
+      "pattern": "Noire Sales Target Q3 2026.xlsx",
+      "header_row": 2,
+      "cadence": "hàng quý",
+      "required": false,
+      "note": "Tên cửa hàng trong file target viết khác POS — map qua TARGET_ALIAS (map_store_loose)",
+      "feeds_modules": [
+        "M0",
+        "M1"
+      ]
+    },
+    {
+      "id": "S07_lead",
+      "layer": "L2",
+      "produces": "fact_lead",
+      "grain": "1 lead (1 dòng inquiry)",
+      "etl": "build_hub.py — mục L",
+      "dir": "05 Data Raw/01 Sales Revenue",
+      "pattern": "DATA- SALE NOIRE- 2026 Lead Tiệc.xlsx",
+      "cadence": "hàng tuần",
+      "required": false,
+      "traps": [
+        "'Number of Guests' là text ('50 pax ') — phải parse",
+        "'Expected Revenue' rỗng → giữ NULL, KHÔNG điền 0"
+      ],
+      "feeds_modules": [
+        "M11"
+      ]
+    },
+    {
+      "id": "S08_ads_meta",
+      "layer": "L2",
+      "produces": "fact_ads (Meta)",
+      "grain": "campaign × tháng",
+      "etl": "build_mkt.py :: load_ads_dir()",
+      "dir": "05 Data Raw/03 Digital Ads/Facebook Ads/1. Raw Ads 2026",
+      "fallback_dir": "04 Marketing Campaigns/03 Digital Ads/Facebook Ads/1. Raw Ads 2026",
+      "pattern": "*.xlsx (bỏ file có '_content')",
+      "month_regex": "(\\d{4})-(\\d{2})",
+      "example": "2026-08 report.xlsx",
+      "sheet": "Raw Data Report",
+      "header_row": 2,
+      "cadence": "hàng tháng",
+      "required": false,
+      "traps": [
+        "File export có CẢ dòng cấp 'campaign' lẫn 'adset' (có tháng tách theo tuổi × giới tính) → phải lọc 'Cấp độ phân phối = campaign', nếu không sai gấp 3,5 lần",
+        "Chiến dịch tuyển dụng HR nằm chung tài khoản — tách khỏi Ad Cost Ratio"
+      ],
+      "feeds_modules": [
+        "M5",
+        "R1"
+      ],
+      "qa_gates": [
+        10
+      ]
+    },
+    {
+      "id": "S09_ads_google",
+      "layer": "L2",
+      "produces": "fact_ads (Google)",
+      "grain": "campaign × kỳ",
+      "etl": "build_mkt.py — mục 1b",
+      "dir": "05 Data Raw/03 Digital Ads/Google Ads",
+      "files": [
+        "Báo cáo chiến dịch.xlsx",
+        "Báo cáo thông tin chi tiết về cụm từ tìm kiếm.xlsx",
+        "Báo cáo cụm từ tìm kiếm.xlsx"
+      ],
+      "header_row": 2,
+      "cadence": "hàng tháng",
+      "required": false,
+      "traps": [
+        "Báo cáo cụm từ tìm kiếm có xen dòng 'Tổng số: Chiến dịch' — không loại sẽ nhân đôi chi phí"
+      ],
+      "feeds_modules": [
+        "M5",
+        "R1"
+      ]
+    },
+    {
+      "id": "S10_budget",
+      "layer": "L1",
+      "produces": "dim_budget",
+      "grain": "brand × kênh × tháng",
+      "etl": "build_mkt.py — mục 1c",
+      "dir": "01 Strategic/03 Budget Allocation",
+      "files": [
+        "NOIRE_MKT_Q3_2026_Checked_Ads_Channel_by_Month_Brand.xlsx",
+        "NOIRE - MKT Phân Bổ Ngân Sách Q3.2026 - Final.xlsx"
+      ],
+      "sheets": [
+        "Summary",
+        "Budget Brand | Brand MKT",
+        "Budget Booking Tiệc + CRM | Extra Budget",
+        "Budget Store Ads"
+      ],
+      "cadence": "hàng quý",
+      "required": false,
+      "traps": [
+        "Sheet có dòng trống xen giữa tiêu đề và bảng — dùng find_header() dò theo từ khoá, KHÔNG đọc cứng header=1"
+      ],
+      "feeds_modules": [
+        "M4",
+        "M5",
+        "R1"
+      ]
+    },
+    {
+      "id": "S11_voucher",
+      "layer": "L2",
+      "produces": "fact_voucher",
+      "grain": "1 mã voucher",
+      "etl": "build_mkt.py :: load_vouchers()",
+      "dir": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/01. Data Voucher iPOS",
+      "pattern": "*.xlsx",
+      "example": "exportVoucherLogOfCampaign_*.xlsx",
+      "cadence": "hàng tuần",
+      "required": false,
+      "note": "Nhiều file là bản export lại cùng campaign → khử trùng theo 'Mã khuyến mãi', giữ bản mới nhất",
+      "join": "'Mã giao dịch' ↔ 'Mã hoá đơn' (bill_index.pkl) — khớp 99,0% trong phạm vi có bảng kê",
+      "feeds_modules": [
+        "M9",
+        "M10"
+      ],
+      "qa_gates": [
+        11
+      ]
+    },
+    {
+      "id": "S12_zalo_oa",
+      "layer": "L2",
+      "produces": "fact_oa",
+      "grain": "ngày (rollup tháng)",
+      "etl": "build_mkt.py :: load_oa()",
+      "dir": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/02. Data CRM/04. KPI Actual/01. OA Zalo",
+      "pattern": "OA Zalo T*.xls",
+      "month_regex": "T(\\d{1,2})\\.(\\d{4})",
+      "cadence": "hàng tháng",
+      "required": false,
+      "traps": [
+        "File .xls THẬT RA LÀ HTML — đọc bằng pd.read_html, cần lxml"
+      ],
+      "feeds_modules": [
+        "M9"
+      ]
+    },
+    {
+      "id": "S13_member",
+      "layer": "L2",
+      "produces": "fact_member",
+      "grain": "ngày",
+      "etl": "build_mkt.py — mục 4",
+      "dir": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/02. Data CRM/04. KPI Actual/02. Member Đăng Ký",
+      "pattern": "member_actual_iPOS_CRM_v2.xlsx",
+      "sheet": "Actual",
+      "cadence": "hàng tháng",
+      "required": false,
+      "traps": [
+        "File là biểu mẫu tới hết năm — tháng chưa tới toàn số 0, script tự loại"
+      ],
+      "feeds_modules": [
+        "M9"
+      ]
+    },
+    {
+      "id": "S14_crm_kpi",
+      "layer": "L1",
+      "produces": "dim_target (CRM)",
+      "grain": "tháng × loại KPI",
+      "etl": "build_mkt.py — mục 4",
+      "dir": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/02. Data CRM/03. KPI Plan",
+      "pattern": "NOIRE Q3. 2026 KPI CRM PhanBoNgay V2.xlsx",
+      "sheet": "KPI Target",
+      "cadence": "hàng quý",
+      "required": false,
+      "feeds_modules": [
+        "M9"
+      ]
+    },
+    {
+      "id": "S15_partnership",
+      "layer": "L1",
+      "produces": "dim_partner",
+      "grain": "1 đối tác / 1 mã CTKM",
+      "etl": "build_mkt.py — mục 5",
+      "dir": "10 Partnership Analytics",
+      "pattern": "00_Danh_Muc_Partnership.xlsx",
+      "sheets": [
+        "1. Đối Tác",
+        "2. Mã CTKM"
+      ],
+      "cadence": "khi có đối tác mới",
+      "required": false,
+      "note": "Kết quả thật của từng đối tác lấy từ S11_voucher qua 'Campaign ID iPOS'",
+      "feeds_modules": [
+        "M10"
+      ]
+    },
+    {
+      "id": "S16_pre_analytics",
+      "layer": "L3.5",
+      "produces": "plan_promotion",
+      "grain": "1 chương trình đề xuất",
+      "etl": "build_mkt.py — mục 6",
+      "dir": "04 Marketing Campaigns/02 LTO Promotions/2026 Q3",
+      "pattern": "NOIRE_Promotion_Pre-Analysis_Q3_2026.xlsx",
+      "sheet": "1. Tổng hợp (Master)",
+      "header_row": 3,
+      "cadence": "hàng quý",
+      "required": false,
+      "feeds_modules": [
+        "M7",
+        "R1"
+      ]
+    },
+    {
+      "id": "S17_lto_actual",
+      "layer": "L2",
+      "produces": "campaign_actual",
+      "grain": "1 chương trình đã chạy",
+      "etl": "build_mkt.py (dự phòng)",
+      "dir": "04 Marketing Campaigns/02 LTO Promotions/2026 Q2",
+      "pattern": "NOIRE_Bao_Cao_Hieu_Qua_LTO_Summer_Crush_Q2.2026.xlsx",
+      "cadence": "sau mỗi campaign",
+      "required": false,
+      "feeds_modules": [
+        "M8"
+      ]
+    },
+    {
+      "id": "S18_social",
+      "layer": "L1",
+      "produces": "social_month",
+      "grain": "1 tháng × nền tảng × brand × kênh",
+      "etl": "tools/build_month.py -> read_facebook_pages() -> sheet social_month cua data_input/monthly/YYYY-MM.xlsx",
+      "dir": "05 Data Raw/04 Social",
+      "pattern": "Fanpage_Insights_*.xlsx | TikTok_Analytics_*.xlsx | *.csv",
+      "cadence": "hàng tháng",
+      "required": false,
+      "feeds_modules": [
+        "M6",
+        "R1"
+      ],
+      "note": "Xuất tay từ Meta Business Suite và TikTok Analytics. Facebook cho reach (tài khoản), TikTok cho views (lượt) — KHÔNG cộng chéo. Phần lớn metric Page Insights của Meta đã bị gỡ khỏi mọi phiên bản Graph API nên không tự động hoá được; xem docs/modules/M6_Social_Media.md §6."
+    }
+  ],
+  "missing_data_register": [
+    {
+      "no": 1,
+      "item": "COGS 1.200 SKU còn thiếu",
+      "blocks": [
+        "M2",
+        "M0"
+      ],
+      "owner": "Bếp + Cost control",
+      "status": "đang chặn"
+    },
+    {
+      "no": 2,
+      "item": "Số chỗ ngồi mỗi bàn (đã có 217 bàn · 18 khu vực)",
+      "blocks": [
+        "M3"
+      ],
+      "owner": "Ops",
+      "status": "đang chặn"
+    },
+    {
+      "no": 3,
+      "item": "Chi phí nhân sự & mặt bằng theo cửa hàng × tháng",
+      "blocks": [
+        "M0",
+        "M4"
+      ],
+      "owner": "Kế toán",
+      "status": "chưa có nguồn"
+    },
+    {
+      "no": 4,
+      "item": "Zalo Ads (34,4tr Q3 chưa ghi nhận chi tiêu nào)",
+      "blocks": [
+        "M5"
+      ],
+      "owner": "MKT",
+      "status": "chưa triển khai / chưa có nguồn"
+    },
+    {
+      "no": 5,
+      "item": "Social organic — Meta Business Suite + TikTok Analytics export",
+      "blocks": [
+        "M6"
+      ],
+      "owner": "MKT",
+      "status": "4 kênh Fanpage (NCB · NDC · NJFB · NEC) từ T7/2026 · TikTok chưa có export số"
+    },
+    {
+      "no": 6,
+      "item": "Đánh giá khách Google/Facebook",
+      "blocks": [
+        "CX"
+      ],
+      "owner": "MKT",
+      "status": "chưa thu thập"
+    },
+    {
+      "no": 7,
+      "item": "Aggregator export (Grab Dine Out · Dining City)",
+      "blocks": [
+        "M10"
+      ],
+      "owner": "Partnership",
+      "status": "đang điền tay"
+    },
+    {
+      "no": 8,
+      "item": "NDC Berkley — chưa xuất hiện trong file POS nào",
+      "blocks": [
+        "tất cả"
+      ],
+      "owner": "Ops",
+      "status": "cần xác nhận vận hành"
+    }
+  ]
+}
