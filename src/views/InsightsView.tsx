@@ -363,7 +363,7 @@ export const InsightsView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5 p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

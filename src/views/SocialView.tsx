@@ -112,7 +112,7 @@ export const SocialView: React.FC = () => {
   /* ── Trạng thái chưa nộp dữ liệu ───────────────────────────────── */
   if (!S || S.empty) {
     return (
-      <div className="space-y-5 p-6 max-w-[1600px] mx-auto">
+      <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
         <div>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
             KÊNH SỞ HỮU — KHÔNG TRẢ TIỀN CHO TỪNG LƯỢT
@@ -665,7 +665,7 @@ export const SocialView: React.FC = () => {
   }, [allPosts]);
 
   return (
-    <div className="space-y-6 p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-6 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header & Bộ chuyển kênh nhanh */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Search, Printer, Calendar, Sun, Moon } from 'lucide-react';
+import { Search, Printer, Calendar, Sun, Moon, Menu } from 'lucide-react';
 import { useFilters } from '../../context/FilterContext';
 import { NAVIGATION_GROUPS } from './Sidebar';
 import { HUB_DATA } from '../../data';
 
 export const TopHeader: React.FC = () => {
-  const { activeView, setIsCommandPaletteOpen, theme, toggleTheme } = useFilters();
+  const { activeView, setIsCommandPaletteOpen, theme, toggleTheme, toggleSidebar } = useFilters();
 
   // Find active item info
   let currentGroup = '';
@@ -25,21 +25,30 @@ export const TopHeader: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-brand-border bg-brand-surface/90 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-brand-border bg-brand-surface/90 px-3 sm:px-6 backdrop-blur-md">
+      {/* Hamburger — chỉ hiện dưới breakpoint lg, mở drawer sidebar */}
+      <button
+        onClick={toggleSidebar}
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-brand-muted hover:bg-brand-cardHover hover:text-brand-text lg:hidden"
+        aria-label="Mở menu điều hướng"
+      >
+        <Menu className="h-4.5 w-4.5" />
+      </button>
+
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-brand-muted font-medium">
+      <div className="flex min-w-0 flex-1 items-center gap-2 text-xs">
+        <span className="hidden text-brand-muted font-medium sm:inline flex-shrink-0">
           {currentGroup.split('·')[0].trim()}
         </span>
-        <span className="text-brand-faint">/</span>
-        <span className="font-bold text-brand-text flex items-center gap-1.5">
-          <span className="font-mono text-brand-gold">{currentItem?.code}</span>
-          <span>{currentItem?.title}</span>
+        <span className="hidden text-brand-faint sm:inline flex-shrink-0">/</span>
+        <span className="font-bold text-brand-text flex items-center gap-1.5 min-w-0">
+          <span className="font-mono text-brand-gold flex-shrink-0">{currentItem?.code}</span>
+          <span className="truncate">{currentItem?.title}</span>
         </span>
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
         {/* Quick Search */}
         <button
           onClick={() => setIsCommandPaletteOpen(true)}

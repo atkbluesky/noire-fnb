@@ -13,9 +13,9 @@ import {
   Handshake,
   CalendarCheck,
   Lightbulb,
-  Database,
-  Network,
   ShieldCheck,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useFilters } from '../../context/FilterContext';
 import { HUB_DATA, MKT_DATA } from '../../data';
@@ -38,28 +38,12 @@ export interface NavGroup {
  *  không phải sửa tay ở đây mỗi lần khối social có/chưa có số. */
 const SOCIAL_READY = !(MKT_DATA.social?.empty ?? true);
 
+/** KHỐI 0 · QUẢN TRỊ DỮ LIỆU (D1 Kho dữ liệu & QA · D2 Bản đồ hệ thống) — ẩn khỏi
+ *  menu vì hệ thống có nhiều người xem, không cần lộ ra khối vận hành/kỹ thuật nội bộ.
+ *  Route 'd1'/'d2' trong App.tsx vẫn giữ nguyên (không xoá màn hình) — chỉ gỡ lối vào
+ *  từ Sidebar và CommandPalette (cả hai đều đọc từ NAVIGATION_GROUPS này). Muốn bật lại
+ *  thì đưa khối này về trước 'I · KẾT QUẢ KINH DOANH'. */
 export const NAVIGATION_GROUPS: NavGroup[] = [
-  {
-    groupTitle: 'KHỐI 0 · QUẢN TRỊ DỮ LIỆU',
-    items: [
-      {
-        id: 'd1',
-        code: 'D1',
-        title: 'Kho dữ liệu & QA',
-        icon: <Database className="h-4 w-4" />,
-        status: 'ok',
-        statusText: 'Chốt QA',
-      },
-      {
-        id: 'd2',
-        code: 'D2',
-        title: 'Bản đồ hệ thống',
-        icon: <Network className="h-4 w-4" />,
-        status: 'warning',
-        statusText: 'Phân mảnh',
-      },
-    ],
-  },
   {
     groupTitle: 'I · KẾT QUẢ KINH DOANH',
     items: [
@@ -181,46 +165,74 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
   },
 ];
 
-interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-}
-
-export const Sidebar: React.FC<SidebarProps> = () => {
-  const { activeView, setActiveView } = useFilters();
+export const Sidebar: React.FC = () => {
+  const { activeView, setActiveView, isSidebarOpen, setSidebarOpen } = useFilters();
 
   // Đếm trên CẢ HAI khối — trước đây chỉ đếm khối POS nên số hiển thị thiếu 2 chốt marketing.
   const allQA = [...(HUB_DATA.qa || []), ...(MKT_DATA.qa || [])];
   const totalQA = allQA.length;
   const passedQA = allQA.filter(q => q.ok).length;
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-72 flex-col border-r border-brand-border bg-brand-surface text-brand-text select-none">
-      {/* Brand Header */}
-      <div className="border-b border-brand-border px-5 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-goldLight to-brand-gold text-brand-dark font-bold text-xs shadow-glow-sm">
-            N
-          </div>
-          <div>
-            <h1 className="font-display text-sm font-extrabold tracking-wider text-brand-text">
-              NOIRE HUB
-            </h1>
-            <p className="text-[10px] text-brand-muted tracking-wide">
-              NCB · NDC · NJFB — Highgate
-            </p>
-          </div>
-        </div>
+  // Đóng drawer bằng phím Esc — cùng thói quen với Command Palette.
+  React.useEffect(() => {
+    if (!isSidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSidebarOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isSidebarOpen, setSidebarOpen]);
 
-        <div className="mt-3 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 rounded bg-brand-gold/10 px-2 py-0.5 text-[9px] font-bold text-brand-goldLight border border-brand-gold/30">
-            DỮ LIỆU THẬT · {HUB_DATA.meta.months.length} THÁNG
-          </span>
-          <span className="text-[10px] font-mono text-brand-faint">
-            v3.0 Vercel
-          </span>
+  return (
+    <>
+      {/* Lớp phủ — chỉ hiện dưới breakpoint lg khi drawer đang mở. Chạm vào để đóng. */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[1px] lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col border-r border-brand-border bg-brand-surface text-brand-text select-none transition-transform duration-200 ease-in-out lg:z-30 lg:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="border-b border-brand-border px-5 py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-goldLight to-brand-gold text-brand-dark font-bold text-xs shadow-glow-sm">
+                N
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-display text-sm font-extrabold tracking-wider text-brand-text">
+                  NOIRE HUB
+                </h1>
+                <p className="text-[10px] text-brand-muted tracking-wide truncate">
+                  NCB · NDC · NJFB — Highgate
+                </p>
+              </div>
+            </div>
+            {/* Nút đóng — chỉ hiện trên di động/tablet, desktop không cần vì sidebar
+                luôn cố định và không chiếm chỗ nội dung. */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="flex-shrink-0 rounded-lg p-1.5 text-brand-muted hover:bg-brand-cardHover hover:text-brand-text lg:hidden"
+              aria-label="Đóng menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 rounded bg-brand-gold/10 px-2 py-0.5 text-[9px] font-bold text-brand-goldLight border border-brand-gold/30">
+              DỮ LIỆU THẬT · {HUB_DATA.meta.months.length} THÁNG
+            </span>
+            <span className="text-[10px] font-mono text-brand-faint">
+              v3.0 Vercel
+            </span>
+          </div>
         </div>
-      </div>
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
@@ -286,6 +298,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           {HUB_DATA.meta.rows_bill?.toLocaleString()} HĐ · {HUB_DATA.meta.rows_item?.toLocaleString()} dòng món
         </p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };

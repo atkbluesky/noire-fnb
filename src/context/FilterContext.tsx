@@ -44,6 +44,11 @@ export interface FilterContextType {
   setActiveView: (viewId: string) => void;
   isCommandPaletteOpen: boolean;
   setIsCommandPaletteOpen: (open: boolean) => void;
+  /** Drawer sidebar trên di động (< lg). Ở desktop sidebar luôn hiện bằng CSS
+   *  (lg:translate-x-0), cờ này chỉ có tác dụng dưới breakpoint lg. */
+  isSidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
@@ -90,6 +95,24 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [activeView, setActiveView] = useState<string>('m0');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isSidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+
+  // Đổi màn hình thì tự đóng drawer — trên di động, mở lại menu để chọn tab khác
+  // mà không cần bấm nút đóng trước, đúng hành vi người dùng mong đợi.
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [activeView]);
+
+  // Khoá cuộn nền khi drawer đang mở trên di động, tránh cảnh vừa cuộn sidebar
+  // vừa cuộn nội dung phía sau nó cùng lúc.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSidebarOpen]);
 
   const setScope = (scope: 'main' | 'all') => setFilters(prev => ({ ...prev, scope }));
   const setBrand = (brand: BrandType) => setFilters(prev => ({ ...prev, brand }));
@@ -210,6 +233,9 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveView,
         isCommandPaletteOpen,
         setIsCommandPaletteOpen,
+        isSidebarOpen,
+        setSidebarOpen,
+        toggleSidebar,
         theme,
         setTheme,
         toggleTheme,

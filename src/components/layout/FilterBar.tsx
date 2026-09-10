@@ -35,7 +35,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const isEndPartial = isPartialMonth(filters.to);
 
   return (
-    <div className="sticky top-14 z-10 border-b border-brand-border bg-brand-surface/95 px-6 py-2.5 backdrop-blur-md">
+    <div className="sticky top-14 z-10 border-b border-brand-border bg-brand-surface/95 px-3 sm:px-6 py-2 sm:py-2.5 backdrop-blur-md">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Left Filter Group */}
         <div className="flex flex-wrap items-center gap-2 text-xs">

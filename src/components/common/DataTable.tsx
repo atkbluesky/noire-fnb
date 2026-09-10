@@ -132,6 +132,10 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
 
+      {/* overflow-x-auto + whitespace-nowrap trên th/td (dưới đây): bảng luôn giữ mỗi
+          hàng MỘT dòng, cuộn ngang khi không đủ chỗ — thay vì để trình duyệt tự xuống
+          dòng tên món/tên chương trình dài, khiến một hàng cao tới 7-8 dòng trên di động
+          và vẫn không tránh được cuộn ngang cho các cột số ở cuối bảng. */}
       <div className="overflow-x-auto rounded-lg border border-brand-border bg-brand-surface/50">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
@@ -144,7 +148,7 @@ export function DataTable<T extends Record<string, any>>({
                     key={col.key}
                     style={{ width: col.width }}
                     onClick={() => col.sortable !== false && handleSort(col.key)}
-                    className={`p-2.5 font-bold ${alignClass} ${
+                    className={`p-2.5 font-bold whitespace-nowrap ${alignClass} ${
                       col.sortable !== false ? 'cursor-pointer select-none hover:text-brand-gold' : ''
                     }`}
                   >
@@ -176,7 +180,7 @@ export function DataTable<T extends Record<string, any>>({
                     const alignClass = 
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
                     return (
-                      <td key={col.key} className={`p-2.5 text-brand-sand ${alignClass}`}>
+                      <td key={col.key} className={`p-2.5 text-brand-sand whitespace-nowrap ${alignClass}`}>
                         {col.render ? col.render(row, idx) : row[col.key] ?? '—'}
                       </td>
                     );

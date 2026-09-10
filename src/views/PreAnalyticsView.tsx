@@ -152,7 +152,7 @@ export const PreAnalyticsView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5 p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">

@@ -222,7 +222,7 @@ export const BudgetView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5 p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
         <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">

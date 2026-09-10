@@ -99,8 +99,9 @@ const DashboardContent: React.FC = () => {
       {/* Sidebar navigation */}
       <Sidebar />
 
-      {/* Main content area */}
-      <main className="flex-1 pl-72 min-w-0 flex flex-col">
+      {/* Main content area. pl-72 chỉ áp dụng từ lg trở lên — dưới đó sidebar là
+          drawer trượt đè lên nội dung (position: fixed), không đẩy layout. */}
+      <main className="flex-1 min-w-0 flex flex-col lg:pl-72">
         <TopHeader />
 
         {showFilterBar && (
