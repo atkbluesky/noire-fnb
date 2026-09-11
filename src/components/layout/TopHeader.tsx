@@ -1,11 +1,59 @@
-import React from 'react';
-import { Search, Printer, Calendar, Sun, Moon, Menu } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Printer, Calendar, Sun, Moon, Menu, FileText, ChevronDown, Building2, TrendingUp } from 'lucide-react';
 import { useFilters } from '../../context/FilterContext';
 import { NAVIGATION_GROUPS } from './Sidebar';
 import { HUB_DATA } from '../../data';
 
+export interface DriveReportItem {
+  id: string;
+  title: string;
+  url: string;
+  icon: React.ReactNode;
+}
+
+// Cấu hình đường dẫn Google Drive (thay link Google Drive của bạn trực tiếp tại đây)
+export const DRIVE_REPORT_LINKS: DriveReportItem[] = [
+  {
+    id: 'internal-report',
+    title: 'Báo Cáo Nội Bộ',
+    url: 'https://drive.google.com/drive/folders/1sYFd1UvT3ZT21NE0-wWxTvK5CcJZ8Ygr?usp=sharing', // << Dán link Google Drive Báo Cáo Nội Bộ vào đây
+    icon: <Building2 className="h-4 w-4 text-brand-gold" />,
+  },
+  {
+    id: 'industry-report',
+    title: 'Báo Cáo Ngành F&B',
+    url: 'https://drive.google.com/drive/folders/1ADLPRkh-sG6Mn0kSLIMtG2XNRC3yVzkw?usp=sharing', // << Dán link Google Drive Báo Cáo Ngành F&B vào đây
+    icon: <TrendingUp className="h-4 w-4 text-brand-amber" />,
+  },
+];
+
 export const TopHeader: React.FC = () => {
   const { activeView, setIsCommandPaletteOpen, theme, toggleTheme, toggleSidebar } = useFilters();
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const reportDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (reportDropdownRef.current && !reportDropdownRef.current.contains(event.target as Node)) {
+        setIsReportOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsReportOpen(false);
+      }
+    };
+
+    if (isReportOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isReportOpen]);
 
   // Find active item info
   let currentGroup = '';
@@ -61,6 +109,56 @@ export const TopHeader: React.FC = () => {
             ⌘K
           </kbd>
         </button>
+
+        {/* Menu Báo Cáo (Google Drive) */}
+        <div className="relative" ref={reportDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsReportOpen(prev => !prev)}
+            aria-expanded={isReportOpen}
+            aria-haspopup="true"
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${isReportOpen
+                ? 'border-brand-gold bg-brand-dark/70 text-brand-gold shadow-glow-sm'
+                : 'border-brand-border bg-brand-dark/40 text-brand-muted hover:border-brand-gold hover:text-brand-gold'
+              }`}
+            title="Menu Báo Cáo (Google Drive)"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Báo Cáo</span>
+            <ChevronDown
+              className={`h-3 w-3 text-brand-muted transition-transform duration-200 ${isReportOpen ? 'rotate-180 text-brand-gold' : ''
+                }`}
+            />
+          </button>
+
+          {/* Submenu Dropdown */}
+          {isReportOpen && (
+            <div
+              style={{ backgroundColor: 'var(--bg-surface)' }}
+              className="absolute right-0 top-full mt-2 w-48 sm:w-52 rounded-xl border border-brand-border bg-brand-surface p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+            >
+              <div className="space-y-1">
+                {DRIVE_REPORT_LINKS.map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsReportOpen(false)}
+                    className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all hover:bg-brand-cardHover border border-transparent hover:border-brand-gold/30"
+                  >
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-brand-border bg-brand-dark/60 text-brand-gold group-hover:border-brand-gold group-hover:bg-brand-surface transition-colors">
+                      {item.icon}
+                    </div>
+                    <span className="text-xs font-semibold text-brand-text group-hover:text-brand-gold transition-colors truncate">
+                      {item.title}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Print / Report */}
         <button
