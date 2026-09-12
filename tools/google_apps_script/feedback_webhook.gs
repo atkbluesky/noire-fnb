@@ -31,6 +31,12 @@ var NOTIFY_EMAIL = '';
 /** Chỉ gửi email cho các phân loại này. Để mảng rỗng = gửi cho mọi phân loại. */
 var NOTIFY_ONLY_CATEGORIES = ['bug'];
 
+/** Chặn spam làm đầy Sheet: tối đa bao nhiêu bản ghi được ghi trong 1 request. */
+var MAX_ITEMS_PER_REQUEST = 50;
+
+/** Cắt bớt nội dung quá dài — tránh một ô chiếm dung lượng bất thường. */
+var MAX_FIELD_LENGTH = 5000;
+
 
 /* ─── 2. ĐỊNH NGHĨA CỘT ───────────────────────────────────────────────────── */
 
@@ -85,11 +91,16 @@ var ID_COLUMN = 2;
  *   { ...một bản ghi... }                 ← dạng đơn lẻ (tương thích ngược)
  */
 function doPost(e) {
+  /* Khoá chỉ để giảm rủi ro ghi trùng khi hai request đến sát nhau — không
+     phải điều kiện bắt buộc, vì `readExistingIds_` đã khử trùng theo Mã phản
+     hồi. Nếu không lấy được khoá trong 10 giây (ví dụ do một lượt gọi khác
+     đang chạy), vẫn tiếp tục ghi bình thường thay vì báo lỗi cho người dùng. */
   var lock = LockService.getScriptLock();
+  var locked = false;
   try {
-    lock.waitLock(30000);
+    locked = lock.tryLock(10000);
   } catch (lockErr) {
-    return json_({ ok: false, error: 'Hệ thống đang bận, vui lòng thử lại.' });
+    locked = false;
   }
 
   try {
@@ -112,6 +123,13 @@ function doPost(e) {
     if (!items) items = envelope.content ? [envelope] : [];
     if (!Array.isArray(items)) items = [items];
     if (items.length === 0) return json_({ ok: false, error: 'Không có bản ghi nào' });
+
+    /* Chặn payload cố tình gửi hàng nghìn bản ghi trong một request để làm
+       đầy Sheet hoặc cạn hạn mức Apps Script. Client hợp lệ chỉ gửi tối đa
+       20 bản ghi/lô (xem FeedbackWidget.tsx). */
+    if (items.length > MAX_ITEMS_PER_REQUEST) {
+      items = items.slice(0, MAX_ITEMS_PER_REQUEST);
+    }
 
     var sheet = getSheet_();
     var existingIds = readExistingIds_(sheet);
@@ -142,7 +160,9 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: String(err && err.message ? err.message : err) });
   } finally {
-    lock.releaseLock();
+    if (locked) {
+      try { lock.releaseLock(); } catch (releaseErr) { /* đã hết hạn, bỏ qua */ }
+    }
   }
 }
 
@@ -271,9 +291,28 @@ function buildRow_(item, envelope) {
     } catch (err) {
       value = '';
     }
-    row.push(value === undefined || value === null ? '' : value);
+    if (value === undefined || value === null) value = '';
+    if (typeof value === 'string') value = sanitizeCell_(value);
+    row.push(value);
   }
   return row;
+}
+
+/**
+ * Chống "Formula Injection": một ô bắt đầu bằng = + - @ bị Google Sheets
+ * hiểu là công thức và THỰC THI (vd =IMPORTXML(...) có thể rò rỉ dữ liệu ra
+ * ngoài). Vì phản hồi đến từ người dùng ẩn danh trên Internet, mọi chuỗi đều
+ * phải được ép về dạng văn bản thuần trước khi ghi vào Sheet.
+ */
+function sanitizeCell_(text) {
+  var s = String(text);
+  if (s.length > MAX_FIELD_LENGTH) {
+    s = s.slice(0, MAX_FIELD_LENGTH) + '… (đã cắt bớt)';
+  }
+  if (/^[=+\-@]/.test(s)) {
+    s = "'" + s; // dấu nháy đơn ép Sheets coi là text, không tính công thức
+  }
+  return s;
 }
 
 function ctx_(item)  { return item && item.context ? item.context : {}; }
