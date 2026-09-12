@@ -106,7 +106,7 @@ const readEnv = (key: string): string => {
  *   3. Để trống  →  hệ thống vẫn chạy, chỉ lưu LocalStorage
  */
 const FALLBACK_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzCC3g6yPwIGn-ZLc2tLe-QonqY9Ajs7vOMw_EqiSnDhJMYtXwMSFkmeju-Scfz_09r/exec'; // << Dán URL Webhook Google Apps Script vào đây nếu không dùng biến môi trường
-const FALLBACK_SECRET = '';      // << Mã bí mật, phải khớp SHARED_SECRET trong Apps Script (đang để trống, khớp với Apps Script chưa đặt SHARED_SECRET)
+const FALLBACK_SECRET = 'NOIRE-fb-luXWNNgVgSoxq108N_EZwgGJ'; // << Mã bí mật, PHẢI dán y hệt vào SHARED_SECRET trong Apps Script
 
 export const FEEDBACK_CONFIG = {
   /** URL Web App của Google Apps Script (…/exec). */
