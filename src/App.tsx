@@ -4,6 +4,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { TopHeader } from './components/layout/TopHeader';
 import { FilterBar } from './components/layout/FilterBar';
 import { CommandPalette } from './components/layout/CommandPalette';
+import { FeedbackWidget } from './components/common/FeedbackWidget';
 
 /* Mỗi màn hình là một chunk riêng — trước đây cả 14 màn (kèm toàn bộ ECharts
    và bảng dữ liệu của chúng) nằm chung một file 537 KB phải tải xong mới vẽ
@@ -120,6 +121,9 @@ const DashboardContent: React.FC = () => {
 
       {/* Command Palette Search Modal */}
       <CommandPalette />
+
+      {/* Feedback Widget */}
+      <FeedbackWidget />
     </div>
   );
 };

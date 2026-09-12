@@ -30,6 +30,12 @@ _archive/
 __pycache__/
 *.pyc
 
+# ─── Biến môi trường (URL webhook Feedback, mã bí mật…) ──────────────
+# Chỉ tồn tại ở máy local; trên Vercel khai trong Settings → Environment Variables.
+.env
+.env.local
+.env.*.local
+
 # ─── Hệ điều hành / IDE ──────────────────────────────────────────────
 .DS_Store
 Thumbs.db

@@ -24,6 +24,7 @@ Bộ `docs/` này là tài liệu **hiện trạng code** — mô tả đúng nh
 | Chạy hệ thống hằng tháng · đưa lên Vercel | [`30_RUNBOOK_VAN_HANH.md`](30_RUNBOOK_VAN_HANH.md) |
 | Một chốt QA báo đỏ, xử lý ra sao | [`40_QA_GATES.md`](40_QA_GATES.md) |
 | Việc còn lại theo giai đoạn P1–P9 | [`50_LO_TRINH_GIAI_DOAN.md`](50_LO_TRINH_GIAI_DOAN.md) |
+| **Nối kho Ý kiến đóng góp về Google Sheets** | [`60_HUONG_DAN_FEEDBACK_GOOGLE_SHEET.md`](60_HUONG_DAN_FEEDBACK_GOOGLE_SHEET.md) |
 
 ---
 
