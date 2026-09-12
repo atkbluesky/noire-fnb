@@ -535,7 +535,7 @@ const collectMeta = (): FeedbackMeta => {
 };
 
 export const FeedbackWidget: React.FC = () => {
-  const { theme, activeView, filters } = useFilters();
+  const { theme, activeView, filters, isSidebarOpen } = useFilters();
   const isDark = theme === 'dark';
 
   const [isOpen, setIsOpen] = useState(false);
@@ -720,8 +720,15 @@ export const FeedbackWidget: React.FC = () => {
   return (
     <>
       {/* Nút Feedback dọc bám sát mép phải màn hình:
-          - Chế độ Sáng (Light): Nền cam (#F97316), chữ trắng
-          - Chế độ Tối (Dark): Nền vàng sáng (#FACC15), chữ ĐEN TUYỀN (#000000) font-black */}
+          - Responsive:
+            + Mobile (< sm): Tọa độ top-[62%] -translate-y-1/2 (nằm ngay vùng chạm ngón cái tự nhiên),
+              bề ngang siêu mỏng (px-1.5 py-2.5), bo góc tròn mềm mại rounded-l-xl, chữ 9px font-black,
+              tương tác chạm mượt mà active:scale-95 touch-manipulation, tự ẩn khi mở menu điều hướng mobile.
+            + Desktop (sm+): Tọa độ top-1/2 -translate-y-1/2 (căn chính giữa mép phải),
+              kích thước chuẩn (px-2.5 py-3.5), chữ 11px font-black, hiệu ứng trượt nhẹ pull-out khi hover.
+          - Chế độ Sáng (Light): Nền cam (#F97316), chữ & icon trắng (#FFFFFF)
+          - Chế độ Tối (Dark): Nền vàng sáng (#FACC15), chữ & icon ĐEN TUYỀN (#000000) font-black
+          - Tự ẩn khi in (print:hidden) và tương thích notch/safe-area trên thiết bị di động. */}
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Mở Feedback Widget"
@@ -729,13 +736,29 @@ export const FeedbackWidget: React.FC = () => {
         style={{
           backgroundColor: isDark ? '#FACC15' : '#F97316',
           color: isDark ? '#000000' : '#FFFFFF',
+          right: 'env(safe-area-inset-right, 0px)',
         }}
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center justify-center gap-2 rounded-l-lg py-3.5 px-2 shadow-2xl transition-all duration-200 hover:-translate-x-1 cursor-pointer border-y border-l ${
-          isDark ? 'border-black/25' : 'border-white/25'
+        className={`fixed top-[62%] sm:top-1/2 -translate-y-1/2 z-40 print:hidden flex flex-col items-center justify-center gap-1 sm:gap-2 rounded-l-xl py-2.5 px-1.5 sm:py-3.5 sm:px-2.5 shadow-2xl transition-all duration-200 hover:-translate-x-1.5 active:scale-95 active:brightness-95 touch-manipulation cursor-pointer border-y border-l ${
+          isDark
+            ? 'border-black/20 shadow-black/40 hover:shadow-amber-400/25'
+            : 'border-white/30 shadow-orange-950/30 hover:shadow-orange-500/35'
+        } ${
+          isSidebarOpen ? 'opacity-0 pointer-events-none lg:opacity-100 lg:pointer-events-auto' : 'opacity-100'
         } group select-none`}
       >
+        {/* Chấm tròn báo hiệu đồng bộ nếu còn phản hồi pending */}
+        {pendingCount > 0 && (
+          <span
+            className="absolute -top-1 -left-1 flex h-2.5 w-2.5 items-center justify-center pointer-events-none"
+            title={`${pendingCount} phản hồi đang chờ đồng bộ`}
+          >
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 ring-1 ring-white/50" />
+          </span>
+        )}
+
         <MessageSquarePlus
-          className="h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110"
+          className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 transition-transform group-hover:scale-110"
           style={{ color: isDark ? '#000000' : '#FFFFFF' }}
         />
         <span
@@ -744,16 +767,18 @@ export const FeedbackWidget: React.FC = () => {
             transform: 'rotate(180deg)',
             color: isDark ? '#000000' : '#FFFFFF',
           }}
-          className="text-[11px] font-black uppercase tracking-widest leading-none py-0.5"
+          className="text-[9px] sm:text-[11px] font-black uppercase tracking-widest leading-none py-0.5 inline-block select-none"
         >
           Feedback
         </span>
       </button>
 
-      {/* Modal Popup phản hồi */}
+      {/* Modal Popup phản hồi:
+          - Mobile (< sm): Trượt lên dạng Bottom Sheet bám đáy màn hình, bề ngang 100% không tràn viền, bo góc trên
+          - Desktop (sm+): Căn giữa màn hình dạng modal card truyền thống */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150 overflow-x-hidden overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleClose();
           }}
@@ -764,26 +789,36 @@ export const FeedbackWidget: React.FC = () => {
               color: isDark ? '#F3F2EE' : '#18181B',
               borderColor: isDark ? '#2A2A33' : '#E2DED5',
             }}
-            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl relative animate-in zoom-in-95 duration-150 flex flex-col"
+            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border-t sm:border p-4 sm:p-6 shadow-2xl relative animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 flex flex-col max-h-[85dvh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-6 box-border"
           >
-            {/* Nút Đóng (X) */}
-            <button
-              onClick={handleClose}
-              style={{ color: isDark ? '#9E9B93' : '#78756E' }}
-              className="absolute right-4 top-4 rounded-lg p-1.5 hover:opacity-80 transition-opacity"
-              aria-label="Đóng"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {/* Thanh gạch kéo (Drag bar) trên điện thoại */}
+            <div className="flex justify-center pb-2 sm:hidden flex-shrink-0">
+              <div
+                className="w-10 h-1 rounded-full opacity-40"
+                style={{ backgroundColor: isDark ? '#9E9B93' : '#78756E' }}
+              />
+            </div>
 
-            {/* Tiêu đề Modal (Đã bỏ tab Gửi góp ý / Lịch sử) */}
-            <div className="flex items-center gap-2 pb-3 border-b" style={{ borderColor: isDark ? '#2A2A33' : '#E2DED5' }}>
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-orange-500 dark:bg-amber-300/20 dark:text-amber-400 font-bold text-sm">
-                ✍️
-              </span>
-              <h3 className="text-sm font-bold" style={{ color: isDark ? '#F3F2EE' : '#18181B' }}>
-                Đóng góp ý kiến
-              </h3>
+            {/* Header: Tiêu đề và Nút Đóng (X) cùng hàng trong luồng flex */}
+            <div className="flex items-center justify-between gap-2 pb-3 border-b flex-shrink-0" style={{ borderColor: isDark ? '#2A2A33' : '#E2DED5' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-orange-500 dark:bg-amber-300/20 dark:text-amber-400 font-bold text-sm flex-shrink-0">
+                  ✍️
+                </span>
+                <h3 className="text-sm sm:text-base font-bold truncate" style={{ color: isDark ? '#F3F2EE' : '#18181B' }}>
+                  Đóng góp ý kiến
+                </h3>
+              </div>
+
+              {/* Nút Đóng (X) nằm cố định góc phải của header */}
+              <button
+                onClick={handleClose}
+                style={{ color: isDark ? '#9E9B93' : '#78756E' }}
+                className="rounded-lg p-1.5 touch-manipulation hover:opacity-80 transition-opacity flex-shrink-0 cursor-pointer -mr-1"
+                aria-label="Đóng"
+              >
+                <X className="h-4 w-4 sm:h-4 sm:w-4" />
+              </button>
             </div>
 
             {/* Trạng thái gửi thành công */}
@@ -808,20 +843,20 @@ export const FeedbackWidget: React.FC = () => {
               </div>
             ) : (
               /* Form nhập ý kiến */
-              <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-                <p className="text-xs" style={{ color: isDark ? '#9E9B93' : '#52504A' }}>
+              <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4 pt-3 sm:pt-4">
+                <p className="text-[11px] sm:text-xs leading-relaxed" style={{ color: isDark ? '#9E9B93' : '#52504A' }}>
                   Mọi phản hồi của bạn sẽ giúp đội ngũ tối ưu hóa giao diện và tính năng của hệ thống.
                 </p>
 
-                {/* Phân loại phản hồi */}
+                {/* Phân loại phản hồi (Grid 2 cột trên điện thoại, flex trên máy tính) */}
                 <div className="space-y-1.5">
                   <span
-                    className="block text-[11px] font-semibold uppercase tracking-wider"
+                    className="block text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider"
                     style={{ color: isDark ? '#9E9B93' : '#78756E' }}
                   >
                     Phân loại phản hồi
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 w-full">
                     {FEEDBACK_CATEGORIES.map((cat) => {
                       const isSelected = category === cat.id;
                       return (
@@ -840,7 +875,7 @@ export const FeedbackWidget: React.FC = () => {
                               ? (isDark ? '#C5A059' : '#B0834B')
                               : (isDark ? '#2A2A33' : '#E2DED5'),
                           }}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
+                          className="min-w-0 w-full px-2 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold border transition-all cursor-pointer text-center touch-manipulation active:scale-95 truncate"
                         >
                           {cat.label}
                         </button>
@@ -849,7 +884,7 @@ export const FeedbackWidget: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Nội dung góp ý (Textarea) - Nền tối chữ trắng ở Dark mode, nền trắng chữ đen ở Light mode */}
+                {/* Nội dung góp ý (Textarea) - Cỡ chữ text-xs chuẩn responsive, không bị phóng to */}
                 <div>
                   <label
                     htmlFor="feedback-content"
@@ -860,7 +895,7 @@ export const FeedbackWidget: React.FC = () => {
                   </label>
                   <textarea
                     id="feedback-content"
-                    rows={4}
+                    rows={3}
                     value={content}
                     onChange={(e) => {
                       setContent(e.target.value);
@@ -872,17 +907,17 @@ export const FeedbackWidget: React.FC = () => {
                       color: isDark ? '#FFFFFF' : '#18181B',
                       borderColor: isDark ? '#383845' : '#D0CCC1',
                     }}
-                    className="w-full rounded-xl border p-3 text-xs focus:border-amber-500 focus:outline-none transition-colors resize-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                    className="w-full rounded-xl border p-2.5 sm:p-3 text-xs sm:text-xs leading-relaxed focus:border-amber-500 focus:outline-none transition-colors resize-none placeholder:text-xs placeholder:text-neutral-400 dark:placeholder:text-neutral-500 box-border"
                     autoFocus
                   />
                   {errorMsg && <p className="text-[11px] text-red-500 mt-1">{errorMsg}</p>}
                 </div>
 
-                {/* Thông tin liên hệ (Input) */}
+                {/* Thông tin liên hệ (Input) - Cỡ chữ text-xs chuẩn responsive, không bị phóng to */}
                 <div>
                   <label
                     htmlFor="feedback-contact"
-                    className="block text-xs font-medium mb-1"
+                    className="block text-[11px] sm:text-xs font-medium mb-1 leading-snug break-words"
                     style={{ color: isDark ? '#9E9B93' : '#52504A' }}
                   >
                     Thông tin liên hệ (Email hoặc SĐT/Zalo - Không bắt buộc)
@@ -898,11 +933,11 @@ export const FeedbackWidget: React.FC = () => {
                       color: isDark ? '#FFFFFF' : '#18181B',
                       borderColor: isDark ? '#383845' : '#D0CCC1',
                     }}
-                    className="w-full rounded-xl border px-3 py-2 text-xs focus:border-amber-500 focus:outline-none transition-colors placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+                    className="w-full rounded-xl border px-3 py-2 text-xs sm:text-xs leading-relaxed focus:border-amber-500 focus:outline-none transition-colors placeholder:text-xs placeholder:text-neutral-400 dark:placeholder:text-neutral-500 box-border"
                   />
                 </div>
 
-                {/* Cảnh báo còn phản hồi chưa đồng bộ (chỉ hiện khi thực sự có) */}
+                {/* Cảnh báo còn phản hồi chưa đồng bộ */}
                 {pendingCount > 0 && (
                   <p className="flex items-center gap-1.5 text-[11px]" style={{ color: '#F59E0B' }}>
                     <CloudOff className="h-3 w-3 flex-shrink-0" />
@@ -912,13 +947,17 @@ export const FeedbackWidget: React.FC = () => {
                   </p>
                 )}
 
-                {/* Nút thao tác Hủy và Gửi */}
-                <div className="flex items-center justify-end gap-2 pt-2">
+                {/* Nút thao tác Hủy và Gửi (Grid 2 cột đối xứng trên mobile, không bao giờ tràn mép) */}
+                <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2 pt-1.5 sm:pt-2 w-full">
                   <button
                     type="button"
                     onClick={handleClose}
-                    style={{ color: isDark ? '#9E9B93' : '#52504A' }}
-                    className="px-3.5 py-2 text-xs font-medium hover:opacity-80 transition-opacity cursor-pointer"
+                    style={{
+                      backgroundColor: isDark ? '#1A1A1F' : '#F3F1EC',
+                      color: isDark ? '#D6D3CA' : '#52504A',
+                      borderColor: isDark ? '#2A2A33' : '#E2DED5',
+                    }}
+                    className="w-full sm:w-auto py-2.5 sm:py-2 px-4 text-xs font-semibold rounded-xl border transition-all cursor-pointer text-center touch-manipulation hover:opacity-80 active:scale-95"
                   >
                     Hủy
                   </button>
@@ -929,7 +968,7 @@ export const FeedbackWidget: React.FC = () => {
                       backgroundColor: isDark ? '#FACC15' : '#F97316',
                       color: isDark ? '#000000' : '#FFFFFF',
                     }}
-                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black transition-all shadow-md hover:brightness-105 disabled:opacity-50 cursor-pointer"
+                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-xl py-2.5 sm:py-2 px-5 text-xs font-black transition-all shadow-md hover:brightness-105 active:scale-95 disabled:opacity-50 cursor-pointer touch-manipulation"
                   >
                     <Send className="h-3.5 w-3.5" style={{ color: isDark ? '#000000' : '#FFFFFF' }} />
                     <span>{isSubmitting ? 'Đang gửi...' : 'Gửi'}</span>
