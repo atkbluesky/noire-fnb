@@ -7,7 +7,8 @@
  * lần, rồi Deploy dạng Web App. Chi tiết từng bước:
  *   docs/60_HUONG_DAN_FEEDBACK_GOOGLE_SHEET.md
  *
- * Nguồn gửi: src/components/common/FeedbackWidget.tsx
+ * Nguồn gửi: api/feedback.ts (cổng trung gian phía server trên Vercel),
+ *           nhận dữ liệu từ src/components/common/FeedbackWidget.tsx
  * ──────────────────────────────────────────────────────────────────────────── */
 
 
@@ -20,7 +21,8 @@ var SHEET_ID = '';
 var SHEET_NAME = 'Feedback';
 
 /**
- * Mã bí mật chống spam. PHẢI khớp với VITE_FEEDBACK_SECRET của dashboard.
+ * Mã bí mật chống spam. PHẢI khớp với biến môi trường FEEDBACK_SECRET trên Vercel
+ * (phía server — không bao giờ đặt vào biến VITE_* hay file trong src/).
  * Để trống = không kiểm tra (chỉ nên dùng khi test).
  */
 var SHARED_SECRET = '';

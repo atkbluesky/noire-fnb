@@ -9,7 +9,7 @@ import { NAVIGATION_GROUPS } from '../layout/Sidebar';
    Mô hình: Local-first + Outbox (hàng đợi gửi lại).
 
      [Form]  →  ghi ngay vào LocalStorage (không bao giờ mất phản hồi)
-             →  đẩy lên Google Sheets qua Webhook Google Apps Script
+             →  đẩy lên cổng /api/feedback (server) → Google Apps Script → Sheets
              →  nếu lỗi/mất mạng: giữ trạng thái 'pending' và tự gửi lại khi
                 (a) mở lại dashboard, (b) có mạng trở lại, (c) quay lại tab,
                 (d) theo chu kỳ nền, (e) lúc rời trang (sendBeacon).
@@ -26,9 +26,9 @@ import { NAVIGATION_GROUPS } from '../layout/Sidebar';
 export type FeedbackSyncStatus =
   | 'pending'   // đã lưu cục bộ, đang chờ gửi lên Sheets
   | 'synced'    // Sheets đã xác nhận ghi thành công
-  | 'sent'      // đã gửi ở chế độ no-cors — không thể xác minh phản hồi
+  | 'sent'      // bản ghi cũ: gửi thẳng Apps Script ở chế độ no-cors, không xác minh được
   | 'failed'    // thử lại quá số lần cho phép
-  | 'local';    // chưa cấu hình webhook → chỉ lưu máy
+  | 'local';    // bản ghi cũ: lưu từ thời chưa cấu hình webhook → chỉ nằm trên máy
 
 /** Ngữ cảnh dashboard tại thời điểm người dùng bấm gửi. */
 export interface FeedbackContext {
@@ -86,33 +86,17 @@ export const FEEDBACK_CATEGORIES = [
 
 /* ─── 2. CẤU HÌNH ─────────────────────────────────────────────────────────── */
 
-/** Đọc biến môi trường Vite mà không phụ thuộc khai báo type toàn cục. */
-const readEnv = (key: string): string => {
-  try {
-    const env = (import.meta as any)?.env;
-    const value = env ? env[key] : undefined;
-    return typeof value === 'string' ? value.trim() : '';
-  } catch {
-    return '';
-  }
-};
-
 /**
  * CẤU HÌNH LƯU TRỮ ĐÓNG GÓP Ý KIẾN
  *
- * Thứ tự ưu tiên của `webhookUrl`:
- *   1. Biến môi trường VITE_FEEDBACK_WEBHOOK_URL (khuyến nghị — đặt trên Vercel)
- *   2. Chuỗi dán trực tiếp vào `FALLBACK_WEBHOOK_URL` bên dưới
- *   3. Để trống  →  hệ thống vẫn chạy, chỉ lưu LocalStorage
+ * Trình duyệt chỉ biết cổng `/api/feedback` cùng domain. URL Apps Script và mã bí
+ * mật nằm ở biến môi trường PHÍA SERVER (FEEDBACK_WEBHOOK_URL · FEEDBACK_SECRET)
+ * mà api/feedback.ts đọc. Đừng đưa chúng trở lại file này hay vào biến VITE_*:
+ * mọi thứ ở src/ đều bị đóng gói vào file JS công khai.
  */
-const FALLBACK_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzCC3g6yPwIGn-ZLc2tLe-QonqY9Ajs7vOMw_EqiSnDhJMYtXwMSFkmeju-Scfz_09r/exec'; // << Dán URL Webhook Google Apps Script vào đây nếu không dùng biến môi trường
-const FALLBACK_SECRET = 'NOIRE-fb-luXWNNgVgSoxq108N_EZwgGJ'; // << Mã bí mật, PHẢI dán y hệt vào SHARED_SECRET trong Apps Script
-
 export const FEEDBACK_CONFIG = {
-  /** URL Web App của Google Apps Script (…/exec). */
-  webhookUrl: readEnv('VITE_FEEDBACK_WEBHOOK_URL') || FALLBACK_WEBHOOK_URL,
-  /** Mã bí mật chống spam, gửi kèm trong payload. */
-  secret: readEnv('VITE_FEEDBACK_SECRET') || FALLBACK_SECRET,
+  /** Cổng trung gian cùng domain — xem api/feedback.ts. */
+  endpoint: '/api/feedback',
   /** Khoá LocalStorage — giữ nguyên tên cũ để không mất dữ liệu đã lưu. */
   storageKey: 'noire_feedbacks',
   deviceKey: 'noire_feedback_device',
@@ -123,8 +107,8 @@ export const FEEDBACK_CONFIG = {
   maxContentLength: 5000,
   /** Số lần thử gửi tối đa trước khi đánh dấu 'failed'. */
   maxAttempts: 8,
-  /** Thời gian chờ tối đa cho một lần gọi webhook (ms). */
-  timeoutMs: 12000,
+  /** Thời gian chờ tối đa cho một lần gọi cổng (ms) — dài hơn thời gian cổng chờ Apps Script. */
+  timeoutMs: 15000,
   /** Backoff: 20s → 40s → 80s … tối đa 15 phút. */
   retryBaseMs: 20000,
   retryMaxMs: 900000,
@@ -269,13 +253,11 @@ const isDueForRetry = (item: FeedbackData): boolean => {
 
 interface TransportResult {
   ok: boolean;
-  verified: boolean;
   error?: string;
 }
 
-/** Gói payload gửi đi — Apps Script nhận cả lô nhiều bản ghi một lần. */
+/** Gói payload gửi đi — cổng /api/feedback nhận cả lô nhiều bản ghi một lần. */
 const buildEnvelope = (items: FeedbackData[]) => ({
-  secret: FEEDBACK_CONFIG.secret,
   source: FEEDBACK_CONFIG.source,
   version: FEEDBACK_CONFIG.appVersion,
   sentAt: new Date().toISOString(),
@@ -283,59 +265,38 @@ const buildEnvelope = (items: FeedbackData[]) => ({
 });
 
 /**
- * Gửi lô bản ghi lên Web App của Google Apps Script.
+ * Gửi lô bản ghi lên cổng /api/feedback (cùng domain).
  *
- * Dùng Content-Type `text/plain` có chủ đích: đó là "simple request" nên trình
- * duyệt KHÔNG bắn preflight OPTIONS — Apps Script không trả lời OPTIONS, dùng
- * `application/json` sẽ hỏng ngay ở bước preflight. Apps Script đọc payload
- * bằng `e.postData.contents` nên vẫn parse JSON bình thường.
+ * Cổng kiểm tra, làm sạch rồi mới chuyển tiếp sang Google Apps Script kèm mã bí
+ * mật, nên chỉ coi là thành công khi cổng trả `ok: true`. Giữ Content-Type
+ * `text/plain` để dùng chung định dạng với `sendBeacon` — cổng đọc thân request
+ * dạng chuỗi rồi tự parse JSON.
  */
 const postBatch = async (items: FeedbackData[]): Promise<TransportResult> => {
-  const url = FEEDBACK_CONFIG.webhookUrl;
-  if (!url) return { ok: false, verified: false, error: 'Chưa cấu hình webhook' };
-
-  const body = JSON.stringify(buildEnvelope(items));
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), FEEDBACK_CONFIG.timeoutMs) : null;
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(FEEDBACK_CONFIG.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body,
-      redirect: 'follow',
+      body: JSON.stringify(buildEnvelope(items)),
+      credentials: 'same-origin',
       signal: controller ? controller.signal : undefined,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const text = await res.text();
+    let json: any = null;
     try {
-      const json = JSON.parse(text);
-      if (json && json.ok === false) {
-        return { ok: false, verified: true, error: String(json.error || 'Webhook từ chối bản ghi') };
-      }
+      json = await res.json();
     } catch {
-      /* Apps Script đôi khi trả HTML trang trung gian — vẫn coi là đã nhận. */
+      /* Không phải JSON — thường là trang lỗi của hạ tầng, coi như gửi hỏng. */
     }
-    return { ok: true, verified: true };
+    if (!res.ok || !json || json.ok !== true) {
+      return { ok: false, error: String(json?.error || `HTTP ${res.status}`) };
+    }
+    return { ok: true };
   } catch (err: any) {
-    /* Lỗi CORS/mạng: thử lại ở chế độ no-cors. Phản hồi là opaque nên không
-       xác minh được kết quả, chỉ ghi nhận "đã gửi". */
-    try {
-      await fetch(url, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body,
-      });
-      return { ok: true, verified: false };
-    } catch (fallbackErr: any) {
-      return {
-        ok: false,
-        verified: false,
-        error: String(err?.message || fallbackErr?.message || 'Không gửi được'),
-      };
-    }
+    return { ok: false, error: String(err?.message || 'Không gửi được') };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -358,7 +319,7 @@ export const flushFeedbackQueue = async (force = false): Promise<FlushResult> =>
   const all = loadFeedbacks();
   const queue = all.filter(x => x.status === 'pending' && (force || isDueForRetry(x)));
 
-  if (!FEEDBACK_CONFIG.webhookUrl || queue.length === 0 || isFlushing) {
+  if (queue.length === 0 || isFlushing) {
     return { sent: 0, failed: 0, remaining: all.filter(x => x.status === 'pending').length };
   }
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -387,7 +348,7 @@ export const flushFeedbackQueue = async (force = false): Promise<FlushResult> =>
         if (result.ok) {
           list[idx] = {
             ...list[idx],
-            status: result.verified ? 'synced' : 'sent',
+            status: 'synced',
             attempts,
             syncedAt: stamp,
             lastError: undefined,
@@ -420,7 +381,6 @@ export const flushFeedbackQueue = async (force = false): Promise<FlushResult> =>
  * bản ghi vẫn giữ trạng thái 'pending' và Apps Script sẽ khử trùng lặp theo `id`.
  */
 const beaconFlush = (): void => {
-  if (!FEEDBACK_CONFIG.webhookUrl) return;
   if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') return;
 
   const queue = getPendingFeedbacks();
@@ -430,7 +390,7 @@ const beaconFlush = (): void => {
     const blob = new Blob([JSON.stringify(buildEnvelope(queue.slice(0, 20)))], {
       type: 'text/plain;charset=utf-8',
     });
-    navigator.sendBeacon(FEEDBACK_CONFIG.webhookUrl, blob);
+    navigator.sendBeacon(FEEDBACK_CONFIG.endpoint, blob);
   } catch {
     /* Không gửi được thì thôi — bản ghi vẫn nằm trong LocalStorage. */
   }
@@ -483,11 +443,10 @@ export const clearFeedbacks = (): void => {
 
 /**
  * Đưa các bản ghi lưu ở giai đoạn CHƯA có webhook vào hàng đợi.
- * Nhờ vậy, ngày cấu hình Google Sheets xong thì toàn bộ phản hồi cũ cũng
- * được đẩy lên, không bị bỏ lại trên máy người dùng.
+ * Nhờ vậy, toàn bộ phản hồi cũ cũng được đẩy lên Google Sheets, không bị bỏ
+ * lại trên máy người dùng.
  */
 const promoteLocalRecords = (): void => {
-  if (!FEEDBACK_CONFIG.webhookUrl) return;
   const list = loadFeedbacks();
   let changed = false;
   const next = list.map(item => {
@@ -639,7 +598,10 @@ export const FeedbackWidget: React.FC = () => {
     const view = describeView(activeView);
 
     const feedbackItem: FeedbackData = {
-      id: 'FB_' + Date.now().toString().slice(-6),
+      /* Mã ngẫu nhiên đủ dài: Apps Script khử trùng theo mã này. Bản cũ chỉ lấy 6 chữ
+         số cuối của Date.now() — lặp lại sau mỗi ~16 phút nên phản hồi của hai người
+         khác nhau có thể bị coi là trùng và mất một bản. */
+      id: randomId('FB'),
       category,
       categoryLabel: catObj?.label || category,
       content: content.trim().slice(0, FEEDBACK_CONFIG.maxContentLength),
@@ -663,7 +625,7 @@ export const FeedbackWidget: React.FC = () => {
         theme,
       },
       meta: collectMeta(),
-      status: FEEDBACK_CONFIG.webhookUrl ? 'pending' : 'local',
+      status: 'pending',
       attempts: 0,
     };
 
@@ -671,13 +633,9 @@ export const FeedbackWidget: React.FC = () => {
     upsertFeedback(feedbackItem);
 
     // 2. Đẩy ngay lên Google Sheets; thất bại thì hàng đợi lo phần còn lại.
-    if (FEEDBACK_CONFIG.webhookUrl) {
-      await runFlush(true);
-      const saved = loadFeedbacks().find(x => x.id === feedbackItem.id);
-      setLastSync(saved?.status || 'pending');
-    } else {
-      setLastSync('local');
-    }
+    await runFlush(true);
+    const saved = loadFeedbacks().find(x => x.id === feedbackItem.id);
+    setLastSync(saved?.status || 'pending');
 
     refreshPending();
     setIsSubmitting(false);
