@@ -1,11 +1,11 @@
-# M8 · CRM · VOUCHER · ZALO OA
+# M8 · CRM · VOUCHER
 
 | | |
 |---|---|
 | **Câu hỏi** | Bán cho ai, họ có quay lại? |
 | **`activeView`** | `m8` |
 | **View** | `src/views/CRMView.tsx` |
-| **ETL** | `build_hub.py` mục K *(nhận diện/quay lại)* + `build_mkt.py` §2 *(voucher)* · §3 *(Zalo OA)* · §4 *(member/KPI)* |
+| **ETL** | `build_hub.py` mục K *(nhận diện/quay lại)* + `build_mkt.py` §2 *(voucher)* · §4 *(member/KPI)* |
 | **Giai đoạn** | P6 — ✅ xong |
 | **Trạng thái** | ⚠️ **Chạy đủ, nhưng tỷ lệ nhận diện khách chỉ 8,6%** |
 
@@ -19,7 +19,6 @@ S02 bill → clean_txt(Số điện thoại)  ← BẮT BUỘC: ô rỗng iPOS l
    → đếm số bill/SĐT     → repeat[] · repeat_stat
 S11 voucher → khử trùng theo Mã khuyến mãi → voucher_prog · voucher_month · voucher_stat
    → join "Mã giao dịch" ↔ bill_index.pkl → voucher_join (chốt QA #11)
-S12 Zalo OA (.xls là HTML) → oa[]
 S13 member · S14 KPI CRM → member_month · member_stat · crm_target
    → CRMView
 ```
@@ -32,7 +31,8 @@ S13 member · S14 KPI CRM → member_month · member_stat · crm_target
 | **Tỷ lệ nhận diện khách theo tháng** | | `identify` |
 | **Phân bố tần suất khách ghé thăm** | 1 lần · 2–3 · 4–9 · 10+ | `repeat` |
 | **Độ khớp voucher ↔ hoá đơn POS** | | `voucher_join` |
-| **Zalo Official Account (kênh riêng NCB)** | quan tâm mới · tin nhắn · xem trang | `oa` |
+
+> Zalo OA đã tách khỏi M8 sang [`M8.1 · Zalo OA Performance`](M8_1_Zalo_OA.md).
 
 ## 3. ⛔ Điểm nghẽn lớn nhất — nhận diện khách 8,6%
 
@@ -70,14 +70,11 @@ sang doanh thu mà không lo double-count**.
 
 ## 6. Bộ lọc — nguyên tắc trung thực
 
-Brand · Từ · Đến. Nhưng ghi rõ ngay trên thanh lọc (`customNote` trong `App.tsx`):
-*“Tỷ lệ nhận diện khách và Zalo OA là số liệu toàn chuỗi.”*
+Brand · Từ · Đến. Thanh lọc ghi rõ tỷ lệ nhận diện là số toàn chuỗi.
 
 | Lọc brand áp cho | Không tách được |
 |---|---|
-| voucher *(brand suy từ cột `Nhà hàng sử dụng`)* | tỷ lệ nhận diện · Zalo OA |
-
-Zalo OA hiện là **kênh riêng của NCB**, không phải toàn chuỗi — màn hình ghi rõ điều này.
+| voucher *(brand suy từ cột `Nhà hàng sử dụng`)* | tỷ lệ nhận diện |
 
 ## 7. Checklist nâng cấp
 
@@ -89,4 +86,4 @@ Zalo OA hiện là **kênh riêng của NCB**, không phải toàn chuỗi — m
 - [ ] **Redeem % theo campaign và theo cửa hàng**
 - [ ] **So sánh chi tiêu member vs khách vãng lai** — dữ liệu đã đủ trong `fact_bill`
 - [ ] **Đóng góp doanh thu từ member** = `Net từ hoá đơn có member ÷ tổng Net`
-- [ ] Xin quyền **export Zalo OA định kỳ** *(hiện chỉ có ảnh chụp màn hình OA Manager cho một số kỳ)*
+- [x] Tách Zalo OA sang M8.1 và thay export tay bằng OpenAPI + Webhook

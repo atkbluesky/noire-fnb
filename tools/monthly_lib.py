@@ -289,7 +289,11 @@ def partner_of_bill(camp, source, pttt, guests, commission):
     """Một hoá đơn POS → (Mã ĐT, basis) hoặc (None, None). Thứ tự: CTKM → Nguồn → PTTT.
 
     Hoá đơn nền tảng có Hoa hồng trên POS hoặc không có khách ngồi là đơn GIAO HÀNG
-    (GrabFood) — tách khỏi Grab Dine Out theo `delivery_partner` của hợp đồng."""
+    (GrabFood) — tách khỏi Grab Dine Out theo `delivery_partner` của hợp đồng.
+
+    Chỉ khớp PTTT (vd GRAB DEBIT) mà Nguồn là TẠI CHỖ và POS không ghi Hoa hồng → basis
+    XAC_NHAN: KHÔNG cộng vào doanh thu đối tác (đối soát T8/2026: 45 HĐ như vậy, nhiều HĐ
+    trả chia VISA + GRAB DEBIT, không mã voucher — chưa đủ căn cứ là đơn Grab Dine Out)."""
     code = classify_partner(camp)
     if code:
         return code, "CTKM"
@@ -299,8 +303,21 @@ def partner_of_bill(camp, source, pttt, guests, commission):
                  else "PTTT" if p and any(x.search(p) for x in pay_re) else None)
         if basis:
             delivery = (commission or 0) > 0 or not guests
+            if basis == "PTTT" and not (commission or 0) > 0:
+                return part, "XAC_NHAN"
             return (deliv if delivery and deliv else part), basis
     return None, None
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Khách lẻ / khách tiệc cấp hoá đơn — đọc từ $guest_segment của hợp đồng
+# ══════════════════════════════════════════════════════════════════════
+GUEST_SEG = CONTRACT["$guest_segment"]
+
+
+def is_party_bill(guests):
+    """Hoá đơn có Số khách ≥ ngưỡng tiệc. Không ghi / 0 khách → khách lẻ."""
+    return (guests or 0) >= GUEST_SEG["party_min_guests"]
 
 
 # ══════════════════════════════════════════════════════════════════════

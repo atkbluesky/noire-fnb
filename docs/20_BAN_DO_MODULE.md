@@ -37,8 +37,9 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | **M7** | **Promotion** *(mục mẹ)* | `m7` | `PromotionView.tsx` | hub H + campaign | `nature · campaigns` + `CAMPAIGN.pos_map · plan` | P4 | ✅ |
 | └ **M7.1** | Pre-Analytics · Plan | `m71` | `PreAnalyticsView.tsx` | campaign | `CAMPAIGN.plan` *(pre_plan ← S16)* | P5.5 | ✅ |
 | └ **M7.2** | Promotion Tracking | `m72` | `CampaignTrackingView.tsx` | campaign | `CAMPAIGN.campaigns · daily · issues` | P5.5 | 🟡 chờ ô CAM |
-| **M8** | CRM · Voucher · Zalo OA | `m8` | `CRMView.tsx` | hub K + mkt §2·§3·§4 | `identify · repeat · repeat_stat` + `MKT.oa · voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
-| **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_recon` | P7 | ✅ chung số với M7 |
+| **M8** | CRM · Voucher | `m8` | `CRMView.tsx` | hub K + mkt §2·§4 | `identify · repeat · repeat_stat` + `voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
+| └ **M8.1** | Zalo OA Performance | `m81` | `ZaloOAView.tsx` | OpenAPI + Webhook + PostgreSQL | `zalo_oa_daily_metric` | P6.1 | 🟡 chờ credential + DB |
+| **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_campaigns · partner_check` | P7 | ✅ chung số với M7 |
 | **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
 | **R1** | Insight & Cảnh báo | `r1` | `InsightsView.tsx` | tổng hợp | `store_month · nature · product_stat · identify · bom_stat · meta · stores` + `MKT.budget · gads_stat · voucher_join` | P9 | ✅ |
 
@@ -61,7 +62,8 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | S09 Google Ads | | | | | | | | ● | | | | | | | ● |
 | S10 budget | | | | | | | ● | ● | | | | | | | ● |
 | S11 voucher | | | | | | | | | | | | ● | ● | | ● |
-| S12 Zalo OA | | | | | | | | | | | | ● | | | |
+| S12 Zalo OA export *(legacy)* | | | | | | | | | | | | | | | |
+| Zalo OA OpenAPI + Webhook | | | | | | | | | | | | ● | | | |
 | S13 member | | | | | | | | | | | | ○ | | | |
 | S14 KPI CRM | | | | | | | | | | | | ○ | | | |
 | S15 partnership | | | | | | | | | | | | | ● | | |
@@ -105,7 +107,8 @@ mỗi module ghi rõ ngay trên thanh lọc phần nào lọc được. Khai bá
 | M7 Promotion | cả năm bản chất chi phí · danh mục chương trình | — | |
 | M7.1 Pre-Analytics | danh sách kế hoạch | — | *kế hoạch Q3/2026; thực tế theo kỳ chạy* |
 | M7.2 Promotion Tracking | chương trình theo brand | chương trình `ALL` luôn hiện | |
-| M8 CRM | voucher *(theo Nhà hàng sử dụng)* | tỷ lệ nhận diện · Zalo OA | *số toàn chuỗi* |
+| M8 CRM | voucher *(theo Nhà hàng sử dụng)* | tỷ lệ nhận diện | *số toàn chuỗi* |
+| M8.1 Zalo OA | — | toàn bộ | *Today/7D/MTD/Month; không dùng filter brand* |
 | M9 Partnership | mọi khối — hoá đơn đối tác theo brand cửa hàng | Dining City (báo cáo team) gán brand ở danh mục | |
 | M10 Booking | — | toàn bộ | *lead hiện chủ yếu NDC* |
 

@@ -57,6 +57,20 @@ def _cell(v):
     return v
 
 
+def drop_sheets(path, names):
+    """Gỡ sheet đã bỏ khỏi hợp đồng — nếu không, QA #14 báo 'sheet lạ' và số cũ nằm lại mãi."""
+    from openpyxl import load_workbook
+    if not os.path.exists(path):
+        return 0
+    wb = load_workbook(path)
+    gone = [n for n in names if n in wb.sheetnames]
+    for n in gone:
+        wb.remove(wb[n])
+    if gone:
+        wb.save(path)
+    return len(gone)
+
+
 def replace_sheets(path, tables):
     """Thay đúng các sheet trong `tables` = {tên: [dict]}; sheet khác giữ nguyên."""
     from openpyxl import Workbook, load_workbook
@@ -174,9 +188,12 @@ def main():
     print(f"  02_snapshot.xlsx   thay {k} sheet: {', '.join(x for x, v in snap.items() if v)}")
     n += k
 
-    # ── 01_master.xlsx ── chỉ bốn bảng máy tính được; ngân sách · dim_store · pre_analytics GIỮ tay
+    # ── 01_master.xlsx ── bảng máy tính được; ngân sách · dim_store · pre_analytics GIỮ tay
     mast = {"crm_target": M.get("crm_target"), "partners": M.get("partners"),
-            "partner_camp": M.get("partner_camp"), "partner_plan": M.get("partner_plan")}
+            "partner_program": M.get("partner_program"), "partner_agg": M.get("partner_agg"),
+            "partner_plan": M.get("partner_plan"), "partner_voucher": M.get("partner_voucher")}
+    # Sheet không còn nguồn thì GỠ, không để số đóng băng nằm lại (partner_camp: gộp vào partner_program).
+    drop_sheets(MASTER, ["partner_camp"])
     k = replace_sheets(MASTER, mast)
     print(f"  01_master.xlsx     thay {k} sheet: {', '.join(x for x, v in mast.items() if v) or '—'}")
     n += k

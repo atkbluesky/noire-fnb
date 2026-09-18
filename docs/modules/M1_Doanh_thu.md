@@ -16,6 +16,8 @@
 ```
 S02 bill    → fact_bill  → gộp month × store → store_month
 S03 daily   → fact_sales_daily → gộp date × store → daily
+S02 bill    → HĐ có Số khách ≥ 10 ($guest_segment) → gộp date × store → daily_party
+             khách lẻ = daily − daily_party (màn hình tự trừ)
 S04 monthly → nguồn ĐỐI SOÁT (chốt QA #4), không phải nguồn lấy số
    → RevenueView
 ```
@@ -25,7 +27,8 @@ S04 monthly → nguồn ĐỐI SOÁT (chốt QA #4), không phải nguồn lấy
 | Khối | Nội dung |
 |---|---|
 | Thẻ KPI | Net Luỹ Kế Kỳ Chọn · Guest Luỹ Kế · TC Luỹ Kế · **Net Trung Bình / Ngày** |
-| Biểu đồ động lực | **TC · TA · AOV theo tuần ISO / tháng / năm**, chuyển phân rã giữa brand và cửa hàng |
+| Biểu đồ động lực | **TC · TA · AOV theo tuần ISO / tháng / năm** · lọc **Khách: Tất cả / Lẻ <10 / Tiệc ≥10** · phân rã **Brand / Cửa hàng / Lẻ · Tiệc** |
+| Dải Lẻ vs Tiệc | Kỳ mới nhất: chỉ số của Tổng · Lẻ · Tiệc + % so kỳ trước, tỷ trọng tiệc trong TC/Net, và câu tách “tổng = lẻ + tác động tiệc” |
 | Biểu đồ 1 | **Doanh Thu Theo Từng Ngày** (daily trend) |
 | Biểu đồ 2 | **Quỹ Đạo Tăng Trưởng Từng Cửa Hàng** |
 | Biểu đồ 3 | **Diễn Biến TA & AOV Qua Các Tháng** |
@@ -39,7 +42,15 @@ Biểu đồ động lực dùng cột chồng trực tiếp cho TC. TA và AOV 
 của các cửa hàng: mỗi lớp được tính lần lượt bằng `Net đơn vị / Guest toàn phạm vi` và
 `Net đơn vị / TC toàn phạm vi`. Vì vậy tổng chiều cao cột vẫn bằng TA hoặc AOV toàn phạm vi;
 tooltip hiển thị thêm TA/AOV thật của từng đơn vị. Kỳ tuần theo ISO 8601, Thứ 2 → Chủ nhật.
-Kỳ chưa đủ ngày có ký hiệu `⚠`; riêng biến động TC của kỳ dở dang so trên bình quân/ngày.
+Kỳ chưa đủ ngày có ký hiệu `⚠`; biến động TC so trên bình quân/ngày khi kỳ mới nhất **hoặc**
+kỳ trước dở dang (bản cũ chỉ xét kỳ mới nhất nên tuần đầu thiếu ngày làm tuần sau trông như tăng vọt).
+
+**Khách lẻ / khách tiệc** — xem [`../13_L3_METRIC.md`](../13_L3_METRIC.md) §1. Doanh số = lẻ + tiệc;
+tiệc là HĐ ≥ 10 khách. TC ở phân rã Lẻ · Tiệc vẫn là cột chồng (cộng được). TA/AOV ở phân rã
+Lẻ · Tiệc **không chồng**: cột = khách lẻ, nét đứt = tổng, đường vàng = tiệc ở trục phải —
+khoảng cách giữa cột và nét đứt chính là phần tiệc kéo lệch. Kỳ dưới 5 HĐ tiệc bị đánh dấu
+mẫu nhỏ và không dùng để tính biến động. Ở chế độ này “điểm biến động” lấy theo phép tách
+tổng = lẻ + tiệc, không so chênh lệch tuyệt đối (AOV tiệc gấp ~12 lần lẻ nên luôn thắng).
 
 ## 3. Chỉ số & công thức
 
@@ -67,3 +78,6 @@ Brand · Từ · Đến · scope · perday.
 - [ ] **Cảnh báo tự động: cửa hàng có TA giảm 2 kỳ liên tiếp**
 - [ ] Chế độ **same-store rõ ràng** — hiện là quy tắc ngầm ở chốt QA #7, nên thành nút bật/tắt như `scope`
 - [ ] Nạp `Doanh thu 2025/` để mở YoY thật
+- [x] **Tách khách lẻ / khách tiệc** (HĐ ≥ 10 khách) cho TC · TA · AOV
+- [ ] Biểu đồ **Diễn Biến TA & AOV Qua Các Tháng** vẫn dùng tổng (lẫn tiệc) — nên thêm đường AOV khách lẻ
+- [ ] **HĐ tiệc nghi nhập sai Số khách** (Net/khách < 30k, vd. NCB_GW 12/05 1.111 khách/177k) — ETL đã cảnh báo, cần vận hành sửa trên POS

@@ -42,7 +42,9 @@ Trước đây bước này làm tay nên hai bản dễ lệch — đó là m�
 | `days` | map | §6 | số ngày của mỗi tháng | FilterContext |
 | `coverage` | map | §6 | days_data · days_month · first · last · **partial** | D1 · M0 · FilterContext |
 | `store_month` | array | A | month × store: net · guest · tc · gross · disc · voucher · ta · aov · brand · tier | D1 · M0 · M1 · M5 · R1 |
-| `daily` | array | B | date × store: net · guest · tc | M1 |
+| `daily` | array | B | date × store: net · guest · tc — ra `daily.json → rows` | M1 |
+| `daily_party` | array | B | phần khách tiệc của `daily` (HĐ ≥ 10 khách) — ra `daily.json → party` | M1 |
+| `guest_segment` | map | hợp đồng | `$guest_segment`: party_min_guests · min_sample_bills · labels — ra `daily.json → segment` | M1 |
 | `daypart` | array | C | month × daypart: net · tc · guest | M3 |
 | `daypart_order` | array | C | thứ tự 5 khung giờ để vẽ đúng chiều | M3 |
 | `heat` | array | D | dow × hour_in: net · tc | M3 |
@@ -99,7 +101,7 @@ Trước đây bước này làm tay nên hai bản dễ lệch — đó là m�
 | `member_stat` | §4 | months_template · **months_filled** · total · blank | *(chưa dùng)* |
 | `crm_target` | §4 | month × kpi × target | *(chưa dùng)* |
 | `partners` | §5 | đối tác + kết quả voucher thật gắn vào | M10 |
-| `partner_camp` | §5 | mã CTKM ↔ Campaign ID iPOS | *(chưa dùng)* |
+| `partner_program` · `partner_agg` · `partner_voucher` | §5 | chương trình · số aggregator tự thống kê · log eVoucher đối tác | M9 |
 | `pre_q3` | §6 | chương trình đề xuất: name · brand · kind · roi · nc *(từ `pre_plan`)* | M7.1 |
 | `pre_stat` | §6 | n · **neg** · neg_nc · pos_nc | *(chưa dùng)* |
 | `system` | §7 | kiểm toán phân mảnh: total_py · total_loc · cache_mb · tools · dashboards · caches · dup_json | D2 |
@@ -129,7 +131,7 @@ Trước đây có **15 khoá bị bỏ phí** — dữ liệu đã tính rồi 
 | `MKT.voucher_month` | M9 · *Phễu voucher* | Trục kép: lượt dùng × chi phí ưu đãi theo tháng |
 | `MKT.member_month` · `member_stat` | M9 · *Member so KPI* | Phơi bày **bảng theo dõi tay mới điền 1/6 tháng** |
 | `MKT.crm_target` | M9 · *Member so KPI* | Cột % đạt KPI, tô theo 3 ngưỡng |
-| `MKT.partner_camp` | M10 · *Bản đồ mã CTKM ↔ Campaign ID iPOS* | Giải thích kết quả mỗi đối tác được gắn qua đâu |
+| `MKT.partner_fact` · `partner_campaigns` · `partner_check` | M7 · M9 | Số đối tác chung hai màn · eVoucher theo chiến dịch · hoá đơn cần xác nhận | |
 
 ### Bốn khoá còn lại — có lý do
 

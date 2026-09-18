@@ -98,9 +98,11 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 | `budget_extra` | _name_ · plan | name | — |
 | `budget_channel` | _channel_ · _source_ · plan | channel + source | — |
 | `budget_store` | _store_ · brand · target · meta · google · zalo · total · pct | store | — |
-| `partners` | **code** · **name** · channel · kind · brand · stores · start · end · status · noire_share · fee_month · commission_pct · media · note | code | — |
-| `partner_camp` | _code_ · name · _cid_ · mech · rate | code + cid | — |
-| `partner_plan` | **month** · **code** · scenario · issued · use_rate · aov · cost · rev · gp | month + code | — |
+| `partners` | **code** · **name** · **channel** · kind · brand · stores · start · end · status · noire_share · fee · fee_period · commission_pct · fee_month · fee_unit · fee_unit_amount · sponsor · source · media · owner · note | code | — |
+| `partner_program` | **prog** · **code** · name · brand · mech · offer · rate · cap · min_bill · condition · start · end · codes · cid · pos_name · note | prog | — |
+| `partner_agg` | **month** · _brand_ · _store_ · **code** · bookings · cancels · guests · bills · net · disc_noire · disc_platform · commission · fee_other · method · note | month + code + brand + store | — |
+| `partner_plan` | **month** · **code** · scenario · issued · use_rate · aov · rev · cost · gp · note | month + code | — |
+| `partner_voucher` | **cid** · campaign · partner · brand · expire · **kind** · **month** · _store_ · issued · used · locked · gross · disc | cid + kind + month + store | — |
 | `pre_analytics` | _name_ · _brand_ · kind · roi · nc | name + brand | — |
 | `crm_target` | _month_ · _kpi_ · target | month + kpi | — |
 | `system_tools` | _root_ · files · loc · dirs | root | — |
@@ -119,9 +121,11 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 - **`budget_extra`** — Ngân sách ngoài brand (Chạy Tiệc, CRM…).
 - **`budget_channel`** — Ngân sách theo kênh × nguồn túi tiền.
 - **`budget_store`** — Phân bổ ngân sách quảng cáo theo cửa hàng.
-- **`partners`** — Danh mục đối tác — chép từ L0 S15 (00_Danh_Muc_Partnership.xlsx · sheet `1. Đối Tác`). `channel` = AGGREGATOR | PARTNER. `noire_share` = phần chiết khấu NOIRE chịu (1 = chịu hết). `commission_pct` = % hoa hồng nền tảng — dùng ước tính phí khi POS không ghi Hoa hồng. Kết quả (hoá đơn · doanh thu · chi phí) KHÔNG nằm ở đây — loader tính từ fact_partner theo tháng.
-- **`partner_camp`** — Cầu nối đối tác ↔ Campaign ID iPOS — để truy vết doanh thu về đúng đối tác.
-- **`partner_plan`** — Kế hoạch đối tác theo tháng — chép từ L0 S15 sheet `3. Kế Hoạch`. Ô trống = chưa đặt kế hoạch (hiện '—'), không phải 0.
+- **`partners`** — Danh mục đối tác — từ file đối tác L0 S15, sheet 1_PARTNER (channel = PARTNER) và 2_AGGREGATOR (channel = AGGREGATOR). `source` = POS | TU_THONG_KE. `noire_share` = phần ưu đãi NOIRE chịu. `fee` + `fee_period` = phí hợp tác · `commission_pct` = hoa hồng / chiết khấu cho đối tác · `fee_month` = phí cố định tháng · `fee_unit_amount` theo `fee_unit` (booking / khách). Kết quả KHÔNG nằm ở đây — loader tính từ fact_partner + partner_agg.
+- **`partner_program`** — Chương trình ưu đãi của đối tác — sheet 3_CHUONG_TRINH: cơ chế, nội dung ưu đãi khách nhận, mức, trần, HĐ tối thiểu, kỳ chạy, số mã phát, Campaign ID iPOS (nối log eVoucher).
+- **`partner_agg`** — Số aggregator TỰ THỐNG KÊ theo tháng × brand — file 05_DOI_TAC/03_Aggregator/NOIRE_Aggregator_Theo_Thang.xlsx, sheet AGG_THANG. `net` = Tổng tiền hoá đơn (gồm VAT & phí phục vụ, KHÔNG trừ phí nền tảng). Với nền tảng nguồn POS chỉ lấy `commission` · `fee_other` (phí thực trả).
+- **`partner_plan`** — Kế hoạch đối tác theo tháng — file danh mục đối tác, sheet 4_KE_HOACH. Ô trống = chưa đặt kế hoạch (hiện '—'), không phải 0.
+- **`partner_voucher`** — Log eVoucher đối tác (L0 S21) theo chiến dịch × tháng. Dòng phát: `issued` theo THÁNG của Ngày phát hành mã (store trống) · dòng dùng: `used` · `gross` (HĐ trước giảm) · `disc` theo THÁNG của Ngày sử dụng × cửa hàng. Không lấy tháng từ tên file. Không chứa số điện thoại khách.
 - **`pre_analytics`** — CŨ — không còn dùng. Thay bằng `pre_plan` (03_campaign.xlsx) đọc thẳng file Pre-Analysis S16 qua tools/pre_analysis.py.
 - **`crm_target`** — KPI CRM cam kết theo tháng. kpi ∈ member|oa
 - **`system_tools`** — Kiểm toán phân mảnh hệ thống — nuôi tab D2.
@@ -140,9 +144,9 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | Sheet | Cột | Khoá tự nhiên | Loader tự tính |
 |---|---|---|---|
 | `budget_nonmedia` | _month_ · _item_ · budget · actual | month + item | use_rate |
-| `partner_month` | _month_ · _code_ · issued · used · rev · disc | month + code | use_rate |
 | `store_month` | **month** · **store** · **net** · **guest** · **tc** · gross · disc · voucher | month + store | ta · aov · brand · tier |
 | `daily` | **date** · **store** · **net** · guest · tc | date + store | — |
+| `daily_party` | **date** · **store** · **net** · guest · **tc** | date + store | — |
 | `coverage` | _month_ · days_data · days_month · first · last | month | partial |
 | `daypart` | _month_ · _daypart_ · net · tc · guest | month + daypart | — |
 | `channel` | _month_ · _channel_ · net · tc | month + channel | — |
@@ -167,16 +171,15 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `social_month` | **month** · **platform** · **brand** · _page_ · code · followers · follows · unfollows · reach · impr · views · profile_views · clicks · contacts · msgs · likes · comments · shares · saves · engage · posts · spend · days | month + platform + brand + page | net_follow · er · reach_rate · per_post · cpm · audience · unit |
 | `social_post` | _date_ · _platform_ · _brand_ · _page_ · format · _title_ · reach · views · impr · likes · comments · shares · saves · clicks · watch_avg · spend · link | date + platform + brand + page + title | engage · audience · er · unit |
 | `social_target` | _month_ · _platform_ · _kpi_ · target | month + platform + kpi | — |
-| `aggregator` | **month** · **platform** · brand · _store_ · sales · orders · items · guests · discount · commission · ads_spend · note | month + platform + store | aov · take_rate · net_after |
 | `booking` | **month** · _ev_month_ · _store_ · brand · _outlet_ · _seg_ · _etype_ · _source_ · **status** · stage · _lost_reason_ · leads · guests · exp · exp_n · closed · closed_n · inq_est | month + ev_month + store + outlet + seg + etype + source + status + lost_reason | — |
 | `lead_month` | _m_ · leads · exp | m | — |
 | `lead_source` | _month_ · _src_ · leads · exp | month + src | — |
 | `lead_type` | _month_ · _etype_ · leads · exp | month + etype | — |
 
 - **`budget_nonmedia`** — Chi phí NGOÀI media theo tháng: KOL/KOC, POSM & in ấn, sản xuất nội dung, quà tặng, sự kiện.
-- **`partner_month`** — Kết quả đối tác THEO THÁNG — tách khỏi con số luỹ kế ở sheet partners.
 - **`store_month`** — XƯƠNG SỐNG của hệ thống. net = doanh thu thuần · guest = số khách · tc = số hoá đơn.
 - **`daily`** — Doanh thu theo NGÀY × cửa hàng. Ngày phải nằm trong tháng của file.
+- **`daily_party`** — Phần KHÁCH TIỆC của `daily`: chỉ các hoá đơn có Số khách ≥ $guest_segment.party_min_guests, gộp theo NGÀY × cửa hàng. ETL tự sinh từ bảng kê hoá đơn (S02). Khách lẻ = daily − daily_party.
 - **`coverage`** — Số ngày THỰC CÓ dữ liệu — nhận diện tháng chưa trọn kỳ. Không khai thì loader suy từ daily.
 - **`daypart`** — Doanh thu theo khung giờ trong ngày.
 - **`channel`** — Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…).
@@ -201,7 +204,6 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 - **`social_month`** — Fanpage & TikTok. Facebook điền reach · TikTok điền views — KHÔNG gộp hai cột. platform ∈ FACEBOOK|TIKTOK|INSTAGRAM|YOUTUBE|ZALO code = mã fanpage (NCB · NDC · NJFB · NEC). contacts = Tổng số người liên hệ, msgs = Lượt bắt đầu cuộc trò chuyện qua tin nhắn (Facebook, cả tự nhiên lẫn trả phí).
 - **`social_post`** — Bài đăng / video. watch_avg tính bằng GIÂY.
 - **`social_target`** — KPI social cam kết theo tháng, ví dụ kpi = net_follow hoặc er.
-- **`aggregator`** — Nền tảng trung gian (GrabFood, ShopeeFood, Dining City…). sales = doanh thu ghi nhận trên nền tảng.
 - **`booking`** — Booking tiệc & sự kiện — gộp theo tháng NHẬN LEAD (month) × tháng DIỄN RA (ev_month) × cửa hàng × phân khúc × loại × nguồn × trạng thái. month = Inquiry Date → Input Date → (thiếu cả hai) ngày sự kiện, khi đó inq_est đếm số lead bị ước. seg ∈ event|table, stage ∈ won|open|lost — luật ở $booking. exp chỉ cộng ô có số (exp_n lead); ô trống/TBA KHÔNG tính là 0. closed_n = số lead Confirmed đã nhập Closed Revenue.
 - **`lead_month`** — Lead tiệc theo tháng. Loader tự sinh từ sheet booking nếu sheet này trống.
 - **`lead_source`** — Lead tiệc theo nguồn. Loader tự sinh từ sheet booking nếu sheet này trống.

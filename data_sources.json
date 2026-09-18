@@ -584,35 +584,29 @@
       ]
     },
     {
-      "id": "S19_aggregator",
-      "group": "05_DOI_TAC",
-      "dir": "05_DOI_TAC/03_Aggregator",
-      "name": "Aggregator — báo cáo nền tảng trung gian (Grab Dine Out · GrabFood · Dining City)",
+      "id": "S25_mkt_report",
+      "group": "03_MARKETING",
+      "dir": "03_MARKETING/08_Bao_Cao_MKT_Thang",
+      "name": "Báo cáo marketing tháng (Promotion-AGG)",
       "cadence": "monthly",
       "since": "2026-08",
       "required": false,
       "pattern": "*Promotion AGG*.xlsx",
       "month_regex": "T(\\d{1,2})-(\\d{4})",
       "example": "NOIRE_Bao_Cao_Promotion AGG - MKT_T8-2026.xlsx",
-      "how": "Báo cáo team về kênh Aggregator (doanh thu, đơn, giảm giá, hoa hồng). Tên có `T<tháng>-<năm>`. Grab đã đo thẳng trên POS (Nguồn/PTTT) nên số Grab ở đây chỉ để đối soát; Dining City không có dấu vết trên POS nên lấy số từ báo cáo này.",
+      "how": "Báo cáo marketing tháng ĐẦY ĐỦ của team (Scorecard · Aggregator · Partnership · Budget…), tên có `T<tháng>-<năm>`. Hệ thống chỉ đọc sheet Budget (chi phí ngoài media: KOL · POSM · sản xuất · sự kiện). Số aggregator nhập ở 05_DOI_TAC/03_Aggregator.",
       "produces": [
-        "aggregator",
         "budget_nonmedia"
       ],
       "via": "tools/build_month.py",
       "modules": [
-        "M7",
-        "M9"
+        "M4"
       ],
       "schema": {
         "sheets": [
           [
-            "Aggregator"
+            "Budget"
           ]
-        ],
-        "markers": [
-          "C2.",
-          "Nền tảng"
         ]
       }
     },
@@ -716,21 +710,19 @@
       "id": "S12_zalo_oa",
       "group": "04_CRM",
       "dir": "04_CRM/02_Zalo_OA",
-      "name": "Zalo OA",
+      "name": "Zalo OA export (legacy)",
       "cadence": "monthly",
       "since": "2026-01",
       "required": false,
       "pattern": "OA Zalo T*.xls*",
       "month_regex": "(?:tháng|thang|(?<![A-Za-z])T)\\s*(\\d{1,2})\\s*[.\\-\\s]\\s*(\\d{4})",
       "example": "OA Zalo T8.2026.xls",
-      "how": "Zalo OA Manager › Thống kê › Xuất. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại.",
+      "how": "Nguồn đối soát/backfill lịch sử. M8.1 realtime dùng OpenAPI + Webhook; file .xls này không còn cấp số cho màn hình.",
       "produces": [
         "oa"
       ],
       "via": "tools/build_month.py",
-      "modules": [
-        "M8"
-      ],
+      "modules": [],
       "schema": {
         "html_any": [
           "Quan tâm",
@@ -806,15 +798,15 @@
       "id": "S15_partnership",
       "group": "05_DOI_TAC",
       "dir": "05_DOI_TAC/01_Danh_Muc",
-      "name": "Danh mục đối tác",
+      "name": "Danh mục đối tác — Partner + Aggregator",
       "cadence": "config",
       "required": false,
-      "pattern": "00_Danh_Muc_Partnership*.xlsx",
-      "example": "00_Danh_Muc_Partnership.xlsx",
-      "how": "Đối tác = Aggregator + Partner. Thêm dòng khi có đối tác mới, điền cột `Kênh` (AGGREGATOR/PARTNER). Luật nhận hoá đơn POS của đối tác khai ở data_contract.json ($promo_nature.rules[].partner = Mã ĐT).",
+      "pattern": "NOIRE_Doi_Tac*.xlsx",
+      "example": "NOIRE_Doi_Tac_Partner_Aggregator.xlsx",
+      "how": "Danh mục đối tác — MỘT file cho cả hai kênh (tạo bằng python tools/partner_template.py): 1_PARTNER · 2_AGGREGATOR (hợp đồng, phí, hoa hồng, kỳ hạn) · 3_CHUONG_TRINH (cơ chế, nội dung ưu đãi, kỳ chạy, Campaign ID) · 4_KE_HOACH. Số aggregator theo tháng ở 05_DOI_TAC/03_Aggregator.",
       "produces": [
         "partners",
-        "partner_camp",
+        "partner_program",
         "partner_plan"
       ],
       "via": "build_mkt.py",
@@ -825,10 +817,16 @@
       "schema": {
         "sheets": [
           [
-            "1. Đối Tác"
+            "1_PARTNER"
           ],
           [
-            "2. Mã CTKM"
+            "2_AGGREGATOR"
+          ],
+          [
+            "3_CHUONG_TRINH"
+          ],
+          [
+            "4_KE_HOACH"
           ]
         ]
       }
@@ -837,19 +835,16 @@
       "id": "S21_evoucher",
       "group": "05_DOI_TAC",
       "dir": "05_DOI_TAC/02_eVoucher_Doi_Tac",
-      "name": "eVoucher đối tác (Techcombank × OneU…)",
-      "cadence": "monthly",
-      "since": "2026-08",
+      "name": "Log eVoucher đối tác (Techcombank × OneU…)",
+      "cadence": "cumulative",
       "required": false,
       "pattern": "eVoucher*.xlsx",
-      "month_regex": "(?:tháng|thang|(?<![A-Za-z])T)\\s*(\\d{1,2})\\s*[.\\-\\s]\\s*(\\d{4})",
-      "many_per_month": true,
-      "example": "eVoucher_NCB- Techcombank Reward × OneU_T8.2026.xlsx",
-      "how": "Báo cáo phát hành eVoucher từ đối tác, mỗi brand một file, tên có `T<tháng>.<năm>`.",
+      "example": "eVoucher NCB - Techcombank Reward × OneU_T9.2026.xlsx",
+      "how": "iPOS › Voucher › xuất log theo chiến dịch của mã đối tác. Mỗi chiến dịch một file, xuất từ ĐẦU chương trình tới hôm nay, thả đè bản cũ. Tháng phát / tháng dùng lấy từ NGÀY trong log, không lấy từ tên file. Gắn vào đối tác qua Campaign ID ở 3_CHUONG_TRINH.",
       "produces": [
-        "partner_month"
+        "partner_voucher"
       ],
-      "via": "tools/build_month.py",
+      "via": "build_mkt.py",
       "modules": [
         "M9"
       ],
@@ -860,7 +855,37 @@
         "cols": [
           "Mã khuyến mãi",
           "Chương trình",
-          "Trạng thái"
+          "Trạng thái",
+          "Ngày phát hành mã",
+          "Ngày sử dụng",
+          "Nhà hàng sử dụng",
+          "Tiền giảm giá"
+        ]
+      }
+    },
+    {
+      "id": "S19_aggregator",
+      "group": "05_DOI_TAC",
+      "dir": "05_DOI_TAC/03_Aggregator",
+      "name": "Số Aggregator theo tháng (tự thống kê)",
+      "cadence": "config",
+      "required": false,
+      "pattern": "NOIRE_Aggregator*.xlsx",
+      "example": "NOIRE_Aggregator_Theo_Thang.xlsx",
+      "how": "MỘT file cho mọi tháng (tạo bằng python tools/partner_template.py), sheet AGG_THANG xếp sẵn THÁNG → BRAND → nền tảng. Nền tảng POS không ghi nhận (Dining City) điền đủ booking · khách · hoá đơn · doanh thu · phí; nền tảng đo trên POS (Grab) chỉ điền hoa hồng / phí thực trả theo sao kê.",
+      "produces": [
+        "partner_agg"
+      ],
+      "via": "build_mkt.py",
+      "modules": [
+        "M7",
+        "M9"
+      ],
+      "schema": {
+        "sheets": [
+          [
+            "AGG_THANG"
+          ]
         ]
       }
     }
@@ -880,7 +905,8 @@
     "S10_budget": "01 Strategic/03 Budget Allocation",
     "S16_pre_analytics": "04 Marketing Campaigns/02 LTO Promotions/2026 Q3",
     "S17_lto_actual": "04 Marketing Campaigns/02 LTO Promotions/2026 Q2",
-    "S19_aggregator": "05 Data Raw/Promotion-AGG",
+    "S19_aggregator": "10 Partnership Analytics/Aggregator",
+    "S25_mkt_report": "05 Data Raw/Promotion-AGG",
     "S11_voucher": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/01. Data Voucher iPOS",
     "S12_zalo_oa": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/02. Data CRM/04. KPI Actual/01. OA Zalo",
     "S13_member": "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/02. Data CRM/04. KPI Actual/02. Member Đăng Ký",

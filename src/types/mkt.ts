@@ -195,9 +195,29 @@ export interface MemberMonth {
 
 /* ── Đối tác = Aggregator + Partner (M7 · M9) — hợp đồng: data_contract.json → $partner ── */
 export type PartnerChannel = 'AGGREGATOR' | 'PARTNER';
-export type PartnerBasis = 'CTKM' | 'NGUON' | 'PTTT' | 'REPORT';
+export type PartnerBasis = 'CTKM' | 'NGUON' | 'PTTT' | 'XAC_NHAN' | 'TU_THONG_KE' | 'PHI';
 
-/** Danh mục đối tác (L0 S15) + cờ đối chiếu với hoá đơn thật. Kết quả nằm ở partner_fact. */
+/** Chương trình ưu đãi của đối tác — sheet 3_CHUONG_TRINH của file đối tác. */
+export interface PartnerProgram {
+  prog: string;
+  name: string | null;
+  brand: string | null;
+  mech: string | null;
+  offer: string | null;
+  /** < 1 là tỷ lệ (0,15 = 15%), ≥ 1 là số tiền. */
+  rate: number | null;
+  cap: number | null;
+  min_bill: number | null;
+  condition: string | null;
+  start: string | null;
+  end: string | null;
+  codes: number | null;
+  cid: string | null;
+  pos_name: string | null;
+  note: string | null;
+}
+
+/** Danh mục đối tác (file đối tác L0 S15) + cờ đối chiếu với số thật. Kết quả nằm ở partner_fact. */
 export interface PartnerItem {
   code: string;
   name: string;
@@ -209,20 +229,29 @@ export interface PartnerItem {
   end: string | null;
   status: string | null;
   noire_share: number;
-  fee_month: number | null;
+  /** Phí hợp tác · kỳ tính phí (Không / Một lần / Hàng tháng). */
+  fee: number | null;
+  fee_period: string | null;
+  /** Hoa hồng nền tảng / chiết khấu cho đối tác. */
   commission_pct: number | null;
+  fee_month: number | null;
+  fee_unit: string | null;
+  fee_unit_amount: number | null;
+  sponsor: string | null;
+  /** POS = đo trên hoá đơn · TU_THONG_KE = số team nhập (Dining City). */
+  source: 'POS' | 'TU_THONG_KE';
   media: number | null;
+  owner: string | null;
   note: string | null;
+  programs: PartnerProgram[];
   first: string | null;
   last: string | null;
   active_brands: string[];
-  /** Tên CTKM thật trên POS đã gắn cho đối tác này. */
-  names: string[];
   bases: PartnerBasis[];
   flags: string[];
 }
 
-/** Hoá đơn đối tác theo tháng × cửa hàng × đối tác × cách nhận — nền chung M7 · M9. */
+/** Số đối tác theo tháng × cửa hàng × đối tác × cách nhận — nền chung M7 · M9. */
 export interface PartnerFact {
   month: string;
   partner: string;
@@ -233,34 +262,77 @@ export interface PartnerFact {
   camp: string | null;
   bills: number;
   guests: number;
+  /** Chỉ số tự thống kê (Dining City). */
+  bookings?: number | null;
+  cancels?: number | null;
+  method?: string | null;
+  note?: string;
   gross: number;
   disc: number;
   voucher: number;
   /** Tổng tiền cả hoá đơn — cùng base Net Sales. */
   net: number;
-  /** (giảm giá + phiếu GG) × % NOIRE chịu. */
+  /** Ưu đãi NOIRE chịu. */
   cost: number;
-  /** Phí nền tảng (Hoa hồng POS, hoặc ước tính theo % danh mục khi fee_est). */
+  /** Phí đối tác / nền tảng tính vào chi phí (thực trả, hoặc ước tính khi fee_est). */
   fee: number;
   fee_est: boolean;
+  /** Hoa hồng POS ĐÃ TRỪ sẵn trong Tổng tiền (GrabFood giao hàng) — chỉ để xem, không cộng vào chi phí. */
+  fee_netted: number;
 }
 
 export interface PartnerMeta {
   channels: { code: PartnerChannel; label: string; short: string; color: string; desc: string }[];
-  bases: { code: PartnerBasis; label: string; desc: string }[];
+  bases: { code: PartnerBasis; label: string; desc: string; count: boolean }[];
   other: { code: string; name: string; channel: PartnerChannel };
   last_month: string | null;
 }
 
-export interface PartnerRecon {
+/** Log eVoucher đối tác — dòng PHAT (tháng phát hành) và DUNG (tháng × cửa hàng sử dụng). */
+export interface PartnerVoucher {
+  cid: string | null;
+  campaign: string | null;
+  partner: string | null;
+  brand: string | null;
+  kind: 'PHAT' | 'DUNG';
+  month: string;
+  store: string | null;
+  issued: number;
+  used: number;
+  locked: number;
+  gross: number;
+  disc: number;
+  expire: string | null;
+}
+
+/** Tổng hợp một chiến dịch eVoucher (toàn bộ log). */
+export interface PartnerCampaign {
+  cid: string | null;
+  campaign: string | null;
+  partner: string | null;
+  brand: string | null;
+  expire: string | null;
+  issued: number;
+  used: number;
+  locked: number;
+  gross: number;
+  disc: number;
+  first: string | null;
+  last_use: string | null;
+  prog: string | null;
+  offer: string | null;
+  use_rate: number | null;
+}
+
+/** Hoá đơn khớp nền tảng nhưng CHƯA đủ căn cứ — không cộng vào doanh thu, hiện để kiểm lại. */
+export interface PartnerCheck {
   month: string;
   partner: string;
-  report_sales: number;
-  report_orders: number;
-  pos_sales_src: number;
-  pos_orders_src: number;
-  pos_sales_all: number;
-  pos_orders_all: number;
+  brand: string | null;
+  store: string | null;
+  basis: PartnerBasis;
+  bills: number;
+  net: number;
 }
 
 export interface PartnerPlan {
@@ -319,19 +391,17 @@ export interface MktData {
   voucher_month: VoucherMonth[];
   voucher_stat: VoucherStat;
   voucher_join: VoucherJoin;
-  aggregator: AggregatorRow[];
-  aggregator_stat: AggregatorStat;
-  partner_month: PartnerMonth[];
   partner_meta: PartnerMeta;
   partner_fact: PartnerFact[];
-  partner_recon: PartnerRecon[];
+  partner_voucher: PartnerVoucher[];
+  partner_campaigns: PartnerCampaign[];
+  partner_check: PartnerCheck[];
   partner_plan: PartnerPlan[];
   oa: ZaloOAItem[];
   member_month: MemberMonth[];
   member_stat: { total: number; months_filled: number; months_template: number };
   crm_target: { month: string; kpi: string; target: number }[];
   partners: PartnerItem[];
-  partner_camp: any[];
   pre_q3: PreAnalyticsQ3[];
   pre_stat: PreStat;
   system: SystemAudit;
@@ -348,51 +418,6 @@ export interface GoogleAdsMonth {
   clicks: number;
   impr: number;
   cpa: number | null;
-}
-
-/* ── Nền tảng trung gian — GrabFood · Dining City… (M7) ───────────────── */
-export interface AggregatorRow {
-  month: string;
-  platform: string;
-  brand: string | null;
-  store: string | null;
-  sales: number;
-  orders: number;
-  items: number | null;
-  guests: number | null;
-  discount: number | null;
-  commission: number | null;
-  ads_spend: number | null;
-  note: string | null;
-  aov: number | null;
-  /** Phần nền tảng giữ lại: (discount + commission + ads) ÷ sales. */
-  take_rate: number | null;
-  net_after: number;
-}
-
-export interface AggregatorStat {
-  months: string[];
-  platforms: string[];
-  sales: number;
-  orders: number;
-  aov: number | null;
-  discount: number;
-  commission: number;
-  take_rate: number | null;
-  net_after: number;
-  by_month: { month: string; sales: number; orders: number; aov: number | null }[];
-  empty: boolean;
-}
-
-/* ── Mã đối tác phát (eVoucher) ↔ đã dùng (hoá đơn gắn CTKM đối tác) theo tháng (M9) ── */
-export interface PartnerMonth {
-  month: string;
-  code: string;
-  issued: number | null;
-  used: number;
-  rev: number;
-  disc: number;
-  use_rate: number | null;
 }
 
 /* ── Chi phí NGOÀI media theo tháng (M4) ──────────────────────────────── */

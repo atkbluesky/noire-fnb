@@ -20,6 +20,7 @@ const PreAnalyticsView = lazy(() => import('./views/PreAnalyticsView').then(m =>
 const PromotionView = lazy(() => import('./views/PromotionView').then(m => ({ default: m.PromotionView })));
 const CampaignTrackingView = lazy(() => import('./views/CampaignTrackingView').then(m => ({ default: m.CampaignTrackingView })));
 const CRMView = lazy(() => import('./views/CRMView').then(m => ({ default: m.CRMView })));
+const ZaloOAView = lazy(() => import('./views/ZaloOAView').then(m => ({ default: m.ZaloOAView })));
 const PartnershipView = lazy(() => import('./views/PartnershipView').then(m => ({ default: m.PartnershipView })));
 const BookingView = lazy(() => import('./views/BookingView').then(m => ({ default: m.BookingView })));
 const InsightsView = lazy(() => import('./views/InsightsView').then(m => ({ default: m.InsightsView })));
@@ -68,6 +69,8 @@ const DashboardContent: React.FC = () => {
         return <CampaignTrackingView />;
       case 'm8':
         return <CRMView />;
+      case 'm81':
+        return <ZaloOAView />;
       case 'm9':
         return <PartnershipView />;
       case 'm10':
@@ -80,7 +83,7 @@ const DashboardContent: React.FC = () => {
   };
 
   // Determine whether to show the filter bar and its options
-  const showFilterBar = !['d1', 'd2'].includes(activeView);
+  const showFilterBar = !['d1', 'd2', 'm81'].includes(activeView);
   const showScopeFilter = ['m0', 'm1', 'm3', 'r1'].includes(activeView);
   const showPerDayFilter = ['m0', 'm1', 'r1'].includes(activeView);
 
@@ -95,7 +98,7 @@ const DashboardContent: React.FC = () => {
   } else if (activeView === 'm10') {
     customNote = 'Tháng = tháng NHẬN LEAD. Brand lấy theo Outlet trong sổ booking; lịch doanh thu xếp theo tháng diễn ra tiệc.';
   } else if (activeView === 'm8') {
-    customNote = 'Tỷ lệ nhận diện khách và Zalo OA là số liệu toàn chuỗi.';
+    customNote = 'Tỷ lệ nhận diện khách là số liệu toàn chuỗi; voucher lọc được theo brand.';
   } else if (activeView === 'm6') {
     customNote = 'Reach của Facebook và views của TikTok không cộng chung được — mỗi nền tảng một khung riêng.';
   }

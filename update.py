@@ -59,7 +59,7 @@ def _part_map():
 # Nguồn nuôi hai lane cũ (bảng luỹ kế: Menu · giờ · khu vực · voucher · đối tác · KPI CRM).
 HUB_SOURCES = {"S01_item", "S02_bill", "S03_daily", "S04_monthly", "S05_bom"}
 MKT_SOURCES = {"S08_ads_meta", "S09_ads_google", "S10_budget", "S11_voucher", "S12_zalo_oa",
-               "S13_member", "S14_crm_kpi", "S15_partnership", "S16_pre_analytics",
+               "S13_member", "S14_crm_kpi", "S15_partnership", "S16_pre_analytics", "S19_aggregator", "S21_evoucher",
                "S17_lto_actual"}
 # Nguồn luỹ kế: một file phủ nhiều tháng → đổi file là dựng lại mọi tháng.
 ALL_MONTH_SOURCES = {"S03_daily", "S00_targets", "S13_member", "S07_lead", "S22_tiktok"}

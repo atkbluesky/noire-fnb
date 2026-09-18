@@ -541,73 +541,200 @@ except Exception as e:
 # ══════════════════════════════════════════════════════════════
 # 5. PARTNERSHIP
 # ══════════════════════════════════════════════════════════════
-log("\n[5/6] Partnership ...")
+log("\n[5/6] Đối tác — Partner + Aggregator ...")
+# MỘT file chuẩn (tools/partner_template.py định nghĩa cột — đọc lại đúng định nghĩa đó, không
+# gõ lại tiêu đề ở đây) + log eVoucher của đối tác. Kết quả hoá đơn POS không nằm ở đây: loader
+# ghép với fact_partner theo tháng.
+import partner_template as PTPL  # noqa: E402
+from monthly_lib import BRAND_OF_STORE, classify_partner, store_code  # noqa: E402
+
+
+def _cell(v):
+    """Ô Excel → giá trị sạch. Ô trống / 'nan' / chữ 'POS tự lấy' (ô xám) → None."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return None
+    if hasattr(v, "strftime"):
+        return v.strftime("%Y-%m-%d")
+    t = str(v).strip()
+    return None if t in ("", "nan", "NaT", "None", "—", "-", "POS tự lấy") else t
+
+
+def _num(v):
+    v = _cell(v)
+    if v is None:
+        return None
+    x = pd.to_numeric(str(v).replace(",", "").replace("%", ""), errors="coerce")
+    if pd.isna(x):
+        return None
+    return float(x) / 100 if str(v).strip().endswith("%") else float(x)
+
+
+def _month(v):
+    v = _cell(v)
+    if not v:
+        return None
+    m = re.match(r"^(\d{4})-(\d{1,2})", v) or re.match(r"^(\d{1,2})[/.-](\d{4})$", v)
+    if not m:
+        return None
+    y, mo = (m.group(1), m.group(2)) if len(m.group(1)) == 4 else (m.group(2), m.group(1))
+    return "%s-%02d" % (y, int(mo))
+
+
+def read_sheet(path, sheet, cols, keep):
+    """Đọc một sheet của file chuẩn theo TIÊU ĐỀ đã khai ở partner_template → list[dict] theo khoá."""
+    from openpyxl import load_workbook
+    wb = load_workbook(path, read_only=True, data_only=True)
+    if sheet not in wb.sheetnames:
+        wb.close()
+        raise KeyError("thiếu sheet %s" % sheet)
+    rows = list(wb[sheet].iter_rows(values_only=True))
+    wb.close()
+    by_head = {norm(h): k for k, h, *_ in cols}
+    idx = {by_head[norm(c)]: j for j, c in enumerate(rows[0] or []) if c and norm(c) in by_head}
+    out = []
+    for r in rows[1:]:
+        d = {k: (r[j] if j < len(r) else None) for k, j in idx.items()}
+        if keep(d):
+            out.append(d)
+    return out
+
+
+TEXT = {"code", "name", "kind", "brand", "stores", "status", "fee_period", "fee_unit", "sponsor", "source",
+        "owner", "note", "prog", "mech", "offer", "condition", "cid", "pos_name", "store", "platform",
+        "method", "scenario"}
+
+
+def clean(d, dates=("start", "end")):
+    o = {}
+    for k, v in d.items():
+        if k in dates:
+            o[k] = (_cell(v) or "")[:10] or None
+        elif k == "month":
+            o[k] = _month(v)
+        elif k in TEXT:
+            o[k] = _cell(v)
+            if k in ("cid",) and o[k]:
+                o[k] = re.sub(r"\.0\b", "", o[k])
+        else:
+            o[k] = _num(v)
+    return o
+
+
 try:
-    # Ô trống của Excel là NaN — str(NaN) = 'nan' từng lọt lên màn hình ("2026-01-01 → nan").
-    def cell(v):
-        if v is None or (isinstance(v, float) and pd.isna(v)):
-            return None
-        t = str(v).strip()
-        return None if t in ("", "nan", "NaT", "None") else t
-
-    def fnum(v):
-        x = pd.to_numeric(v, errors="coerce")
-        return None if pd.isna(x) else float(x)
-
-    PT = pd.read_excel(F_PART, sheet_name="1. Đối Tác")
-    PT.columns = [str(c).strip() for c in PT.columns]
-    PT = PT[PT[PT.columns[0]].notna()]
+    if not F_PART:
+        raise FileNotFoundError("chưa có file %s trong 05_DOI_TAC/01_Danh_Muc" % PTPL.OUT_NAME)
+    has = lambda d: bool(_cell(d.get("code")))
     parts = []
-    for _, r in PT.iterrows():
-        # Kết quả (hoá đơn · doanh thu · chi phí) KHÔNG gắn ở đây nữa: loader tính từ
-        # fact_partner theo tháng. Bản trước gắn qua Campaign ID của log voucher iPOS —
-        # đối tác nào không phát mã qua iPOS (mọi đối tác hiện có) đều ra 0 thay vì số thật.
-        parts.append(dict(code=cell(r.get("Mã ĐT")),
-                          name=cell(r.get("Tên đối tác")),
-                          channel=(cell(r.get("Kênh")) or "").upper() or None,
-                          kind=cell(r.get("Loại đối tác")),
-                          brand=cell(r.get("Brand áp dụng")),
-                          stores=cell(r.get("Cửa hàng áp dụng")),
-                          start=(cell(r.get("Ngày bắt đầu")) or "")[:10] or None,
-                          end=(cell(r.get("Ngày kết thúc")) or "")[:10] or None,
-                          status=cell(r.get("Trạng thái")),
-                          noire_share=fnum(r.get("% Noire chịu chiết khấu")),
-                          fee_month=fnum(r.get("Phí cố định / tháng")),
-                          commission_pct=fnum(r.get("% Hoa hồng đối tác")),
-                          media=fnum(r.get("Giá trị media quy đổi")),
-                          note=(cell(r.get("Ghi chú")) or "")[:160] or None))
+    for ch, sheet, cols in (("PARTNER", "1_PARTNER", PTPL.PARTNER_COLS),
+                            ("AGGREGATOR", "2_AGGREGATOR", PTPL.AGG_COLS)):
+        for d in read_sheet(F_PART, sheet, cols, has):
+            p = clean(d)
+            p["channel"] = ch
+            # Nguồn số: POS tự động · Tự thống kê. Kênh PARTNER luôn đo trên POS (tên CTKM).
+            src = norm(p.get("source") or "")
+            p["source"] = "TU_THONG_KE" if "thống kê" in src or "thong ke" in src else "POS"
+            parts.append(p)
+    codes = [p["code"] for p in parts]
+    dup = sorted({c for c in codes if codes.count(c) > 1})
+    if dup:
+        log("   ⚠ Mã ĐT trùng giữa 1_PARTNER và 2_AGGREGATOR: %s — dòng sau bị bỏ" % ", ".join(dup))
+        seen = set()
+        parts = [p for p in parts if not (p["code"] in seen or seen.add(p["code"]))]
     D["partners"] = parts
-    CT = pd.read_excel(F_PART, sheet_name="2. Mã CTKM")
-    CT.columns = [str(c).strip() for c in CT.columns]
-    CT = CT[CT[CT.columns[0]].notna()]
-    D["partner_camp"] = [dict(code=cell(r.get("Mã ĐT")),
-                              name=(cell(r.get("Tên CTKM trên bảng kê")) or "")[:60] or None,
-                              cid=(cell(r.get("Campaign ID iPOS")) or "").replace(".0", "") or None,
-                              mech=cell(r.get("Cơ chế")),
-                              rate=fnum(r.get("Mức giảm")))
-                         for _, r in CT.iterrows()]
-    # Kế hoạch theo tháng — sheet `3. Kế Hoạch`, cột Tháng là số 7..12 của `Năm phân tích`.
-    try:
-        PR = pd.read_excel(F_PART, sheet_name="4. Tham Số")
-        yr = int(fnum(PR.loc[PR[PR.columns[0]].astype(str).str.strip() == "Năm phân tích"].iloc[0, 1]) or 2026)
-    except Exception:
-        yr = 2026
-    try:
-        KH = pd.read_excel(F_PART, sheet_name="3. Kế Hoạch")
-        KH.columns = [str(c).strip() for c in KH.columns]
-        KH = KH[KH[KH.columns[0]].notna()]
-        D["partner_plan"] = [dict(month="%d-%02d" % (yr, int(fnum(r.get("Tháng")))), code=cell(r.get("Mã ĐT")),
-                                  scenario=cell(r.get("Kịch bản")),
-                                  issued=fnum(r.get("Mã phát hành KH")), use_rate=fnum(r.get("Tỷ lệ dùng KH")),
-                                  aov=fnum(r.get("AOV KH (đ)")), cost=fnum(r.get("Chi phí KH (đ)")),
-                                  rev=fnum(r.get("Doanh thu KH (đ)")), gp=fnum(r.get("LN gộp KH (đ)")))
-                             for _, r in KH.iterrows() if fnum(r.get("Tháng"))]
-    except Exception as e:
-        D["partner_plan"] = []; log("   kế hoạch đối tác: lỗi %s" % str(e)[:70])
-    log("   %d đối tác · %d chương trình · %d dòng kế hoạch"
-        % (len(parts), len(D["partner_camp"]), len(D["partner_plan"])))
+    known = {p["code"] for p in parts}
+
+    progs = [clean(d) for d in read_sheet(F_PART, "3_CHUONG_TRINH", PTPL.PROG_COLS,
+                                          lambda d: bool(_cell(d.get("prog")) or _cell(d.get("name"))))]
+    for i, p in enumerate(progs, 1):
+        p["prog"] = p.get("prog") or "%s-%d" % (p.get("code") or "?", i)
+    D["partner_program"] = progs
+
+    F_AGG = l0_latest("S19_aggregator")          # 05_DOI_TAC/03_Aggregator — số aggregator theo tháng
+    agg = [clean(d) for d in read_sheet(F_AGG, "AGG_THANG", PTPL.AGG_MONTH_COLS, has)] if F_AGG else []
+    if not F_AGG:
+        log("   ⚠ chưa có file %s trong 05_DOI_TAC/03_Aggregator — Dining City không có số" % PTPL.AGG_NAME)
+    # Chỉ giữ dòng CÓ SỐ — dòng xếp sẵn mà chưa điền là "chưa có số", không phải 0.
+    VAL = ("bookings", "cancels", "guests", "bills", "net", "disc_noire", "disc_platform", "commission", "fee_other")
+    agg = [r for r in agg if r.get("month") and any(r.get(k) is not None for k in VAL)]
+    for r in agg:
+        r["store"] = store_code(r["store"]) if r.get("store") else None
+        r.pop("platform", None)
+    D["partner_agg"] = agg
+
+    D["partner_plan"] = [clean(d) for d in read_sheet(F_PART, "4_KE_HOACH", PTPL.PLAN_COLS,
+                                                      lambda d: has(d) and _month(d.get("month")))]
+    for r in D["partner_plan"]:
+        r.pop("name", None)
+    lost = sorted({r["code"] for r in progs + agg + D["partner_plan"] if r.get("code") and r["code"] not in known})
+    if lost:
+        log("   ⚠ Mã ĐT chưa khai ở 1_PARTNER / 2_AGGREGATOR: %s" % ", ".join(lost))
+    log("   %s · %d đối tác (%d partner · %d aggregator) · %d chương trình · %d dòng kế hoạch"
+        % (os.path.basename(F_PART), len(parts), sum(p["channel"] == "PARTNER" for p in parts),
+           sum(p["channel"] == "AGGREGATOR" for p in parts), len(progs), len(D["partner_plan"])))
+    log("   %s · %d dòng số aggregator đã điền" % (os.path.basename(F_AGG or "—"), len(agg)))
 except Exception as e:
-    D["partners"] = []; D["partner_camp"] = []; D["partner_plan"] = []; log("   partnership: lỗi %s" % str(e)[:70])
+    D["partners"] = []; D["partner_program"] = []; D["partner_agg"] = []; D["partner_plan"] = []
+    log("   đối tác: lỗi %s" % str(e)[:120])
+
+# ── Log eVoucher đối tác (S21) — mỗi file là log TOÀN chiến dịch tới ngày xuất ──
+# Tháng phát lấy theo `Ngày phát hành mã`, tháng dùng theo `Ngày sử dụng` — KHÔNG theo tên file
+# (file T9 chứa cả mã phát 21/07 và lượt dùng T7–T9). Không đưa số điện thoại khách ra ngoài.
+try:
+    D_EV = l0_dir("S21_evoucher")
+    files = sorted(glob.glob(os.path.join(D_EV, "*.xlsx"))) if D_EV else []
+    files = [f for f in files if not os.path.basename(f).startswith("~$")]
+    frames = []
+    for f in files:
+        d = pd.read_excel(f, sheet_name=0)
+        d["_mtime"] = os.path.getmtime(f)
+        d["_file"] = os.path.basename(f)
+        frames.append(d)
+    rows = []
+    if frames:
+        E = pd.concat(frames, ignore_index=True)
+        E["code"] = E[col(E, "mã khuyến mãi")].astype(str).str.strip()
+        E = E.sort_values("_mtime").drop_duplicates("code", keep="last")      # bản xuất mới nhất thắng
+        E["prog"] = E[col(E, "chương trình")].astype(str).str.strip()
+        E["cid"] = E["prog"].str.extract(r"^(\d+)")[0]
+        stat = E[col(E, "trạng thái")].astype(str)
+        E["used"] = stat.str.contains("Đã sử dụng", na=False)
+        E["locked"] = stat.str.contains("khóa|khoá", case=False, na=False)
+        E["issue_m"] = pd.to_datetime(E[col(E, "ngày phát hành")], errors="coerce").dt.strftime("%Y-%m")
+        E["use_m"] = pd.to_datetime(E[col(E, "ngày sử dụng")], errors="coerce").dt.strftime("%Y-%m")
+        E["expire"] = pd.to_datetime(E[col(E, "ngày mã hết hạn", "hết hạn")], errors="coerce").dt.strftime("%Y-%m-%d")
+        E["gross"] = num(E[col(E, "tổng hóa đơn", "tổng hoá đơn")])
+        E["disc"] = num(E[col(E, "tiền giảm giá")])
+        E["store"] = E[col(E, "nhà hàng sử dụng")].map(lambda x: store_code(x) if isinstance(x, str) and x.strip() else None)
+        # Campaign ID → Mã ĐT · brand: khai ở 3_CHUONG_TRINH. Chưa khai thì nhận theo tên chương trình.
+        cid_prog = {}
+        for p in D.get("partner_program", []):
+            for c in re.split(r"[,;| ]+", p.get("cid") or ""):
+                if c:
+                    cid_prog[c] = p
+        for cid, g in E.groupby("cid", dropna=False):
+            p = cid_prog.get(str(cid), {})
+            name = g["prog"].iloc[0]
+            partner = p.get("code") or classify_partner(re.sub(r"^\d+\s*-\s*", "", name))
+            used_brands = g.loc[g["used"], "store"].map(lambda s: BRAND_OF_STORE.get(s)).dropna()
+            brand = (p.get("brand") if p.get("brand") and len(str(p.get("brand"))) <= 5 else None) \
+                or (used_brands.mode().iloc[0] if len(used_brands) else None)
+            base = dict(cid=None if pd.isna(cid) else str(cid), campaign=name, partner=partner,
+                        brand=brand, expire=g["expire"].dropna().max() if g["expire"].notna().any() else None)
+            for m, gi in g.groupby("issue_m"):
+                rows.append(dict(base, kind="PHAT", month=m, store=None, issued=int(len(gi)), used=0,
+                                 locked=int(gi["locked"].sum()), gross=0.0, disc=0.0))
+            for (m, st), gu in g[g["used"]].groupby(["use_m", "store"], dropna=False):
+                rows.append(dict(base, kind="DUNG", month=m, store=None if pd.isna(st) else st, issued=0,
+                                 used=int(len(gu)), locked=0, gross=float(gu["gross"].sum()),
+                                 disc=float(gu["disc"].sum())))
+            if not p:
+                log("   ⚠ Campaign %s chưa khai ở 3_CHUONG_TRINH — gắn tạm theo tên: %s" % (cid, partner))
+        log("   eVoucher: %d file · %d mã · %d chiến dịch · %d lượt dùng"
+            % (len(files), len(E), E["cid"].nunique(), int(E["used"].sum())))
+    D["partner_voucher"] = rows
+except Exception as e:
+    D["partner_voucher"] = []
+    log("   eVoucher đối tác: lỗi %s" % str(e)[:120])
 
 # ══════════════════════════════════════════════════════════════
 # 6. PRE-ANALYTICS (kế hoạch khuyến mãi Q3)

@@ -63,9 +63,9 @@ L0_input/
 │   ├── 03_Member/                     S13 · CRM_Dashboard_*.xlsx       (mẫu _MAU_CRM_Member.xlsx)
 │   └── 04_KPI_CRM/                    S14 · *KPI CRM*.xlsx
 └── 05_DOI_TAC/
-    ├── 01_Danh_Muc/                   S15 · 00_Danh_Muc_Partnership.xlsx
+    ├── 01_Danh_Muc/                   S15 · NOIRE_Doi_Tac_Partner_Aggregator.xlsx (danh mục Partner + Aggregator)
     ├── 02_eVoucher_Doi_Tac/           S21 · eVoucher*_T8.2026.xlsx (mỗi brand một file)
-    └── 03_Aggregator/                 S19 · *Promotion AGG*_T8-2026.xlsx (GrabFood · Dining City)
+    └── 03_Aggregator/                 S19 · NOIRE_Aggregator_Theo_Thang.xlsx (số aggregator theo tháng → brand)
 ```
 
 Git chỉ lưu **cấu trúc thư mục + README**; file Excel thô không bao giờ lên GitHub.

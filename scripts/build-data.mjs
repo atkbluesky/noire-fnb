@@ -197,6 +197,7 @@ const SCHEMA = {
   dim_store:   { req: ['code', 'brand', 'tier', 'name'], must: true },
   store_month: { req: ['month', 'store', 'net', 'guest', 'tc'], must: true },
   daily:       { req: ['date', 'store', 'net'], must: false },
+  daily_party: { req: ['date', 'store', 'net', 'tc'], must: false },
   product:     { req: ['ma', 'name', 'qty', 'rev'], must: false },
   daypart:     { req: ['month', 'daypart', 'net', 'tc'], must: false },
   heat:        { req: ['dow', 'hour_in', 'net'], must: false },
@@ -272,7 +273,7 @@ function validate(tables, stores, over, scan = {}) {
   // ❷ mọi store trong số liệu phải có trong dim_store
   const known = new Set(Object.keys(stores));
   const unk = new Set();
-  for (const name of ['store_month', 'daily', 'zone', 'staff', 'recon', 'dwell', 'dim_target']) {
+  for (const name of ['store_month', 'daily', 'daily_party', 'zone', 'staff', 'recon', 'dwell', 'dim_target']) {
     for (const r of T(tables, name)) if (r.store && !known.has(r.store)) unk.add(r.store);
   }
   add(2, 'Mọi cửa hàng khớp dim_store', unk.size === 0,
@@ -454,6 +455,12 @@ function buildHub(tables, over, scan) {
     date: String(r.date).slice(0, 10), store: r.store,
     net: n0(r.net), guest: n0(r.guest), tc: n0(r.tc),
   }));
+  // Phần KHÁCH TIỆC của daily (HĐ ≥ $guest_segment.party_min_guests khách).
+  // Khách lẻ = daily − daily_party — màn hình M1 tự trừ, không lưu bản thứ hai.
+  const daily_party = T(tables, 'daily_party').map((r) => ({
+    date: String(r.date).slice(0, 10), store: r.store,
+    net: n0(r.net), guest: n0(r.guest), tc: n0(r.tc),
+  })).sort((a, b) => a.date.localeCompare(b.date) || a.store.localeCompare(b.store));
   const coverage = {};
   for (const r of T(tables, 'coverage')) {
     const dm = n0(r.days_month) || daysInMonth(r.month);
@@ -570,6 +577,12 @@ function buildHub(tables, over, scan) {
     coverage,
     store_month,
     daily: daily.sort((a, b) => a.date.localeCompare(b.date)),
+    daily_party,
+    guest_segment: {
+      party_min_guests: CONTRACT.$guest_segment.party_min_guests,
+      min_sample_bills: CONTRACT.$guest_segment.min_sample_bills,
+      labels: CONTRACT.$guest_segment.labels,
+    },
     daypart: T(tables, 'daypart').map((r) => ({
       month: r.month, daypart: r.daypart, net: n0(r.net), tc: n0(r.tc), guest: n0(r.guest),
     })),
@@ -624,7 +637,7 @@ function buildHub(tables, over, scan) {
          báo cáo Dining City) cộng vào PARTNER để thẻ M7 bằng đúng tổng M9. Hoá đơn Grab có gắn CTKM
          khác (quà sinh nhật…) được RÚT khỏi bản chất của CTKM đó — một hoá đơn chỉ nằm ở một ô. */
       for (const r of buildPartner(tables).rows) {
-        if (r.basis === 'CTKM') continue;
+        if (r.basis === 'CTKM' || r.basis === 'PHI') continue;
         const move = (nat, sign) => {
           const k = `${r.month}|${nat}|${r.brand}`;
           const x = (m[k] ||= { month: r.month, nature: nat, brand: r.brand, rev: 0, disc: 0, bills: 0, basis: 'BILL' });
@@ -775,7 +788,6 @@ function buildMkt(tables, over) {
   const add = (no, name, ok, detail) => qa.push({ no, name, ok: !!ok, detail });
 
   const social = buildSocial(tables, over);
-  const AGG = buildAggregator(tables);
 
   const detail = T(tables, 'ads_campaign_detail');
   const groupBy = (rows, keyFn, agg) => {
@@ -865,7 +877,6 @@ function buildMkt(tables, over) {
   };
   budget.gap = budget.total !== null && budget.plan !== null ? n0(budget.plan) - n0(budget.total) : null;
 
-  const partnerCamp = T(tables, 'partner_camp');
   const PTN = buildPartner(tables);
 
   // Kế hoạch khuyến mãi đọc từ `pre_plan` (tools/campaign.py đọc thẳng file Pre-Analysis S16).
@@ -969,12 +980,10 @@ function buildMkt(tables, over) {
     partner_meta: PTN.meta,
     partners: PTN.partners,
     partner_fact: PTN.rows,
-    partner_recon: PTN.recon,
-    partner_camp: partnerCamp,
-    partner_month: PTN.month,
+    partner_voucher: PTN.voucher,
+    partner_campaigns: PTN.campaigns,
+    partner_check: PTN.check,
     partner_plan: PTN.plan,
-    aggregator: AGG.rows,
-    aggregator_stat: AGG.stat,
     pre_q3,
     pre_stat: applyStats({
       n: pre_q3.length, neg: neg.length,
@@ -987,18 +996,21 @@ function buildMkt(tables, over) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   5b. ĐỐI TÁC = AGGREGATOR + PARTNER  (nuôi M7 thẻ "Đối tác" và M9)
+   5a. ĐỐI TÁC = AGGREGATOR + PARTNER  (nuôi M7 thẻ "Đối tác" và M9)
    ════════════════════════════════════════════════════════════════════
 
    Một bảng duy nhất `partner_fact` cho cả hai màn hình → số M7 và M9 luôn bằng nhau.
-   Nguồn: fact_partner (bảng kê hoá đơn POS — mỗi hoá đơn thuộc MỘT đối tác, nhận theo
-   tên CTKM → Nguồn → PTTT) + báo cáo Promotion-AGG cho nền tảng KHÔNG để dấu vết trên
-   POS (Dining City). Số báo cáo chỉ dùng khi POS không có hoá đơn của đối tác trong tháng.
+   Nguồn — mỗi đối tác đúng MỘT nguồn doanh thu (khai cột `Nguồn số liệu` ở file đối tác):
+     · POS          fact_partner — hoá đơn nhận theo tên CTKM → Nguồn → PTTT + hoa hồng
+     · TU_THONG_KE  partner_agg  — số team nhập (Dining City: POS không ghi nhận được)
+   Hoá đơn basis XAC_NHAN (chỉ khớp PTTT, Nguồn = TẠI CHỖ, không hoa hồng) KHÔNG cộng vào
+   doanh thu — tách ra `check` để kiểm lại. Trước 18/09/2026 chúng bị cộng: Grab Dine Out
+   T8 lên 164,4 tr trong khi POS theo Nguồn chỉ có 92,1 tr (team báo cáo 81,1 tr trước VAT).
 
-   `net`  = Tổng tiền cả hoá đơn (cùng base Net Sales của store_month)
-   `cost` = (giảm giá + phiếu GG) × % NOIRE chịu — chi phí ưu đãi NOIRE gánh
-   `fee`  = phí nền tảng: cột Hoa hồng trên POS; POS không ghi thì ƯỚC TÍNH bằng
-            % hoa hồng ở danh mục × (trước giảm giá − giảm giá) và gắn cờ fee_est.
+   `net`  = Tổng tiền cả hoá đơn (gồm VAT & phí phục vụ — cùng base Net Sales của store_month)
+   `cost` = ưu đãi NOIRE chịu: (giảm giá + phiếu GG) × % NOIRE chịu · tự thống kê: cột Ưu đãi NOIRE chịu
+   `fee`  = phí đối tác / nền tảng: hoa hồng thực trả (file Aggregator · AGG_THANG) → cột Hoa hồng trên POS → ước tính
+            % hoa hồng × (trước giảm giá − giảm giá), gắn cờ fee_est · + phí hợp tác / phí cố định tháng
 */
 function buildPartner(tables) {
   const cat = T(tables, 'partners').filter((r) => r.code);
@@ -1007,56 +1019,113 @@ function buildPartner(tables) {
   const chanOf = (code) =>
     String(CAT[code]?.channel || (code === other.code ? other.channel : PARTNER.default_channel)).toUpperCase();
   const share = (code) => num(CAT[code]?.noire_share) ?? 1;
-  const brandOfCat = (code) => {
-    const b = String(CAT[code]?.brand ?? '').trim();
-    return /^[A-Z]{2,5}$/.test(b) ? b : null;
-  };
+  const selfRep = (code) => CAT[code]?.source === 'TU_THONG_KE';
+  const COUNT = new Set(PARTNER.bases.filter((b) => b.count !== false).map((b) => b.code));
+  const months = [...new Set(T(tables, 'store_month').map((r) => r.month))].sort();
+  const lastMonth = months.at(-1) ?? null;
+  const inTerm = (p, m) => (!p.start || String(p.start).slice(0, 7) <= m) && (!p.end || String(p.end).slice(0, 7) >= m);
 
-  const pos = T(tables, 'fact_partner').map((r) => {
+  // ① POS — hoá đơn thật
+  const posAll = T(tables, 'fact_partner').map((r) => {
     const gross = n0(r.gross), disc = n0(r.disc), voucher = n0(r.voucher), comm = n0(r.commission);
     const pct = num(CAT[r.partner]?.commission_pct);
+    // POS ghi Hoa hồng (GrabFood giao hàng) thì Tổng tiền ĐÃ TRỪ hoa hồng (T1: 5.972.000 − 1.493.000
+    // = 4.479.000) → không trừ lần nữa vào chi phí; giữ riêng ở fee_netted để hiện tỷ lệ nền tảng giữ.
+    const netted = comm > 0;
     const est = !comm && pct ? pct * Math.max(gross - disc, 0) : null;
     return {
       month: r.month, partner: r.partner, channel: chanOf(r.partner), brand: r.brand ?? null, store: r.store ?? null,
       basis: r.basis, camp: r.camp ?? null, bills: n0(r.bills), guests: n0(r.guests),
       gross, disc, voucher, net: n0(r.net),
-      cost: (disc + voucher) * share(r.partner), fee: comm || est || 0, fee_est: !comm && !!est,
+      cost: (disc + voucher) * share(r.partner), fee: netted ? 0 : est || 0, fee_est: !netted && !!est,
+      fee_netted: netted ? comm : 0,
     };
   });
-  const posKey = new Set(pos.map((r) => `${r.month}|${r.partner}`));
+  const pos = posAll.filter((r) => COUNT.has(r.basis) && !selfRep(r.partner));
+  const check = Object.values(posAll.filter((r) => !COUNT.has(r.basis)).reduce((m, r) => {
+    const k = `${r.month}|${r.partner}|${r.store}`;
+    const x = (m[k] ||= { month: r.month, partner: r.partner, brand: r.brand, store: r.store, basis: r.basis, bills: 0, net: 0 });
+    x.bills += r.bills; x.net += r.net;
+    return m;
+  }, {})).sort((a, b) => b.month.localeCompare(a.month) || b.net - a.net);
 
-  // Báo cáo team (S19): dùng cho nền tảng không có trên POS · và để đối soát số team khai.
-  const rmap = Object.fromEntries(Object.entries(PARTNER.report_map ?? {})
-    .filter(([k]) => !k.startsWith('$')).map(([k, v]) => [normName(k), v]));
-  const repRows = T(tables, 'aggregator').map((r) => ({ ...r, code: rmap[normName(r.platform)] ?? null }))
-    .filter((r) => r.code);
-  const report = repRows.filter((r) => !posKey.has(`${r.month}|${r.code}`)).map((r) => ({
-    month: r.month, partner: r.code, channel: chanOf(r.code), brand: r.brand ?? brandOfCat(r.code),
-    store: r.store ?? null, basis: 'REPORT', camp: null, bills: n0(r.orders), guests: n0(r.guests),
-    gross: n0(r.sales), disc: n0(r.discount), voucher: 0, net: n0(r.sales),
-    cost: n0(r.discount) * share(r.code), fee: n0(r.commission) + n0(r.ads_spend), fee_est: false,
-  }));
-  const rows = [...pos, ...report].sort((a, b) =>
+  // ② Tự thống kê — nền tảng không có dấu vết trên POS
+  const agg = T(tables, 'partner_agg').filter((r) => r.month && r.code);
+  const manual = agg.filter((r) => selfRep(r.code)).map((r) => {
+    const p = CAT[r.code] ?? {};
+    const actual = num(r.commission) !== null || num(r.fee_other) !== null;
+    const per = String(p.fee_unit ?? '').toLowerCase();
+    const unit = n0(p.fee_unit_amount) * (per.includes('khách') ? n0(r.guests) : per.includes('booking') ? n0(r.bookings) : 0);
+    return {
+      month: r.month, partner: r.code, channel: chanOf(r.code), brand: r.brand ?? null, store: r.store ?? null,
+      basis: 'TU_THONG_KE', camp: null, bills: n0(r.bills), guests: n0(r.guests),
+      bookings: num(r.bookings), cancels: num(r.cancels), method: r.method ?? null,
+      gross: n0(r.net) + n0(r.disc_noire), disc: n0(r.disc_noire), voucher: 0, net: n0(r.net),
+      cost: n0(r.disc_noire), fee: actual ? n0(r.commission) + n0(r.fee_other) : unit, fee_est: !actual && unit > 0,
+      fee_netted: 0,
+    };
+  });
+
+  // ③ Sao kê nền tảng nguồn POS (Grab…): ưu đãi NOIRE tài trợ trên app (POS không thấy) và hoa hồng /
+  //    phí thực trả — THAY số POS / số ước tính của đúng tháng × brand, chia theo doanh thu.
+  const feeRow = (month, code, brand, fee, why, cost = 0) => ({
+    month, partner: code, channel: chanOf(code), brand, store: null, basis: 'PHI', camp: null, note: why,
+    bills: 0, guests: 0, gross: 0, disc: 0, voucher: 0, net: 0, cost, fee, fee_est: false, fee_netted: 0,
+  });
+  const fees = [];
+  for (const f of agg.filter((r) => !selfRep(r.code))) {
+    const hasFee = num(f.commission) !== null || num(f.fee_other) !== null;
+    const hasDisc = num(f.disc_noire) !== null;
+    if (!hasFee && !hasDisc) continue;
+    const amt = n0(f.commission) + n0(f.fee_other);
+    const tg = pos.filter((p) => p.month === f.month && p.partner === f.code
+      && (!f.brand || p.brand === f.brand) && (!f.store || p.store === f.store));
+    const tot = sum(tg, (p) => p.net);
+    const part = (p) => (tot ? p.net / tot : 1 / tg.length);
+    if (tg.length) {
+      tg.forEach((p) => {
+        if (hasFee) {
+          if (p.fee_netted) p.fee_netted = amt * part(p);
+          else { p.fee = amt * part(p); p.fee_est = false; }
+        }
+        if (hasDisc) p.cost = n0(f.disc_noire) * part(p);
+      });
+    } else fees.push(feeRow(f.month, f.code, f.brand ?? null, amt, 'sao kê nền tảng', n0(f.disc_noire)));
+  }
+  // ④ Phí hợp tác (1_PARTNER) · phí cố định tháng (2_AGGREGATOR) — trong kỳ hạn hợp đồng
+  for (const p of cat) {
+    const period = String(p.fee_period ?? '').toLowerCase();
+    for (const m of months) {
+      if (!inTerm(p, m)) continue;
+      if (n0(p.fee) && period.includes('tháng')) fees.push(feeRow(m, p.code, null, n0(p.fee), 'phí hợp tác'));
+      if (n0(p.fee) && period.includes('một lần') && String(p.start ?? '').slice(0, 7) === m)
+        fees.push(feeRow(m, p.code, null, n0(p.fee), 'phí hợp tác'));
+      if (n0(p.fee_month)) fees.push(feeRow(m, p.code, null, n0(p.fee_month), 'phí cố định tháng'));
+    }
+  }
+  const rows = [...pos, ...manual, ...fees].sort((a, b) =>
     String(a.month).localeCompare(String(b.month)) || a.channel.localeCompare(b.channel) || b.net - a.net);
 
-  // Đối soát: team khai "Sales" = trước giảm giá − giảm giá của đơn có Nguồn nền tảng
-  // (T8/2026: NJFB The Crest 49.942.000 · NDC 31.176.000 — khớp POS tới đồng).
-  const recon = [];
-  for (const k of new Set(repRows.map((r) => `${r.month}|${r.code}`))) {
-    if (!posKey.has(k)) continue;
-    const [month, code] = k.split('|');
-    const rr = repRows.filter((r) => r.month === month && r.code === code);
-    const pp = pos.filter((r) => r.month === month && r.partner === code);
-    const src = pp.filter((r) => r.basis === 'NGUON');
-    recon.push({
-      month, partner: code,
-      report_sales: sum(rr, (r) => r.sales), report_orders: sum(rr, (r) => r.orders),
-      pos_sales_src: sum(src, (r) => r.gross - r.disc), pos_orders_src: sum(src, (r) => r.bills),
-      pos_sales_all: sum(pp, (r) => r.gross - r.disc), pos_orders_all: sum(pp, (r) => r.bills),
-    });
-  }
+  // ⑤ Log eVoucher — phát theo ngày phát hành, dùng theo ngày sử dụng
+  const voucher = T(tables, 'partner_voucher').map((r) => ({
+    cid: r.cid ? String(r.cid) : null, campaign: r.campaign ?? null, partner: r.partner ?? null, brand: r.brand ?? null,
+    kind: r.kind, month: r.month, store: r.store ?? null, issued: n0(r.issued), used: n0(r.used),
+    locked: n0(r.locked), gross: n0(r.gross), disc: n0(r.disc), expire: r.expire ?? null,
+  }));
+  const progs = T(tables, 'partner_program').filter((r) => r.code);
+  const campaigns = Object.values(voucher.reduce((m, r) => {
+    const x = (m[r.cid] ||= { cid: r.cid, campaign: r.campaign, partner: r.partner, brand: r.brand, expire: r.expire,
+      issued: 0, used: 0, locked: 0, gross: 0, disc: 0, first: null, last_use: null });
+    x.issued += r.issued; x.used += r.used; x.locked += r.locked; x.gross += r.gross; x.disc += r.disc;
+    if (r.kind === 'PHAT' && (!x.first || r.month < x.first)) x.first = r.month;
+    if (r.kind === 'DUNG' && (!x.last_use || r.month > x.last_use)) x.last_use = r.month;
+    return m;
+  }, {})).map((c) => {
+    const p = progs.find((g) => String(g.cid ?? '').split(/[,;| ]+/).includes(c.cid));
+    return { ...c, prog: p?.prog ?? null, offer: p?.offer ?? null, use_rate: div(c.used, c.issued) };
+  }).sort((a, b) => (a.partner ?? '').localeCompare(b.partner ?? '') || (a.brand ?? '').localeCompare(b.brand ?? ''));
 
-  const lastMonth = [...new Set(T(tables, 'store_month').map((r) => r.month))].sort().at(-1) ?? null;
+  // ⑥ Danh mục + chương trình + cờ đối chiếu danh mục ↔ thực tế
   const nextM = (m) => {
     const [y, mm] = m.split('-').map(Number);
     return mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`;
@@ -1064,15 +1133,14 @@ function buildPartner(tables) {
   const codes = [...cat.map((p) => p.code), ...[...new Set(rows.map((r) => r.partner))].filter((c) => !CAT[c])];
   const partners = codes.map((code) => {
     const p = CAT[code] ?? { code, name: code === other.code ? other.name : code, status: null };
-    const rs = rows.filter((r) => r.partner === code);
+    const rs = rows.filter((r) => r.partner === code && r.basis !== 'PHI');
     const ms = [...new Set(rs.map((r) => r.month))].sort();
     const brands = [...new Set(rs.map((r) => r.brand).filter(Boolean))].sort();
     const status = p.status ?? null;
-    // Cờ đối chiếu danh mục ↔ thực tế POS — để danh mục không nói một đằng, hoá đơn một nẻo.
     const flags = [];
-    if (!rs.length) flags.push(/đang chạy/i.test(status ?? '') ? 'Khai "Đang chạy" nhưng chưa có hoá đơn nào' : 'Chưa phát sinh hoá đơn');
+    if (!rs.length) flags.push(/đang chạy/i.test(status ?? '') ? 'Khai "Đang chạy" nhưng chưa có số nào' : 'Chưa phát sinh');
     if (rs.length && /chuẩn bị/i.test(status ?? '')) flags.push(`Khai "Chuẩn bị" nhưng đã phát sinh từ ${ms[0]}`);
-    if (rs.length && /đang chạy/i.test(status ?? '') && lastMonth && ms.at(-1) < lastMonth)
+    if (rs.length && /đang chạy/i.test(status ?? '') && lastMonth && ms.at(-1) < lastMonth && !selfRep(code))
       flags.push(`Không phát sinh từ ${nextM(ms.at(-1))}`);
     if (rs.length && p.end && ms.at(-1) > String(p.end).slice(0, 7)) flags.push(`Hết hạn ${p.end} nhưng vẫn phát sinh`);
     const decl = String(p.brand ?? '');
@@ -1080,30 +1148,39 @@ function buildPartner(tables) {
       const out = brands.filter((b) => !decl.includes(b));
       if (out.length) flags.push(`Phát sinh ở brand chưa khai: ${out.join(', ')}`);
     }
+    if (selfRep(code) && /đang chạy/i.test(status ?? '')) {
+      const have = new Set(agg.filter((r) => r.code === code).map((r) => r.month));
+      const miss = months.filter((m) => m < lastMonth && inTerm(p, m) && !have.has(m));
+      if (miss.length) flags.push(`Chưa nhập số tháng ${miss.join(', ')} (file Aggregator · AGG_THANG)`);
+    }
+    // Đối chiếu log eVoucher ↔ hoá đơn POS — chỉ các tháng ĐÃ ĐỦ bảng kê (tháng cuối thường dở:
+    // log xuất 17/09 nhưng bảng kê T9 mới tới 13/09 → lệch giả).
+    const vc = voucher.filter((r) => r.partner === code && lastMonth && r.month < lastMonth);
+    if (vc.length) {
+      const usedV = sum(vc, (r) => r.used);
+      const posB = sum(pos.filter((r) => r.partner === code && r.basis === 'CTKM' && r.month < lastMonth), (r) => r.bills);
+      if (usedV !== posB) flags.push(`Log eVoucher ${usedV} lượt dùng ≠ POS gắn CTKM ${posB} hoá đơn (các tháng đã đủ bảng kê)`);
+    }
     if (!status && code !== other.code) flags.push('Chưa khai trạng thái · kỳ hợp đồng');
     if (code === other.code && rs.length) flags.push('CTKM có chữ "đối tác" nhưng chưa khai danh mục');
     return {
       code, name: p.name ?? code, channel: chanOf(code), kind: p.kind ?? null, brand: p.brand ?? null,
       stores: p.stores ?? null, start: p.start ?? null, end: p.end ?? null, status,
-      noire_share: share(code), fee_month: num(p.fee_month), commission_pct: num(p.commission_pct),
-      media: num(p.media), note: p.note ?? null,
+      noire_share: share(code), fee: num(p.fee), fee_period: p.fee_period ?? null,
+      commission_pct: num(p.commission_pct), fee_month: num(p.fee_month), fee_unit: p.fee_unit ?? null,
+      fee_unit_amount: num(p.fee_unit_amount), sponsor: p.sponsor ?? null, source: p.source ?? 'POS',
+      media: num(p.media), owner: p.owner ?? null, note: p.note ?? null,
+      programs: progs.filter((g) => g.code === code).map((g) => ({
+        prog: g.prog, name: g.name ?? null, brand: g.brand ?? null, mech: g.mech ?? null, offer: g.offer ?? null,
+        rate: num(g.rate), cap: num(g.cap), min_bill: num(g.min_bill), condition: g.condition ?? null,
+        start: g.start ?? null, end: g.end ?? null, codes: num(g.codes), cid: g.cid ? String(g.cid) : null,
+        pos_name: g.pos_name ?? null, note: g.note ?? null,
+      })),
       first: ms[0] ?? null, last: ms.at(-1) ?? null, active_brands: brands,
-      names: [...new Set(rs.map((r) => r.camp).filter((c) => c && classifyPartner(c) === code))].sort(),
       bases: [...new Set(rs.map((r) => r.basis))],
       flags,
     };
   });
-
-  // Mã đối tác PHÁT (file eVoucher) ↔ mã đã DÙNG (hoá đơn gắn CTKM của đối tác, cùng tháng).
-  const month = T(tables, 'partner_month').map((r) => {
-    const used = rows.filter((x) => x.month === r.month && x.partner === r.code && x.basis === 'CTKM');
-    const u = sum(used, (x) => x.bills);
-    return {
-      month: r.month, code: r.code, issued: num(r.issued), used: u,
-      rev: sum(used, (x) => x.net), disc: sum(used, (x) => x.cost),
-      use_rate: num(r.issued) ? div(u, n0(r.issued)) : null,
-    };
-  }).sort((a, b) => String(a.month).localeCompare(String(b.month)));
 
   const plan = T(tables, 'partner_plan').map((r) => ({
     month: r.month, code: r.code, scenario: r.scenario ?? null, issued: num(r.issued), use_rate: num(r.use_rate),
@@ -1111,62 +1188,8 @@ function buildPartner(tables) {
   }));
 
   return {
-    rows, partners, recon, month, plan,
+    rows, partners, voucher, campaigns, check, plan,
     meta: { channels: PARTNER.channels, bases: PARTNER.bases, other: PARTNER.other, last_month: lastMonth },
-  };
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   5a. KHỐI AGGREGATOR — nền tảng trung gian  (nuôi màn hình M8)
-   ════════════════════════════════════════════════════════════════════
-
-   GrabFood · ShopeeFood · Dining City… bán hộ và giữ lại một phần.
-   `sales` là doanh thu GHI NHẬN TRÊN NỀN TẢNG, không phải tiền về túi:
-   phải trừ discount và commission mới ra `net_after`. Tỷ lệ nền tảng giữ lại
-   (`take_rate`) là con số đáng theo dõi nhất — nó quyết định kênh này lãi hay lỗ.
-*/
-function buildAggregator(tables) {
-  const rows = T(tables, 'aggregator').map((r) => {
-    const sales = n0(r.sales);
-    // Ô trống ≠ 0. Nếu chưa ai điền discount/commission/ads thì phần nền tảng giữ
-    // lại là CHƯA ĐO ĐƯỢC, không phải bằng không — hiện '0,0%' là nói dối rằng
-    // kênh đó không mất đồng nào.
-    const measured = [r.discount, r.commission, r.ads_spend].some((x) => num(x) !== null);
-    const cut = measured ? n0(r.discount) + n0(r.commission) + n0(r.ads_spend) : null;
-    return {
-      month: r.month, platform: r.platform, brand: r.brand ?? null, store: r.store ?? null,
-      sales, orders: n0(r.orders), items: num(r.items), guests: num(r.guests),
-      discount: num(r.discount), commission: num(r.commission), ads_spend: num(r.ads_spend),
-      note: r.note ?? null,
-      aov: div(sales, n0(r.orders)),
-      take_rate: cut === null ? null : div(cut, sales),
-      net_after: cut === null ? null : sales - cut,
-    };
-  }).sort((a, b) => String(a.month).localeCompare(String(b.month)) || b.sales - a.sales);
-
-  const months = [...new Set(rows.map((r) => r.month))].sort();
-  const sales = sum(rows, (r) => r.sales);
-  const anyCut = rows.some((r) => r.take_rate !== null);
-  const cut = sum(rows, (r) => r.discount) + sum(rows, (r) => r.commission) + sum(rows, (r) => r.ads_spend);
-  return {
-    rows,
-    stat: {
-      months, platforms: [...new Set(rows.map((r) => r.platform))].filter(Boolean),
-      sales, orders: sum(rows, (r) => r.orders),
-      aov: div(sales, sum(rows, (r) => r.orders)),
-      discount: sum(rows, (r) => r.discount),
-      commission: sum(rows, (r) => r.commission),
-      take_rate: anyCut ? div(cut, sales) : null,
-      net_after: anyCut ? sales - cut : null,
-      by_month: months.map((m) => {
-        const rs = rows.filter((r) => r.month === m);
-        return {
-          month: m, sales: sum(rs, (r) => r.sales), orders: sum(rs, (r) => r.orders),
-          aov: div(sum(rs, (r) => r.sales), sum(rs, (r) => r.orders)),
-        };
-      }),
-      empty: rows.length === 0,
-    },
   };
 }
 
@@ -1583,9 +1606,12 @@ async function main() {
      cộng lại chiếm ~80% dung lượng data.json. Để chung thì mọi người mở dashboard
      đều phải tải và phân tích cả hai, kể cả khi chỉ xem Scorecard.
      Tách ra, Rollup gói mỗi file vào đúng chunk của màn hình import nó. */
-  const daily = hub.daily;
+  // daily_party + guest_segment chỉ M1 dùng → đi cùng chunk với daily.
+  const daily = { rows: hub.daily, party: hub.daily_party, segment: hub.guest_segment };
   const product = hub.product;
   delete hub.daily;
+  delete hub.daily_party;
+  delete hub.guest_segment;
   delete hub.product;
 
   await writeFile(path.join(OUT, 'daily.json'), JSON.stringify(daily), 'utf8');
