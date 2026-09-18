@@ -18,6 +18,7 @@ const DigitalAdsView = lazy(() => import('./views/DigitalAdsView').then(m => ({ 
 const SocialView = lazy(() => import('./views/SocialView').then(m => ({ default: m.SocialView })));
 const PreAnalyticsView = lazy(() => import('./views/PreAnalyticsView').then(m => ({ default: m.PreAnalyticsView })));
 const PromotionView = lazy(() => import('./views/PromotionView').then(m => ({ default: m.PromotionView })));
+const CampaignTrackingView = lazy(() => import('./views/CampaignTrackingView').then(m => ({ default: m.CampaignTrackingView })));
 const CRMView = lazy(() => import('./views/CRMView').then(m => ({ default: m.CRMView })));
 const PartnershipView = lazy(() => import('./views/PartnershipView').then(m => ({ default: m.PartnershipView })));
 const BookingView = lazy(() => import('./views/BookingView').then(m => ({ default: m.BookingView })));
@@ -60,14 +61,16 @@ const DashboardContent: React.FC = () => {
       case 'm6':
         return <SocialView />;
       case 'm7':
-        return <PreAnalyticsView />;
-      case 'm8':
         return <PromotionView />;
-      case 'm9':
+      case 'm71':
+        return <PreAnalyticsView />;
+      case 'm72':
+        return <CampaignTrackingView />;
+      case 'm8':
         return <CRMView />;
-      case 'm10':
+      case 'm9':
         return <PartnershipView />;
-      case 'm11':
+      case 'm10':
         return <BookingView />;
       case 'r1':
         return <InsightsView />;
@@ -84,12 +87,14 @@ const DashboardContent: React.FC = () => {
   let customNote = '';
   let allowedMonths: string[] | undefined = undefined;
 
-  if (['m4', 'm7'].includes(activeView)) {
+  if (['m4'].includes(activeView)) {
     customNote = 'Dữ liệu chỉ áp dụng cho Kế hoạch Quý 3/2026 (Tháng 7 · 8 · 9).';
     allowedMonths = ['2026-07', '2026-08', '2026-09'];
-  } else if (activeView === 'm11') {
-    customNote = 'Lead tiệc hiện ghi nhận chủ yếu cho thương hiệu NDC.';
-  } else if (activeView === 'm9') {
+  } else if (activeView === 'm71') {
+    customNote = 'Sổ đánh giá Pre_Analysis_2026 — dự báo theo kỳ chạy của từng chương trình (lọc bằng chip Kỳ bên dưới), không theo bộ lọc tháng.';
+  } else if (activeView === 'm10') {
+    customNote = 'Tháng = tháng NHẬN LEAD. Brand lấy theo Outlet trong sổ booking; lịch doanh thu xếp theo tháng diễn ra tiệc.';
+  } else if (activeView === 'm8') {
     customNote = 'Tỷ lệ nhận diện khách và Zalo OA là số liệu toàn chuỗi.';
   } else if (activeView === 'm6') {
     customNote = 'Reach của Facebook và views của TikTok không cộng chung được — mỗi nền tảng một khung riêng.';

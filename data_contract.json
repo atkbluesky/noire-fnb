@@ -1,10 +1,11 @@
 {
-  "$doc": "HỢP ĐỒNG DỮ LIỆU — nguồn sự thật DUY NHẤT cho cấu trúc file Excel đầu vào.",
+  "$doc": "HỢP ĐỒNG DỮ LIỆU — nguồn sự thật DUY NHẤT cho cấu trúc file Excel đầu vào VÀ cho bảng phân loại bản chất CTKM ($promo_nature). Bản đồ đầy đủ 'định nghĩa nào khai ở đâu': docs/02_NGUON_SU_THAT_DUY_NHAT.md",
   "$readers": [
-    "scripts/build-data.mjs   (Node — dựng src/data/*.json, chạy cả local lẫn Vercel)",
-    "tools/monthly_lib.py     (Python — thư viện dùng chung của lane ETL dữ liệu thô)",
-    "tools/build_month.py     (Python — dữ liệu thô → data_input/monthly/YYYY-MM.xlsx)",
-    "tools/split_to_monthly.py (Python — di trú một lần từ bộ 4 workbook cũ)"
+    "scripts/build-data.mjs    (Node — dựng src/data/*.json; đọc cả `sheets` lẫn `$promo_nature`)",
+    "tools/monthly_lib.py      (Python — thư viện dùng chung: hợp đồng · dim_store · nature · gốc L0)",
+    "tools/build_month.py      (Python — dữ liệu thô → data_input/monthly/YYYY-MM.xlsx)",
+    "tools/split_to_monthly.py (Python — di trú một lần từ bộ 4 workbook cũ)",
+    "build_hub.py · build_mkt.py · check_input.py  (Python — qua monthly_lib)"
   ],
   "$tiers": {
     "master": "Chiều & kế hoạch — đổi khi có cửa hàng mới, target mới, ngân sách mới. File: data_input/01_master.xlsx",
@@ -17,420 +18,2602 @@
     "Cột ở mục `derived` do loader tự tính — điền tay sẽ bị ghi đè.",
     "Trùng khoá tự nhiên: file đọc SAU thắng. Thứ tự đọc = thứ tự alphabet của đường dẫn.",
     "Cột lạ được bỏ qua im lặng — thoải mái thêm cột ghi chú riêng.",
-    "Ngày `YYYY-MM-DD`, tháng `YYYY-MM`. Loader nhận cả ô Date của Excel."
+    "Ngày `YYYY-MM-DD`, tháng `YYYY-MM`. Loader nhận cả ô Date của Excel.",
+    "Bản chất CTKM khai DUY NHẤT ở `$promo_nature` dưới đây. Bí danh cửa hàng khai DUY NHẤT ở cột `aliases` của sheet dim_store. Không hard-code ở bất kỳ file .py/.mjs/.tsx nào. Luật phễu booking (chốt · đặt bàn · ads booking · lý do mất) khai DUY NHẤT ở `$booking`."
   ],
+  "$promo_nature": {
+    "$doc": "BẢN CHẤT CHƯƠNG TRÌNH KHUYẾN MÃI — nguồn sự thật DUY NHẤT. Trước đây bảng luật này nằm cùng lúc ở build_hub.py, tools/build_month.py, scripts/build-data.mjs, src/types/hub.ts và src/views/PromotionView.tsx — năm bản sao, sửa một chỗ là lệch bốn chỗ còn lại.",
+    "$order": "Luật xét TỪ TRÊN XUỐNG, khớp đầu tiên thắng. Thứ tự là một phần của định nghĩa, đừng sắp xếp lại cho đẹp.",
+    "$regex": "Cú pháp regex giao nhau giữa Python `re` và JS RegExp. So khớp với tên CTKM đã chuẩn hoá bằng norm(): NFKC, bỏ ký tự vô hình, gộp khoảng trắng, hạ chữ thường — dấu tiếng Việt GIỮ NGUYÊN.",
+    "default": "COMMERCIAL",
+    "labels": [
+      {
+        "code": "COMMERCIAL",
+        "label": "Marketing thương mại",
+        "short": "Thương mại",
+        "color": "#22C55E",
+        "badge": "nature-comm",
+        "roi": "full",
+        "desc": "Chương trình chủ động đẩy doanh thu. Nhóm DUY NHẤT tính đủ vào ROI marketing."
+      },
+      {
+        "code": "LOYALTY",
+        "label": "Khách hàng thân thiết",
+        "short": "Loyalty",
+        "color": "#82846C",
+        "badge": "nature-loy",
+        "roi": "full",
+        "desc": "Ưu đãi theo hạng thành viên. Mục tiêu là GIỮ CHÂN, đo bằng tần suất quay lại chứ không phải lift tức thời."
+      },
+      {
+        "code": "PARTNER",
+        "label": "Đối tác · toà nhà",
+        "short": "Đối tác",
+        "color": "#F59E0B",
+        "badge": "nature-part",
+        "roi": "partial",
+        "desc": "Ràng buộc hợp đồng đối tác. Chỉ phần NOIRE gánh mới vào ROI — khai ở dim_campaign.noire_share."
+      },
+      {
+        "code": "CARE",
+        "label": "CSKH · đổi quà lấy phản hồi",
+        "short": "CSKH",
+        "color": "#38BDF8",
+        "badge": "nature-care",
+        "roi": "none",
+        "desc": "Chăm sóc khách hàng, đền bù dịch vụ, tặng quà đổi Google Review hoặc khảo sát. CÓ chi phí nhưng KHÔNG có ý đồ tăng doanh thu — để trong COMMERCIAL là thổi phồng chi phí marketing và dìm ROI."
+      },
+      {
+        "code": "INTERNAL",
+        "label": "Nội bộ ban lãnh đạo · CBNV",
+        "short": "Nội bộ",
+        "color": "#EF4444",
+        "badge": "nature-int",
+        "roi": "none",
+        "desc": "Chiết khấu nội bộ. Đây là KHOẢN MỤC P&L, không phải chi phí marketing."
+      }
+    ],
+    "rules": [
+      {
+        "nature": "PARTNER",
+        "why": "Nhân viên của ĐỐI TÁC, không phải nhân viên NOIRE. Phải xét TRƯỚC luật INTERNAL vì INTERNAL bắt chữ `nhân viên`. Sai chỗ này là 88,8tr của `Giảm 50% cho Nhân Viên SonKim Group (JFB)` nằm nhầm ô.",
+        "re": [
+          "nhân viên sonkim",
+          "nhân viên son kim",
+          "nhân viên skg",
+          "nv sonkim",
+          "nhân viên đối tác"
+        ]
+      },
+      {
+        "nature": "CARE",
+        "why": "Xét trước COMMERCIAL mặc định. `GIẢM GIÁ 10% - CHƯƠNG TRÌNH CSKH`, `Tặng 01 Tráng Miệng Khảo Sát Ý Kiến`, `Google Review Tặng Thức Uống` — 237tr đang bị tính là marketing.",
+        "re": [
+          "cskh",
+          "chăm sóc khách hàng",
+          "cham soc khach hang",
+          "google review",
+          "khảo sát",
+          "khao sat",
+          "xin lỗi",
+          "đền bù",
+          "den bu",
+          "service recovery"
+        ]
+      },
+      {
+        "nature": "INTERNAL",
+        "why": "Chiết khấu nội bộ.",
+        "re": [
+          "chairman",
+          "director",
+          "manager",
+          "nội bộ",
+          "noi bo",
+          "nhân viên",
+          "nhan vien",
+          "staff",
+          "cbnv"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "why": "Đối tác, toà nhà, ngân hàng, nền tảng trung gian.",
+        "re": [
+          "\\bskg\\b",
+          "sonkim",
+          "son kim",
+          "resident",
+          "techcombank",
+          "\\btcb\\b",
+          "oneu",
+          "hdbank",
+          "shinhan",
+          "grab",
+          "dining ?city",
+          "đối tác",
+          "partner",
+          "onelife"
+        ]
+      },
+      {
+        "nature": "LOYALTY",
+        "why": "Hạng thành viên.",
+        "re": [
+          "hạng ",
+          "black diamond",
+          "\\bsilver\\b",
+          "\\bgold\\b",
+          "thẻ vip",
+          "the vip",
+          "thành viên",
+          "member",
+          "loyalty",
+          "tích điểm"
+        ]
+      }
+    ]
+  },
+  "$booking": {
+    "$doc": "PHỄU BOOKING TIỆC — nguồn sự thật DUY NHẤT cho: trạng thái nào là chốt, dòng nào là đặt bàn chứ không phải tiệc, chiến dịch Meta nào là quảng cáo booking, loại kết quả ads nào là liên hệ, nhóm lý do mất lead. Đọc bởi tools/monthly_lib.py (ETL), scripts/build-data.mjs (loader) và HUB_DATA.booking_meta (màn hình M10). Trước 17/09/2026 quy ước `chỉ Confirmed là chốt` nằm cùng lúc ở build-data.mjs và BookingView.tsx.",
+    "$regex": "Cùng cú pháp và cùng cách chuẩn hoá chuỗi như $promo_nature (norm(): hạ chữ thường, giữ dấu). Danh sách có thứ tự — khớp đầu tiên thắng.",
+    "stages": [
+      {
+        "code": "won",
+        "label": "Đã chốt",
+        "match": [
+          "confirmed"
+        ],
+        "color": "#22C55E",
+        "desc": "CHỈ Confirmed. Tentative nghe như sắp chốt nhưng vẫn rơi — gộp vào sẽ thổi phồng tỷ lệ chốt."
+      },
+      {
+        "code": "open",
+        "label": "Đang theo",
+        "match": [
+          "pending",
+          "tentative",
+          ""
+        ],
+        "color": "#C5A059",
+        "desc": "Pending · Tentative · ô Status trống. Lead chưa có kết luận."
+      },
+      {
+        "code": "lost",
+        "label": "Đã mất",
+        "match": [
+          "lost",
+          "cancel",
+          "cancelled"
+        ],
+        "color": "#EF4444",
+        "desc": "Lost."
+      }
+    ],
+    "stage_default": "open",
+    "segment": {
+      "$doc": "Sổ booking đang lẫn ĐẶT BÀN nhỏ (NJFB T7/2026: ~110 dòng Dinner 2 khách, Source=Sales, Closed Revenue = hoá đơn). Để lẫn thì tỷ lệ chốt của Sales lên 70%+ và giá trị TB tiệc tụt về vài triệu. Luật: loại trong `table_types` VÀ số khách đã ghi < `table_max_guests` → đặt bàn. Không ghi số khách → vẫn tính là tiệc.",
+      "table_types": [
+        "dinner",
+        "lunch",
+        "brunch"
+      ],
+      "table_max_guests": 10,
+      "labels": {
+        "event": "Tiệc & sự kiện",
+        "table": "Đặt bàn nhỏ"
+      }
+    },
+    "mkt_sources": [
+      "mkt"
+    ],
+    "etype_alias": {
+      "$doc": "Loại sự kiện gõ tay → tên chuẩn. Khoá so khớp sau norm() (chữ thường). Loại không có trong bảng giữ nguyên, chỉ gộp các cách viết khác hoa/thường về cách viết gặp đầu tiên.",
+      "metting": "Meeting",
+      "metiing": "Meeting",
+      "thuê sảnh": "Thuê sảnh",
+      "room rental": "Room rental",
+      "hội nghị": "Hội nghị",
+      "báo hỷ": "Báo hỷ",
+      "photoshoot": "Chụp hình / quay",
+      "chụp hình": "Chụp hình / quay",
+      "quay video": "Chụp hình / quay",
+      "tba": null
+    },
+    "ads": {
+      "$doc": "Chiến dịch Meta được tính vào phễu booking: tên khớp `re`, HOẶC chạy cho fanpage trong `pages` (mã đứng đầu tên chiến dịch, vd `NEC | Messages | 2026`). Chiến dịch khớp `exclude_re` (tuyển dụng) luôn bị loại.",
+      "re": [
+        "ti[eệ]c",
+        "booking",
+        "party",
+        "banquet",
+        "\byep\b",
+        "s[uự] ki[eệ]n",
+        "\bevent\b"
+      ],
+      "pages": [
+        "nec"
+      ],
+      "exclude_re": [
+        "\bhr\b",
+        "tuyển dụng",
+        "tuyen dung",
+        "recruit"
+      ]
+    },
+    "result_kinds": [
+      {
+        "code": "msg",
+        "label": "Hội thoại tin nhắn",
+        "contact": true,
+        "re": [
+          "tin nhắn",
+          "cuộc trò chuyện",
+          "messag"
+        ]
+      },
+      {
+        "code": "lead",
+        "label": "Lead form",
+        "contact": true,
+        "re": [
+          "khách hàng tiềm năng",
+          "\bleads?\b"
+        ]
+      },
+      {
+        "code": "like",
+        "label": "Thích trang",
+        "contact": false,
+        "re": [
+          "lượt thích",
+          "page like"
+        ]
+      },
+      {
+        "code": "engage",
+        "label": "Tương tác",
+        "contact": false,
+        "re": [
+          "tương tác",
+          "engagement",
+          "thruplay"
+        ]
+      },
+      {
+        "code": "click",
+        "label": "Click",
+        "contact": false,
+        "re": [
+          "click",
+          "truy cập",
+          "trang đích"
+        ]
+      }
+    ],
+    "result_default": "other",
+    "lost_reasons": [
+      {
+        "code": "no_contact",
+        "label": "Không liên lạc được",
+        "re": [
+          "(không|chưa) liên (lạc|hệ)",
+          "không (phản hồi|trả lời|nghe)"
+        ]
+      },
+      {
+        "code": "budget",
+        "label": "Ngân sách / chi phí",
+        "re": [
+          "ngân sách",
+          "budget",
+          "kinh phí",
+          "tài chính",
+          "giá"
+        ]
+      },
+      {
+        "code": "venue",
+        "label": "Không gian / sức chứa",
+        "re": [
+          "không gian",
+          "venu",
+          "veneu",
+          "diện tích",
+          "sức chứa",
+          "công suất",
+          "sảnh",
+          "phòng",
+          "indoor",
+          "bàn tròn",
+          "set ?up",
+          "bố trí"
+        ]
+      },
+      {
+        "code": "menu",
+        "label": "Món ăn / mô hình",
+        "re": [
+          "món",
+          "menu",
+          "buffet",
+          "mô hình"
+        ]
+      },
+      {
+        "code": "plan",
+        "label": "Khách đổi kế hoạch / hết nhu cầu",
+        "re": [
+          "nhu cầu",
+          "cancel",
+          "hu[ỷy]",
+          "chuyển ngày",
+          "thay đổi",
+          "tạm hoãn",
+          "sắp xếp",
+          "quá ít",
+          "địa điểm khác"
+        ]
+      }
+    ],
+    "lost_default": "Khác",
+    "lost_blank": "Không ghi lý do"
+  },
   "sheets": {
     "dim_store": {
       "tier": "master",
-      "key": ["code"],
-      "req": ["code", "brand", "tier", "name"],
-      "cols": ["code", "brand", "tier", "name", "open"],
-      "desc": "Danh mục cửa hàng. tier ∈ flagship|core|satellite|popup · brand ∈ NCB|NDC|NJFB|OTHER"
+      "key": [
+        "code"
+      ],
+      "req": [
+        "code",
+        "brand",
+        "tier",
+        "name"
+      ],
+      "cols": [
+        "code",
+        "brand",
+        "tier",
+        "name",
+        "open",
+        "aliases",
+        "alias_re"
+      ],
+      "desc": "Danh mục cửa hàng. tier ∈ flagship|core|satellite|popup · brand ∈ NCB|NDC|NJFB|OTHER. `aliases` = MỌI cách viết tên cửa hàng trong ô 'tên cửa hàng' của file export, ngăn bằng `|` — khớp CHÍNH XÁC hoặc chuỗi con, dùng cho store_code(). `alias_re` = regex nhận cửa hàng từ CHUỖI TỰ DO (tên chiến dịch ads), dùng cho store_in_text(). Cả hai là nguồn DUY NHẤT — không hard-code bản đồ cửa hàng ở bất kỳ file .py nào."
     },
     "dim_target": {
       "tier": "master",
       "monthCol": "month",
-      "key": ["month", "store"],
-      "req": ["month", "store", "target"],
-      "cols": ["month", "store", "target"],
+      "key": [
+        "month",
+        "store"
+      ],
+      "req": [
+        "month",
+        "store",
+        "target"
+      ],
+      "cols": [
+        "month",
+        "store",
+        "target"
+      ],
       "desc": "Target doanh thu theo cửa hàng × tháng. Được phép khai cả tháng tương lai."
     },
     "dim_cogs": {
       "tier": "master",
-      "key": ["brand", "ma"],
-      "req": ["ma"],
-      "cols": ["brand", "ma", "name", "cogs", "pct"],
+      "key": [
+        "brand",
+        "ma"
+      ],
+      "req": [
+        "ma"
+      ],
+      "cols": [
+        "brand",
+        "ma",
+        "name",
+        "cogs",
+        "pct"
+      ],
       "desc": "Bảng giá vốn theo mã món — nuôi cảnh báo món có giá vốn bất thường."
     },
     "budget_brand": {
       "tier": "master",
-      "key": ["brand"],
-      "cols": ["brand", "budget", "plan"],
+      "key": [
+        "brand"
+      ],
+      "cols": [
+        "brand",
+        "budget",
+        "plan"
+      ],
       "desc": "Ngân sách marketing theo brand. Các cột tên YYYY-MM là ngân sách từng tháng."
     },
     "budget_extra": {
       "tier": "master",
-      "key": ["name"],
-      "cols": ["name", "plan"],
+      "key": [
+        "name"
+      ],
+      "cols": [
+        "name",
+        "plan"
+      ],
       "desc": "Ngân sách ngoài brand (Chạy Tiệc, CRM…)."
     },
     "budget_channel": {
       "tier": "master",
-      "key": ["channel", "source"],
-      "cols": ["channel", "source", "plan"],
+      "key": [
+        "channel",
+        "source"
+      ],
+      "cols": [
+        "channel",
+        "source",
+        "plan"
+      ],
       "desc": "Ngân sách theo kênh × nguồn túi tiền."
     },
     "budget_store": {
       "tier": "master",
-      "key": ["store"],
-      "cols": ["store", "brand", "target", "meta", "google", "zalo", "total", "pct"],
+      "key": [
+        "store"
+      ],
+      "cols": [
+        "store",
+        "brand",
+        "target",
+        "meta",
+        "google",
+        "zalo",
+        "total",
+        "pct"
+      ],
       "desc": "Phân bổ ngân sách quảng cáo theo cửa hàng."
     },
     "budget_nonmedia": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "item"],
-      "cols": ["month", "item", "budget", "actual"],
-      "derived": ["use_rate"],
+      "key": [
+        "month",
+        "item"
+      ],
+      "cols": [
+        "month",
+        "item",
+        "budget",
+        "actual"
+      ],
+      "derived": [
+        "use_rate"
+      ],
       "desc": "Chi phí NGOÀI media theo tháng: KOL/KOC, POSM & in ấn, sản xuất nội dung, quà tặng, sự kiện."
     },
     "partners": {
       "tier": "master",
-      "key": ["code"],
-      "req": ["code", "name"],
-      "cols": ["code", "name", "kind", "brand", "start", "end", "status", "media", "note", "issued", "used", "rev", "disc"],
-      "derived": ["use_rate"],
+      "key": [
+        "code"
+      ],
+      "req": [
+        "code",
+        "name"
+      ],
+      "cols": [
+        "code",
+        "name",
+        "kind",
+        "brand",
+        "start",
+        "end",
+        "status",
+        "media",
+        "note",
+        "issued",
+        "used",
+        "rev",
+        "disc"
+      ],
+      "derived": [
+        "use_rate"
+      ],
       "desc": "Danh mục đối tác. issued/used/rev/disc là luỹ kế toàn chương trình."
     },
     "partner_camp": {
       "tier": "master",
-      "key": ["code", "cid"],
-      "cols": ["code", "name", "cid", "mech", "rate"],
+      "key": [
+        "code",
+        "cid"
+      ],
+      "cols": [
+        "code",
+        "name",
+        "cid",
+        "mech",
+        "rate"
+      ],
       "desc": "Cầu nối đối tác ↔ Campaign ID iPOS — để truy vết doanh thu về đúng đối tác."
     },
     "partner_month": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "code"],
-      "cols": ["month", "code", "issued", "used", "rev", "disc"],
-      "derived": ["use_rate"],
+      "key": [
+        "month",
+        "code"
+      ],
+      "cols": [
+        "month",
+        "code",
+        "issued",
+        "used",
+        "rev",
+        "disc"
+      ],
+      "derived": [
+        "use_rate"
+      ],
       "desc": "Kết quả đối tác THEO THÁNG — tách khỏi con số luỹ kế ở sheet partners."
     },
     "pre_analytics": {
       "tier": "master",
-      "key": ["name", "brand"],
-      "cols": ["name", "brand", "kind", "roi", "nc"],
-      "desc": "Chương trình đề xuất cho kỳ tới (M7 Pre-Analytics)."
+      "key": [
+        "name",
+        "brand"
+      ],
+      "cols": [
+        "name",
+        "brand",
+        "kind",
+        "roi",
+        "nc"
+      ],
+      "desc": "CŨ — không còn dùng. Thay bằng `pre_plan` (03_campaign.xlsx) đọc thẳng file Pre-Analysis S16 qua tools/pre_analysis.py."
     },
     "crm_target": {
       "tier": "master",
       "monthCol": "month",
-      "key": ["month", "kpi"],
-      "cols": ["month", "kpi", "target"],
+      "key": [
+        "month",
+        "kpi"
+      ],
+      "cols": [
+        "month",
+        "kpi",
+        "target"
+      ],
       "desc": "KPI CRM cam kết theo tháng. kpi ∈ member|oa"
     },
     "system_tools": {
       "tier": "master",
-      "key": ["root"],
-      "cols": ["root", "files", "loc", "dirs"],
+      "key": [
+        "root"
+      ],
+      "cols": [
+        "root",
+        "files",
+        "loc",
+        "dirs"
+      ],
       "desc": "Kiểm toán phân mảnh hệ thống — nuôi tab D2."
     },
     "system_dashboards": {
       "tier": "master",
-      "key": ["path", "name"],
-      "cols": ["path", "name", "kb"],
+      "key": [
+        "path",
+        "name"
+      ],
+      "cols": [
+        "path",
+        "name",
+        "kb"
+      ],
       "desc": "Danh sách dashboard HTML rời rạc — nuôi tab D2."
     },
     "system_caches": {
       "tier": "master",
-      "key": ["path"],
-      "cols": ["path", "files", "mb"],
+      "key": [
+        "path"
+      ],
+      "cols": [
+        "path",
+        "files",
+        "mb"
+      ],
       "desc": "Cache trùng lặp — nuôi tab D2."
     },
-
     "store_month": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "store"],
-      "req": ["month", "store", "net", "guest", "tc"],
-      "cols": ["month", "store", "net", "guest", "tc", "gross", "disc", "voucher"],
-      "derived": ["ta", "aov", "brand", "tier"],
+      "key": [
+        "month",
+        "store"
+      ],
+      "req": [
+        "month",
+        "store",
+        "net",
+        "guest",
+        "tc"
+      ],
+      "cols": [
+        "month",
+        "store",
+        "net",
+        "guest",
+        "tc",
+        "gross",
+        "disc",
+        "voucher"
+      ],
+      "derived": [
+        "ta",
+        "aov",
+        "brand",
+        "tier"
+      ],
       "desc": "XƯƠNG SỐNG của hệ thống. net = doanh thu thuần · guest = số khách · tc = số hoá đơn."
     },
     "daily": {
       "tier": "monthly",
       "monthCol": "date",
-      "key": ["date", "store"],
-      "req": ["date", "store", "net"],
-      "cols": ["date", "store", "net", "guest", "tc"],
+      "key": [
+        "date",
+        "store"
+      ],
+      "req": [
+        "date",
+        "store",
+        "net"
+      ],
+      "cols": [
+        "date",
+        "store",
+        "net",
+        "guest",
+        "tc"
+      ],
       "desc": "Doanh thu theo NGÀY × cửa hàng. Ngày phải nằm trong tháng của file."
     },
     "coverage": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month"],
-      "cols": ["month", "days_data", "days_month", "first", "last"],
-      "derived": ["partial"],
+      "key": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "days_data",
+        "days_month",
+        "first",
+        "last"
+      ],
+      "derived": [
+        "partial"
+      ],
       "desc": "Số ngày THỰC CÓ dữ liệu — nhận diện tháng chưa trọn kỳ. Không khai thì loader suy từ daily."
     },
     "daypart": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "daypart"],
-      "cols": ["month", "daypart", "net", "tc", "guest"],
+      "key": [
+        "month",
+        "daypart"
+      ],
+      "cols": [
+        "month",
+        "daypart",
+        "net",
+        "tc",
+        "guest"
+      ],
       "desc": "Doanh thu theo khung giờ trong ngày."
     },
     "channel": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "channel"],
-      "cols": ["month", "channel", "net", "tc"],
+      "key": [
+        "month",
+        "channel"
+      ],
+      "cols": [
+        "month",
+        "channel",
+        "net",
+        "tc"
+      ],
       "desc": "Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…)."
     },
     "identify": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month"],
-      "req": ["month", "bills", "id_bills"],
-      "cols": ["month", "bills", "id_bills", "items"],
-      "derived": ["rate"],
+      "key": [
+        "month"
+      ],
+      "req": [
+        "month",
+        "bills",
+        "id_bills"
+      ],
+      "cols": [
+        "month",
+        "bills",
+        "id_bills",
+        "items"
+      ],
+      "derived": [
+        "rate"
+      ],
       "desc": "Tỷ lệ hoá đơn nhận diện được khách — trần trên của mọi phép quy doanh thu về khách. `items` = số dòng món đã xử lý trong tháng, nuôi thẻ đếm ở tab D1."
     },
     "nature": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "nature", "brand"],
-      "req": ["month", "nature", "brand", "rev"],
-      "cols": ["month", "nature", "brand", "rev", "disc", "bills"],
-      "desc": "Bản chất chương trình khuyến mãi. nature ∈ COMMERCIAL|INTERNAL|PARTNER|LOYALTY"
+      "key": [
+        "month",
+        "nature",
+        "brand"
+      ],
+      "req": [
+        "month",
+        "nature",
+        "brand",
+        "rev"
+      ],
+      "cols": [
+        "month",
+        "nature",
+        "brand",
+        "rev",
+        "disc",
+        "bills"
+      ],
+      "desc": "Bản chất chương trình khuyến mãi. nature ∈ COMMERCIAL|INTERNAL|PARTNER|LOYALTY. `rev` = doanh thu chạm (cấp dòng món, THÀNH TIỀN) · `disc` = chiết khấu thật (cấp HOÁ ĐƠN) — hai base khác nhau, xem fact_promo_day."
+    },
+    "fact_promo_day": {
+      "tier": "monthly",
+      "monthCol": "date",
+      "key": [
+        "date",
+        "store",
+        "name_pos"
+      ],
+      "req": [
+        "date",
+        "store",
+        "name_pos"
+      ],
+      "cols": [
+        "date",
+        "store",
+        "brand",
+        "name_pos",
+        "nature",
+        "bills",
+        "guests",
+        "gross",
+        "disc",
+        "voucher",
+        "net",
+        "rev",
+        "items"
+      ],
+      "desc": "CTKM theo NGÀY × cửa hàng — nền của M7.2. `disc` = Giảm giá + Chiết khấu ở cấp HOÁ ĐƠN · `voucher` = Phiếu GG, để riêng vì voucher là phương thức thanh toán chứ không phải giảm giá. `net` = Tổng tiền (cùng base với daily/store_month — kỳ nền của M7.2 lấy từ đó). `rev`/`items` từ lane dòng món theo THÀNH TIỀN — base khác `net`, đừng cộng chung. `name_pos` giữ nguyên văn, chuẩn hoá ở dim_campaign."
+    },
+    "fact_lto_line": {
+      "tier": "monthly",
+      "monthCol": "date",
+      "key": [
+        "date",
+        "store",
+        "bill",
+        "item_code"
+      ],
+      "req": [
+        "date",
+        "store",
+        "bill",
+        "item_code"
+      ],
+      "cols": [
+        "date",
+        "store",
+        "brand",
+        "bill",
+        "item_code",
+        "item_base",
+        "item_name",
+        "group",
+        "qty",
+        "line_rev",
+        "bill_net",
+        "bill_gross",
+        "bill_disc",
+        "bill_voucher",
+        "bill_guests",
+        "bill_camp"
+      ],
+      "desc": "Dòng món thuộc nhóm LTO (Nhóm món chứa $campaign.lto_group_rx) gắn TỔNG hoá đơn chứa nó — nền doanh thu CTKM của chương trình LTO chạy theo món. `bill_net` = Tổng tiền cả hoá đơn (gồm món khác) · `line_rev` = Thành tiền riêng dòng LTO. Một hoá đơn có nhiều dòng LTO → cộng bill_net theo hoá đơn DUY NHẤT."
     },
     "recon": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "store"],
-      "req": ["month", "store", "net"],
-      "cols": ["month", "store", "net", "net_item", "net_bill", "tc", "tc_bill", "guest", "guest_bill"],
-      "derived": ["d_bill"],
+      "key": [
+        "month",
+        "store"
+      ],
+      "req": [
+        "month",
+        "store",
+        "net"
+      ],
+      "cols": [
+        "month",
+        "store",
+        "net",
+        "net_item",
+        "net_bill",
+        "tc",
+        "tc_bill",
+        "guest",
+        "guest_bill"
+      ],
+      "derived": [
+        "d_bill"
+      ],
       "desc": "Đối soát ba tầng: bảng tháng ↔ bảng món ↔ bảng hoá đơn."
     },
     "cogs_cov": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month"],
-      "cols": ["month", "rev", "rev_cov", "sku", "sku_cov"],
-      "derived": ["pct"],
+      "key": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "rev",
+        "rev_cov",
+        "sku",
+        "sku_cov"
+      ],
+      "derived": [
+        "pct"
+      ],
       "desc": "Độ phủ giá vốn theo tháng."
     },
-
     "ads_month": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month"],
-      "cols": ["month", "spend", "reach", "impr", "n"],
+      "key": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "spend",
+        "reach",
+        "impr",
+        "n"
+      ],
       "desc": "Meta Ads tổng theo tháng. CHỈ cộng dòng cấp campaign — cộng cả adset là nhân đôi."
     },
     "ads_brand": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "brand"],
-      "cols": ["month", "brand", "spend", "reach"],
+      "key": [
+        "month",
+        "brand"
+      ],
+      "cols": [
+        "month",
+        "brand",
+        "spend",
+        "reach"
+      ],
       "desc": "Meta Ads theo brand. Nhãn `Tuyển dụng` không phải marketing thương hiệu."
     },
     "ads_objective": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "objective"],
-      "cols": ["month", "objective", "spend", "result"],
+      "key": [
+        "month",
+        "objective"
+      ],
+      "cols": [
+        "month",
+        "objective",
+        "spend",
+        "result"
+      ],
       "desc": "Meta Ads theo mục tiêu chiến dịch."
     },
     "ads_campaign_detail": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "brand", "objective", "campaign"],
-      "cols": ["month", "brand", "objective", "campaign", "spend", "reach", "impr", "result"],
-      "derived": ["cpr"],
-      "desc": "Chi tiết từng chiến dịch Meta trong tháng."
+      "key": [
+        "month",
+        "brand",
+        "objective",
+        "campaign"
+      ],
+      "cols": [
+        "month",
+        "brand",
+        "objective",
+        "campaign",
+        "spend",
+        "reach",
+        "impr",
+        "result",
+        "page",
+        "rkind",
+        "funnel",
+        "clicks"
+      ],
+      "derived": [
+        "cpr"
+      ],
+      "desc": "Chi tiết từng chiến dịch Meta trong tháng. page = mã fanpage đầu tên chiến dịch · rkind = loại kết quả chuẩn hoá · funnel = 'booking' nếu thuộc phễu booking tiệc (luật $booking.ads)."
     },
     "ads_google": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "campaign"],
-      "cols": ["month", "campaign", "store", "brand", "status", "budget_day", "spend", "conv", "clicks", "impr"],
-      "derived": ["cpa"],
+      "key": [
+        "month",
+        "campaign"
+      ],
+      "cols": [
+        "month",
+        "campaign",
+        "store",
+        "brand",
+        "status",
+        "budget_day",
+        "spend",
+        "conv",
+        "clicks",
+        "impr"
+      ],
+      "derived": [
+        "cpa"
+      ],
       "desc": "Google Ads theo chiến dịch. Đã loại dòng 'Tổng số: …'."
     },
     "gads_channel": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "channel"],
-      "cols": ["month", "channel", "impr", "clicks", "conv", "spend"],
+      "key": [
+        "month",
+        "channel"
+      ],
+      "cols": [
+        "month",
+        "channel",
+        "impr",
+        "clicks",
+        "conv",
+        "spend"
+      ],
       "desc": "Google Ads theo kênh phân phối (Maps, Tìm kiếm, YouTube…)."
     },
     "gads_kw": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "kw"],
-      "cols": ["month", "kw", "clicks", "impr", "spend", "conv"],
+      "key": [
+        "month",
+        "kw"
+      ],
+      "cols": [
+        "month",
+        "kw",
+        "clicks",
+        "impr",
+        "spend",
+        "conv"
+      ],
       "desc": "Google Ads theo cụm từ tìm kiếm. Đã loại dòng 'Tổng số: …'."
     },
-
     "voucher_month": {
       "tier": "monthly",
       "monthCol": "m",
-      "key": ["m", "brand"],
-      "cols": ["m", "brand", "used", "rev", "disc"],
+      "key": [
+        "m",
+        "brand"
+      ],
+      "cols": [
+        "m",
+        "brand",
+        "used",
+        "rev",
+        "disc"
+      ],
       "desc": "Voucher đã dùng theo tháng × brand."
     },
     "voucher_join": {
       "tier": "monthly",
       "monthCol": "m",
-      "key": ["m"],
-      "cols": ["m", "n", "hit"],
-      "derived": ["rate"],
+      "key": [
+        "m"
+      ],
+      "cols": [
+        "m",
+        "n",
+        "hit"
+      ],
+      "derived": [
+        "rate"
+      ],
       "desc": "Tỷ lệ voucher khớp được với hoá đơn trong cùng tháng."
     },
     "oa": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month"],
-      "cols": ["month", "follows", "msgs", "views", "menu", "content", "days"],
+      "key": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "follows",
+        "msgs",
+        "views",
+        "menu",
+        "content",
+        "days"
+      ],
       "desc": "Zalo OA. follows = Quan tâm · views = Xem trang thông tin OA · menu = Tương tác thanh menu · content = Xem nội dung."
     },
     "member": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month"],
-      "cols": ["month", "member", "oa", "days"],
+      "key": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "member",
+        "oa",
+        "days"
+      ],
       "desc": "Member đăng ký mới & OA follow mới theo tháng (số toàn chuỗi)."
     },
-
     "social_month": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "platform", "brand", "page"],
-      "req": ["month", "platform", "brand"],
-      "cols": ["month", "platform", "brand", "page", "followers", "follows", "unfollows", "reach", "impr", "views", "profile_views", "clicks", "likes", "comments", "shares", "saves", "engage", "posts", "spend", "days"],
-      "derived": ["net_follow", "er", "reach_rate", "per_post", "cpm", "audience", "unit"],
-      "desc": "Fanpage & TikTok. Facebook điền reach · TikTok điền views — KHÔNG gộp hai cột. platform ∈ FACEBOOK|TIKTOK|INSTAGRAM|YOUTUBE|ZALO"
+      "key": [
+        "month",
+        "platform",
+        "brand",
+        "page"
+      ],
+      "req": [
+        "month",
+        "platform",
+        "brand"
+      ],
+      "cols": [
+        "month",
+        "platform",
+        "brand",
+        "page",
+        "code",
+        "followers",
+        "follows",
+        "unfollows",
+        "reach",
+        "impr",
+        "views",
+        "profile_views",
+        "clicks",
+        "contacts",
+        "msgs",
+        "likes",
+        "comments",
+        "shares",
+        "saves",
+        "engage",
+        "posts",
+        "spend",
+        "days"
+      ],
+      "derived": [
+        "net_follow",
+        "er",
+        "reach_rate",
+        "per_post",
+        "cpm",
+        "audience",
+        "unit"
+      ],
+      "desc": "Fanpage & TikTok. Facebook điền reach · TikTok điền views — KHÔNG gộp hai cột. platform ∈ FACEBOOK|TIKTOK|INSTAGRAM|YOUTUBE|ZALO code = mã fanpage (NCB · NDC · NJFB · NEC). contacts = Tổng số người liên hệ, msgs = Lượt bắt đầu cuộc trò chuyện qua tin nhắn (Facebook, cả tự nhiên lẫn trả phí)."
     },
     "social_post": {
       "tier": "monthly",
       "monthCol": "date",
-      "key": ["date", "platform", "brand", "page", "title"],
-      "cols": ["date", "platform", "brand", "page", "format", "title", "reach", "views", "impr", "likes", "comments", "shares", "saves", "clicks", "watch_avg", "spend", "link"],
-      "derived": ["engage", "audience", "er", "unit"],
+      "key": [
+        "date",
+        "platform",
+        "brand",
+        "page",
+        "title"
+      ],
+      "cols": [
+        "date",
+        "platform",
+        "brand",
+        "page",
+        "format",
+        "title",
+        "reach",
+        "views",
+        "impr",
+        "likes",
+        "comments",
+        "shares",
+        "saves",
+        "clicks",
+        "watch_avg",
+        "spend",
+        "link"
+      ],
+      "derived": [
+        "engage",
+        "audience",
+        "er",
+        "unit"
+      ],
       "desc": "Bài đăng / video. watch_avg tính bằng GIÂY."
     },
     "social_target": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "platform", "kpi"],
-      "cols": ["month", "platform", "kpi", "target"],
+      "key": [
+        "month",
+        "platform",
+        "kpi"
+      ],
+      "cols": [
+        "month",
+        "platform",
+        "kpi",
+        "target"
+      ],
       "desc": "KPI social cam kết theo tháng, ví dụ kpi = net_follow hoặc er."
     },
-
     "aggregator": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "platform", "store"],
-      "req": ["month", "platform"],
-      "cols": ["month", "platform", "brand", "store", "sales", "orders", "items", "guests", "discount", "commission", "ads_spend", "note"],
-      "derived": ["aov", "take_rate", "net_after"],
+      "key": [
+        "month",
+        "platform",
+        "store"
+      ],
+      "req": [
+        "month",
+        "platform"
+      ],
+      "cols": [
+        "month",
+        "platform",
+        "brand",
+        "store",
+        "sales",
+        "orders",
+        "items",
+        "guests",
+        "discount",
+        "commission",
+        "ads_spend",
+        "note"
+      ],
+      "derived": [
+        "aov",
+        "take_rate",
+        "net_after"
+      ],
       "desc": "Nền tảng trung gian (GrabFood, ShopeeFood, Dining City…). sales = doanh thu ghi nhận trên nền tảng."
     },
     "booking": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "outlet", "etype", "source", "status"],
-      "req": ["month", "status"],
-      "cols": ["month", "outlet", "etype", "source", "status", "leads", "guests", "exp", "closed"],
-      "desc": "Booking tiệc & sự kiện — gộp theo tháng SỰ KIỆN × outlet × loại × nguồn × trạng thái. status ∈ Pending|Tentative|Confirmed|Lost"
+      "key": [
+        "month",
+        "ev_month",
+        "store",
+        "outlet",
+        "seg",
+        "etype",
+        "source",
+        "status",
+        "lost_reason"
+      ],
+      "req": [
+        "month",
+        "status"
+      ],
+      "cols": [
+        "month",
+        "ev_month",
+        "store",
+        "brand",
+        "outlet",
+        "seg",
+        "etype",
+        "source",
+        "status",
+        "stage",
+        "lost_reason",
+        "leads",
+        "guests",
+        "exp",
+        "exp_n",
+        "closed",
+        "closed_n",
+        "inq_est"
+      ],
+      "desc": "Booking tiệc & sự kiện — gộp theo tháng NHẬN LEAD (month) × tháng DIỄN RA (ev_month) × cửa hàng × phân khúc × loại × nguồn × trạng thái. month = Inquiry Date → Input Date → (thiếu cả hai) ngày sự kiện, khi đó inq_est đếm số lead bị ước. seg ∈ event|table, stage ∈ won|open|lost — luật ở $booking. exp chỉ cộng ô có số (exp_n lead); ô trống/TBA KHÔNG tính là 0. closed_n = số lead Confirmed đã nhập Closed Revenue."
     },
     "lead_month": {
       "tier": "monthly",
       "monthCol": "m",
-      "key": ["m"],
-      "cols": ["m", "leads", "exp"],
+      "key": [
+        "m"
+      ],
+      "cols": [
+        "m",
+        "leads",
+        "exp"
+      ],
       "desc": "Lead tiệc theo tháng. Loader tự sinh từ sheet booking nếu sheet này trống."
     },
     "lead_source": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "src"],
-      "cols": ["month", "src", "leads", "exp"],
+      "key": [
+        "month",
+        "src"
+      ],
+      "cols": [
+        "month",
+        "src",
+        "leads",
+        "exp"
+      ],
       "desc": "Lead tiệc theo nguồn. Loader tự sinh từ sheet booking nếu sheet này trống."
     },
     "lead_type": {
       "tier": "monthly",
       "monthCol": "month",
-      "key": ["month", "etype"],
-      "cols": ["month", "etype", "leads", "exp"],
+      "key": [
+        "month",
+        "etype"
+      ],
+      "cols": [
+        "month",
+        "etype",
+        "leads",
+        "exp"
+      ],
       "desc": "Lead tiệc theo loại sự kiện. Loader tự sinh từ sheet booking nếu sheet này trống."
     },
-
     "product": {
       "tier": "snapshot",
-      "key": ["ma", "name", "cat", "grp"],
-      "req": ["ma", "name", "qty", "rev"],
-      "cols": ["ma", "name", "cat", "grp", "qty", "rev", "cogs"],
-      "derived": ["has_cogs", "cm", "cm_pct", "mclass"],
+      "key": [
+        "ma",
+        "name",
+        "cat",
+        "grp"
+      ],
+      "req": [
+        "ma",
+        "name",
+        "qty",
+        "rev"
+      ],
+      "cols": [
+        "ma",
+        "name",
+        "cat",
+        "grp",
+        "qty",
+        "rev",
+        "cogs"
+      ],
+      "derived": [
+        "has_cogs",
+        "cm",
+        "cm_pct",
+        "mclass"
+      ],
       "desc": "Bảng món LUỸ KẾ toàn kỳ. Nếu cắt top-N thì bắt buộc khai tổng thật ở _stats."
     },
     "category": {
       "tier": "snapshot",
-      "key": ["cat"],
-      "cols": ["cat", "qty", "rev"],
+      "key": [
+        "cat"
+      ],
+      "cols": [
+        "cat",
+        "qty",
+        "rev"
+      ],
       "desc": "Cơ cấu theo Loại món — tính trên TOÀN BỘ SKU, không chỉ phần đã cắt."
     },
     "group": {
       "tier": "snapshot",
-      "key": ["grp"],
-      "cols": ["grp", "qty", "rev"],
+      "key": [
+        "grp"
+      ],
+      "cols": [
+        "grp",
+        "qty",
+        "rev"
+      ],
       "desc": "Cơ cấu theo Nhóm món — tính trên TOÀN BỘ SKU."
     },
     "heat": {
       "tier": "snapshot",
-      "key": ["dow", "hour_in"],
-      "cols": ["dow", "hour_in", "net", "tc"],
+      "key": [
+        "dow",
+        "hour_in"
+      ],
+      "cols": [
+        "dow",
+        "hour_in",
+        "net",
+        "tc"
+      ],
       "desc": "Ma trận giờ vào × thứ. dow: 0 = Thứ 2 … 6 = Chủ nhật."
     },
     "zone": {
       "tier": "snapshot",
-      "key": ["store", "zone"],
-      "cols": ["store", "zone", "net", "tc"],
+      "key": [
+        "store",
+        "zone"
+      ],
+      "cols": [
+        "store",
+        "zone",
+        "net",
+        "tc"
+      ],
       "desc": "Doanh thu theo khu vực bàn."
     },
     "staff": {
       "tier": "snapshot",
-      "key": ["store", "name"],
-      "cols": ["store", "name", "net", "tc", "guest"],
-      "derived": ["aov"],
+      "key": [
+        "store",
+        "name"
+      ],
+      "cols": [
+        "store",
+        "name",
+        "net",
+        "tc",
+        "guest"
+      ],
+      "derived": [
+        "aov"
+      ],
       "desc": "Doanh thu theo nhân viên phục vụ."
     },
     "payment": {
       "tier": "snapshot",
-      "key": ["pttt"],
-      "cols": ["pttt", "net", "tc"],
+      "key": [
+        "pttt"
+      ],
+      "cols": [
+        "pttt",
+        "net",
+        "tc"
+      ],
       "desc": "Doanh thu theo phương thức thanh toán."
     },
     "dwell": {
       "tier": "snapshot",
-      "key": ["store"],
-      "cols": ["store", "n", "mean", "median"],
+      "key": [
+        "store"
+      ],
+      "cols": [
+        "store",
+        "n",
+        "mean",
+        "median"
+      ],
       "desc": "Thời gian ngồi bàn (phút). Bỏ trống `store` = số toàn chuỗi."
     },
     "repeat": {
       "tier": "snapshot",
-      "key": ["label"],
-      "cols": ["label", "n"],
+      "key": [
+        "label"
+      ],
+      "cols": [
+        "label",
+        "n"
+      ],
       "desc": "Phân bố số lần quay lại của khách nhận diện được."
     },
     "campaigns": {
       "tier": "snapshot",
-      "key": ["name", "nature", "brand"],
-      "cols": ["name", "nature", "brand", "rev", "bills"],
+      "key": [
+        "name",
+        "nature",
+        "brand"
+      ],
+      "cols": [
+        "name",
+        "nature",
+        "brand",
+        "rev",
+        "bills"
+      ],
       "desc": "Chương trình khuyến mãi luỹ kế toàn kỳ."
     },
     "voucher_prog": {
       "tier": "snapshot",
-      "key": ["prog", "brand"],
-      "cols": ["prog", "brand", "issued", "used", "rev", "disc"],
-      "derived": ["rate"],
+      "key": [
+        "prog",
+        "brand"
+      ],
+      "cols": [
+        "prog",
+        "brand",
+        "issued",
+        "used",
+        "rev",
+        "disc"
+      ],
+      "derived": [
+        "rate"
+      ],
       "desc": "Chương trình voucher luỹ kế toàn kỳ."
     },
     "social_format": {
       "tier": "snapshot",
-      "key": ["platform", "format"],
-      "cols": ["platform", "format", "posts", "reach", "views", "engage"],
-      "derived": ["er"],
+      "key": [
+        "platform",
+        "format"
+      ],
+      "cols": [
+        "platform",
+        "format",
+        "posts",
+        "reach",
+        "views",
+        "engage"
+      ],
+      "derived": [
+        "er"
+      ],
       "desc": "Hiệu quả theo định dạng bài đăng — chỉ cần khi social_post đã cắt top-N."
     },
-
     "_stats": {
       "tier": "any",
-      "key": ["table", "field"],
-      "cols": ["table", "field", "value"],
+      "key": [
+        "table",
+        "field"
+      ],
+      "cols": [
+        "table",
+        "field",
+        "value"
+      ],
       "desc": "Cửa thoát cho con số tổng mà bảng đã cắt top-N không suy lại được. Loader ƯU TIÊN giá trị ở đây. Dòng product_stat/covers khai kỳ mà bảng luỹ kế thực sự phủ — M2 hiện dòng này."
+    },
+    "dim_campaign": {
+      "tier": "master",
+      "key": [
+        "campaign_id"
+      ],
+      "req": [
+        "campaign_id",
+        "name",
+        "name_pos",
+        "brand",
+        "date_from"
+      ],
+      "cols": [
+        "campaign_id",
+        "name",
+        "content",
+        "hypothesis",
+        "objective",
+        "lever_primary",
+        "lever_secondary",
+        "name_pos",
+        "brand",
+        "store_scope",
+        "nature",
+        "mechanic",
+        "window",
+        "cadence",
+        "recur_dow",
+        "date_from",
+        "date_to",
+        "discount_rule",
+        "cost_owner",
+        "noire_share",
+        "ads_match",
+        "owner",
+        "status",
+        "pre_id",
+        "source",
+        "match_note"
+      ],
+      "desc": "M7.2 · danh mục chương trình (MASTER chung của M7 · M7.1 · M7.2). Sinh từ L0_input/03_MARKETING/07_Campaign_Tracking bởi tools/campaign.py — KHÔNG sửa tay ở data_input. `pre_id` nối sang kế hoạch Pre-Analysis (S16)."
+    },
+    "campaign_target": {
+      "tier": "master",
+      "key": [
+        "campaign_id"
+      ],
+      "req": [
+        "campaign_id"
+      ],
+      "cols": [
+        "campaign_id",
+        "base_method",
+        "tgt_net",
+        "tgt_tc",
+        "tgt_aov",
+        "tgt_ta",
+        "tgt_incr_net",
+        "exp_redeem_rate",
+        "exp_disc_per_bill",
+        "cm_pct",
+        "submitted",
+        "note"
+      ],
+      "desc": "M7.2 · target nộp TRƯỚC khi chạy. `submitted` = ngày nộp; nộp sau date_from thì target bị đánh dấu không kiểm chứng."
+    },
+    "campaign_cost": {
+      "tier": "master",
+      "key": [
+        "campaign_id",
+        "cost_type"
+      ],
+      "req": [
+        "campaign_id",
+        "cost_type"
+      ],
+      "cols": [
+        "campaign_id",
+        "cost_type",
+        "planned",
+        "actual",
+        "note"
+      ],
+      "desc": "M7.2 · chi phí theo loại. DISCOUNT/VOUCHER tự lấy từ POS."
+    },
+    "campaign_control": {
+      "tier": "master",
+      "key": [
+        "campaign_id",
+        "control_store"
+      ],
+      "req": [
+        "campaign_id",
+        "control_store"
+      ],
+      "cols": [
+        "campaign_id",
+        "control_store"
+      ],
+      "desc": "M7.2 · cửa hàng đối chứng. Bỏ trống = cửa hàng chính cùng brand không chạy chương trình."
+    },
+    "campaign_item": {
+      "tier": "master",
+      "key": [
+        "campaign_id",
+        "item_code"
+      ],
+      "req": [
+        "campaign_id"
+      ],
+      "cols": [
+        "campaign_id",
+        "item_code",
+        "item_name",
+        "note"
+      ],
+      "desc": "M7.2 · chương trình chạy theo MÓN (LTO) ↔ mã món trên POS. Có dòng ở đây thì doanh thu CTKM = Tổng tiền các hoá đơn chứa món đó (gồm món khác), không theo tên CTKM."
+    },
+    "campaign_result": {
+      "tier": "snapshot",
+      "key": [
+        "campaign_id"
+      ],
+      "req": [
+        "campaign_id"
+      ],
+      "cols": [
+        "campaign_id",
+        "demo",
+        "label",
+        "measurable",
+        "reason",
+        "days_run",
+        "period_from",
+        "period_to",
+        "stores",
+        "overlap",
+        "ramp_warning",
+        "base_to",
+        "base_from",
+        "control_stores",
+        "control_factor",
+        "act_net",
+        "act_tc",
+        "act_guest",
+        "exp_net",
+        "exp_tc",
+        "exp_guest",
+        "incr_net",
+        "lift_pct",
+        "d_tc",
+        "d_aov",
+        "d_party",
+        "d_ta",
+        "d_mix",
+        "driver",
+        "lever_note",
+        "promo_bills",
+        "promo_guests",
+        "promo_net",
+        "cost_discount",
+        "cost_voucher",
+        "cost_manual",
+        "cost_ads_auto",
+        "cost_total",
+        "cost_planned_used",
+        "cm_pct",
+        "flow_through",
+        "roi",
+        "breakeven_lift",
+        "target_verified",
+        "att_net",
+        "att_tc",
+        "att_aov",
+        "att_ta",
+        "att_incr",
+        "eval_scope",
+        "eval_note",
+        "promo_disc",
+        "promo_voucher",
+        "noire_share",
+        "plan_sales",
+        "base_sales",
+        "plan_tc",
+        "act_sales",
+        "promo_share",
+        "store_incr_net",
+        "store_lift_pct",
+        "store_flow_through",
+        "cost_promo_actual",
+        "cost_fixed_actual",
+        "breakeven_sales",
+        "objective",
+        "cadence",
+        "recur_dow",
+        "plan_group",
+        "plan_primary",
+        "promo_gross",
+        "promo_sales",
+        "store_net",
+        "revenue_basis",
+        "lto_qty",
+        "lto_rev",
+        "lto_items",
+        "store_tc"
+      ],
+      "desc": "M7.2 · kết quả đo mỗi chương trình (tools/campaign.py tính)."
+    },
+    "campaign_daily": {
+      "tier": "snapshot",
+      "key": [
+        "campaign_id",
+        "date"
+      ],
+      "req": [
+        "campaign_id",
+        "date"
+      ],
+      "cols": [
+        "campaign_id",
+        "date",
+        "in_period",
+        "act_net",
+        "exp_net",
+        "promo_bills"
+      ],
+      "desc": "M7.2 · chuỗi ngày thực tế vs kỳ vọng để vẽ pre/during/post."
+    },
+    "campaign_month": {
+      "tier": "snapshot",
+      "key": [
+        "campaign_id",
+        "month",
+        "store"
+      ],
+      "req": [
+        "campaign_id",
+        "month",
+        "store"
+      ],
+      "cols": [
+        "campaign_id",
+        "month",
+        "store",
+        "bills",
+        "guests",
+        "net",
+        "gross",
+        "disc",
+        "voucher",
+        "dup_bills",
+        "dup_guests",
+        "dup_net"
+      ],
+      "desc": "M7.2 · số POS của chương trình cắt theo tháng × cửa hàng (hoá đơn gắn CTKM; LTO: hoá đơn chứa món LTO). Nền để KPI và bảng chấm điểm cộng ĐÚNG tháng + brand đang lọc, so với store_month cùng kỳ. dup_*: hoá đơn LTO đồng thời gắn tên CTKM — trừ khi cộng tổng nhiều chương trình."
+    },
+    "campaign_unmapped": {
+      "tier": "snapshot",
+      "key": [
+        "name_pos",
+        "brand"
+      ],
+      "req": [
+        "name_pos"
+      ],
+      "cols": [
+        "name_pos",
+        "nature",
+        "brand",
+        "first",
+        "last",
+        "days",
+        "bills",
+        "net",
+        "disc"
+      ],
+      "desc": "M7.2 · tên CTKM trên POS (COMMERCIAL/LOYALTY/PARTNER) chưa gắn vào chương trình nào."
+    },
+    "campaign_issue": {
+      "tier": "snapshot",
+      "key": [
+        "campaign_id",
+        "field"
+      ],
+      "req": [
+        "campaign_id",
+        "field",
+        "msg"
+      ],
+      "cols": [
+        "campaign_id",
+        "field",
+        "level",
+        "msg"
+      ],
+      "desc": "M7.2 · lỗi khai báo trong file Campaign Tracking."
+    },
+    "pre_plan": {
+      "tier": "snapshot",
+      "key": [
+        "pre_id"
+      ],
+      "req": [
+        "pre_id",
+        "name"
+      ],
+      "cols": [
+        "pre_id",
+        "campaign_id",
+        "name",
+        "brand",
+        "kind",
+        "plan_status",
+        "est_tc",
+        "base_gross",
+        "growth",
+        "target_gross",
+        "incr_gross",
+        "target_aov",
+        "cogs_pct",
+        "cm_pct",
+        "promo_cost",
+        "fixed_cost",
+        "total_cost",
+        "net_contrib",
+        "roi",
+        "breakeven_incr",
+        "assessment",
+        "driver",
+        "source_file",
+        "label",
+        "period_from",
+        "period_to",
+        "act_net",
+        "act_tc",
+        "incr_net",
+        "cost_total",
+        "flow_through",
+        "roi_actual",
+        "act_promo_net",
+        "act_promo_bills"
+      ],
+      "desc": "M7.1 · kế hoạch từng chương trình đọc thẳng file Pre-Analysis (S16) + kết quả thực tế nối qua campaign_id (M7.2). Sinh bởi tools/campaign.py."
+    },
+    "pre_eval": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "scenario"
+      ],
+      "req": [
+        "program_id"
+      ],
+      "cols": [
+        "program_id",
+        "scenario",
+        "name",
+        "brand",
+        "stores",
+        "date_from",
+        "date_to",
+        "days",
+        "objective",
+        "lever",
+        "status",
+        "decision",
+        "decision_note",
+        "bills",
+        "bills_incr",
+        "cannib_pct",
+        "rev_incl",
+        "net_incr",
+        "gp_incr",
+        "promo_cost",
+        "program_cost",
+        "opex_incr",
+        "ebitda_incr",
+        "ebitda_pct",
+        "roi",
+        "breakeven_bills",
+        "max_cannib",
+        "redemption_needed",
+        "stock_days",
+        "gate_flags",
+        "campaign_id",
+        "quarter",
+        "season_factor",
+        "scheme_mode",
+        "tc_base",
+        "tc_share",
+        "participation_src",
+        "cannib_src",
+        "other_cogs_pct",
+        "opex_pct",
+        "base_note",
+        "safety_bills"
+      ],
+      "desc": "M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py."
+    },
+    "pre_eval_scheme": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "scheme_id"
+      ],
+      "req": [
+        "program_id"
+      ],
+      "cols": [
+        "program_id",
+        "scheme_id",
+        "scheme_name",
+        "condition",
+        "benefit",
+        "bills",
+        "bill_value",
+        "discount",
+        "rev_after_disc",
+        "ta",
+        "cogs",
+        "cogs_pct",
+        "margin_pct",
+        "merch_cost",
+        "promo_cost",
+        "basis_note"
+      ],
+      "desc": "M7.1 · Program's details — kinh tế học 1 hoá đơn theo từng scheme (Cơ sở)."
+    },
+    "pre_eval_fin": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "scenario",
+        "row"
+      ],
+      "req": [
+        "program_id"
+      ],
+      "cols": [
+        "program_id",
+        "scenario",
+        "row",
+        "label",
+        "base",
+        "without",
+        "with_promo",
+        "total",
+        "cannib_pct",
+        "incr",
+        "incr_pct"
+      ],
+      "desc": "M7.1 · Financial evaluation (khung PP672): hàng Gross/Discount/Net/COGS/GP × cột Base · Không KM · Có KM · Tổng · %Cannib · Tăng thêm."
+    },
+    "pre_eval_base": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "store"
+      ],
+      "req": [
+        "program_id"
+      ],
+      "cols": [
+        "program_id",
+        "store",
+        "base_from",
+        "base_to",
+        "base_days",
+        "net_incl",
+        "tc",
+        "guests",
+        "aov_incl",
+        "ta_incl",
+        "tc_day",
+        "net_day",
+        "tax_factor",
+        "disc_share",
+        "note"
+      ],
+      "desc": "M7.1 · dữ liệu nền tự lấy từ POS cho từng chương trình × cửa hàng."
     }
+  },
+  "$campaign": {
+    "$doc": "DANH MỤC M7.2 · PROMOTION TRACKING — nguồn DUY NHẤT. tools/campaign.py (tính), tools/campaign_template.py (mẫu nhập liệu L0), scripts/build-data.mjs và CampaignTrackingView.tsx cùng đọc từ đây. Đặc tả: docs/modules/M7_2_Promotion_Tracking.md",
+    "default_cm_pct": 0.65,
+    "default_cm_note": "Biên lợi nhuận mặc định khi campaign_target.cm_pct để trống. Chưa lấy từ BOM vì giá vốn mới phủ ~40% doanh thu món.",
+    "maturity_days": 14,
+    "base_days": 28,
+    "control_factor_range": [
+      0.5,
+      2.0
+    ],
+    "levers": [
+      {
+        "code": "TC_BASE",
+        "label": "Customer Base — mở rộng nền khách mới",
+        "group": "TC",
+        "driver": "tc",
+        "hint": "Mở CN mới, quảng cáo, coupon, voucher, trúng thưởng online thu hút khách mới"
+      },
+      {
+        "code": "TC_FREQ",
+        "label": "Frequently — tăng tần suất quay lại",
+        "group": "TC",
+        "driver": "tc",
+        "hint": "Voucher thời hạn ngắn, mua 4 tặng 1, khách hàng thân thiết"
+      },
+      {
+        "code": "TC_PARTY",
+        "label": "Party Size — tăng quy mô nhóm",
+        "group": "TC",
+        "driver": "party",
+        "hint": "Tặng quà nhóm đông, càng đông càng rẻ, nhóm 5 free 1"
+      },
+      {
+        "code": "TC_SECOND",
+        "label": "Secondary Order — order thêm cùng chuyến",
+        "group": "TC",
+        "driver": "ta",
+        "hint": "Menu mang về, vật phẩm làm quà, order thêm trong cùng lần đến"
+      },
+      {
+        "code": "TC_CHANNEL",
+        "label": "Sales Channel — mở rộng kênh bán",
+        "group": "TC",
+        "driver": "tc",
+        "hint": "Tại chỗ + online + giao hàng + catering"
+      },
+      {
+        "code": "TC_DAYPART",
+        "label": "Day-part Sales — tăng khung giờ bán",
+        "group": "TC",
+        "driver": "tc",
+        "hint": "Brunch, snack time chiều, khuya"
+      },
+      {
+        "code": "AOV_QTY",
+        "label": "Menu Item Sold — tăng số món / khách",
+        "group": "AOV",
+        "driver": "ta",
+        "hint": "Gợi ý thêm món, combo, giảm giá món thứ 2, tặng kèm món phụ khi mua set"
+      },
+      {
+        "code": "AOV_VALUE",
+        "label": "Menu Item Value — món giá trị cao hơn",
+        "group": "AOV",
+        "driver": "ta",
+        "hint": "Upsell size, giảm giá món cao cấp để thử, tặng món khi mua sản phẩm chính"
+      },
+      {
+        "code": "AOV_PRICE",
+        "label": "Pricing — điều chỉnh giá thông minh",
+        "group": "AOV",
+        "driver": "ta",
+        "hint": "Giá tâm lý 199K, bundling, menu engineering"
+      },
+      {
+        "code": "BR_AWARE",
+        "label": "Awareness — nhận diện · reach",
+        "group": "BRANDING",
+        "driver": null,
+        "hint": "Khai trương, sự kiện, POSM, KOL — đo reach / follower"
+      },
+      {
+        "code": "BR_ENGAGE",
+        "label": "Engagement — tương tác · UGC · minigame",
+        "group": "BRANDING",
+        "driver": null,
+        "hint": "Minigame, check-in mạng xã hội, UGC — đo tương tác"
+      },
+      {
+        "code": "BR_REVIEW",
+        "label": "Review — đánh giá online · CSKH",
+        "group": "BRANDING",
+        "driver": null,
+        "hint": "Google Review, khảo sát ý kiến, chăm sóc khách — đo số review / điểm"
+      }
+    ],
+    "mechanics": [
+      {
+        "code": "PCT_OFF",
+        "label": "Giảm %"
+      },
+      {
+        "code": "FIXED_OFF",
+        "label": "Giảm số tiền"
+      },
+      {
+        "code": "CASH_VOUCHER",
+        "label": "Voucher tiền mặt"
+      },
+      {
+        "code": "NEXT_VISIT",
+        "label": "Voucher kỳ sau"
+      },
+      {
+        "code": "GIFT_ITEM",
+        "label": "Tặng món"
+      },
+      {
+        "code": "MERCH_GIFT",
+        "label": "Tặng vật phẩm"
+      },
+      {
+        "code": "BXGY",
+        "label": "Mua X tặng Y"
+      },
+      {
+        "code": "COMBO_SET",
+        "label": "Combo · set menu"
+      },
+      {
+        "code": "TIME_WINDOW",
+        "label": "Giờ vàng · thứ cố định"
+      },
+      {
+        "code": "LUCKY_DRAW",
+        "label": "Bốc thăm"
+      },
+      {
+        "code": "NEW_ITEM",
+        "label": "Món mới"
+      }
+    ],
+    "windows": [
+      {
+        "code": "TET_DL",
+        "label": "Tết Dương lịch"
+      },
+      {
+        "code": "TET_AL",
+        "label": "Tết Nguyên đán"
+      },
+      {
+        "code": "VALENTINE",
+        "label": "Valentine 14/2"
+      },
+      {
+        "code": "INT_WOMEN_0803",
+        "label": "8/3"
+      },
+      {
+        "code": "HOLIDAY_3004",
+        "label": "30/4 – 1/5"
+      },
+      {
+        "code": "SUMMER",
+        "label": "Hè"
+      },
+      {
+        "code": "NATIONAL_0209",
+        "label": "2/9"
+      },
+      {
+        "code": "VN_WOMEN_2010",
+        "label": "20/10"
+      },
+      {
+        "code": "XMAS_NY",
+        "label": "Giáng sinh · Năm mới"
+      },
+      {
+        "code": "OPENING",
+        "label": "Khai trương"
+      },
+      {
+        "code": "ALWAYS_ON",
+        "label": "Quanh năm"
+      }
+    ],
+    "cadences": [
+      {
+        "code": "BURST",
+        "label": "Một đợt, có ngày kết thúc",
+        "method": "Lift so kỳ nền 28 ngày trước, cùng thứ trong tuần, khử mùa vụ bằng cửa hàng đối chứng"
+      },
+      {
+        "code": "RECURRING",
+        "label": "Lặp theo thứ trong tuần",
+        "method": "So các ngày chạy với CÙNG THỨ của 4 tuần trước khi bắt đầu"
+      },
+      {
+        "code": "ALWAYS_ON",
+        "label": "Chạy liên tục",
+        "method": "Không đo được lift — chỉ đo khi có kỳ tắt chương trình"
+      }
+    ],
+    "cost_types": [
+      {
+        "code": "DISCOUNT",
+        "label": "Giảm giá (tự lấy từ POS)",
+        "auto": true
+      },
+      {
+        "code": "VOUCHER",
+        "label": "Phiếu giảm giá (tự lấy từ POS)",
+        "auto": true
+      },
+      {
+        "code": "GIFT_COGS",
+        "label": "Giá vốn món / quà tặng"
+      },
+      {
+        "code": "ADS",
+        "label": "Quảng cáo"
+      },
+      {
+        "code": "KOL",
+        "label": "KOL · KOC"
+      },
+      {
+        "code": "PRINT",
+        "label": "In ấn · POSM"
+      },
+      {
+        "code": "MERCH",
+        "label": "Vật phẩm"
+      },
+      {
+        "code": "AGENCY",
+        "label": "Agency"
+      },
+      {
+        "code": "PARTNER_SHARE",
+        "label": "Đối tác bù lại (ghi số ÂM)"
+      }
+    ],
+    "cost_owners": [
+      {
+        "code": "NOIRE",
+        "label": "NOIRE chịu 100%"
+      },
+      {
+        "code": "PARTNER",
+        "label": "Đối tác chịu 100%"
+      },
+      {
+        "code": "SPLIT",
+        "label": "Chia — khai noire_share"
+      }
+    ],
+    "statuses": [
+      {
+        "code": "PLANNED",
+        "label": "Kế hoạch"
+      },
+      {
+        "code": "RUNNING",
+        "label": "Đang chạy"
+      },
+      {
+        "code": "ENDED",
+        "label": "Đã kết thúc"
+      },
+      {
+        "code": "CANCELLED",
+        "label": "Huỷ"
+      }
+    ],
+    "labels": [
+      {
+        "code": "DAT",
+        "label": "ĐẠT",
+        "color": "#22C55E",
+        "badge": "ok",
+        "desc": "Đạt target doanh thu tăng thêm VÀ có lãi"
+      },
+      {
+        "code": "DAT_LO",
+        "label": "ĐẠT DOANH THU · LỖ",
+        "color": "#F59E0B",
+        "badge": "warning",
+        "desc": "Bán được nhưng bán lỗ — chi phí lớn hơn lợi nhuận tăng thêm"
+      },
+      {
+        "code": "GAN_DAT",
+        "label": "GẦN ĐẠT",
+        "color": "#EAB308",
+        "badge": "warning",
+        "desc": "Đạt 80–99% target doanh thu tăng thêm"
+      },
+      {
+        "code": "KHONG_DAT",
+        "label": "KHÔNG ĐẠT",
+        "color": "#EF4444",
+        "badge": "bad",
+        "desc": "Dưới 80% target, đã chạy đủ 14 ngày"
+      },
+      {
+        "code": "CHUA_TARGET",
+        "label": "CHƯA CÓ TARGET",
+        "color": "#A3A68B",
+        "badge": "neutral",
+        "desc": "Đo được lift nhưng không có target nộp trước khi chạy"
+      },
+      {
+        "code": "CHUA_CHIN",
+        "label": "CHƯA ĐỦ CHÍN",
+        "color": "#38BDF8",
+        "badge": "neutral",
+        "desc": "Đợt đang chạy (hoặc chương trình lặp chưa đủ 2 lần) — số tạm, chưa kết luận"
+      },
+      {
+        "code": "CHUA_DO",
+        "label": "CHƯA ĐO ĐƯỢC",
+        "color": "#6E6C65",
+        "badge": "neutral",
+        "desc": "Thiếu kỳ nền / cửa hàng mới / chạy liên tục / thiếu khai báo"
+      },
+      {
+        "code": "KE_HOACH",
+        "label": "KẾ HOẠCH",
+        "color": "#A78BFA",
+        "badge": "neutral",
+        "desc": "Có trong Pre-Analysis nhưng chưa chạy — chưa có ngày và chưa thấy trên POS"
+      },
+      {
+        "code": "BRANDING",
+        "label": "BRANDING",
+        "color": "#C084FC",
+        "badge": "neutral",
+        "desc": "Mục tiêu Branding — đo reach · tương tác · review, không chấm bằng doanh thu tăng thêm"
+      }
+    ],
+    "base_exclude": [
+      [
+        "2025-12-24",
+        "2025-12-25",
+        "Giáng sinh"
+      ],
+      [
+        "2025-12-31",
+        "2026-01-02",
+        "Tết Dương lịch"
+      ],
+      [
+        "2026-02-13",
+        "2026-02-22",
+        "Tết Nguyên đán"
+      ],
+      [
+        "2026-04-30",
+        "2026-05-01",
+        "30/4 – 1/5"
+      ],
+      [
+        "2026-09-01",
+        "2026-09-02",
+        "Quốc khánh"
+      ],
+      [
+        "2026-12-24",
+        "2026-12-25",
+        "Giáng sinh"
+      ],
+      [
+        "2026-12-31",
+        "2027-01-01",
+        "Tết Dương lịch"
+      ]
+    ],
+    "base_exclude_note": "Ngày lễ bị LOẠI khỏi kỳ nền — kỳ nền lùi thêm cho đủ 28 ngày hợp lệ. Không loại thì chương trình ngay sau Tết bị so với tuần cao điểm Tết và báo lift âm giả.",
+    "min_open_days_base": 14,
+    "ramp_days": 90,
+    "pre_kinds": [
+      {
+        "code": "COMBO",
+        "label": "Combo / Set menu",
+        "mechanic": "COMBO_SET",
+        "sheet": "Combo-SetMenu",
+        "prefix": "C"
+      },
+      {
+        "code": "DISCOUNT",
+        "label": "Giảm giá",
+        "mechanic": "PCT_OFF",
+        "sheet": "Discount",
+        "prefix": "D"
+      },
+      {
+        "code": "GIFT",
+        "label": "Tặng món / FOC",
+        "mechanic": "GIFT_ITEM",
+        "sheet": "Gift-FOC",
+        "prefix": "G"
+      },
+      {
+        "code": "LTO",
+        "label": "Món mới (LTO)",
+        "mechanic": "NEW_ITEM",
+        "sheet": "LTO-Item",
+        "prefix": "L"
+      },
+      {
+        "code": "VOUCHER",
+        "label": "Voucher / Loyalty",
+        "mechanic": "CASH_VOUCHER",
+        "sheet": "Voucher-Loyalty",
+        "prefix": "V"
+      },
+      {
+        "code": "ACTIVATION",
+        "label": "Activation / Branding",
+        "mechanic": "MERCH_GIFT",
+        "sheet": "Activation-Merch",
+        "prefix": "A"
+      }
+    ],
+    "sources": [
+      {
+        "code": "PRE_POS",
+        "label": "Kế hoạch + đã chạy trên POS"
+      },
+      {
+        "code": "PRE",
+        "label": "Chỉ có kế hoạch (chưa thấy trên POS)"
+      },
+      {
+        "code": "POS",
+        "label": "Chỉ có trên POS (chưa có kế hoạch)"
+      },
+      {
+        "code": "REPORT",
+        "label": "Từ báo cáo hiệu quả (S17)"
+      },
+      {
+        "code": "MANUAL",
+        "label": "Team tự khai"
+      }
+    ],
+    "objectives": [
+      {
+        "code": "TC",
+        "label": "Tăng TC — số lượt khách",
+        "color": "#E8465F",
+        "desc": "SALES = TC × AOV · tăng số hoá đơn (6 phương án — TC_AOV_FnB_Marketing.pdf slide 3)"
+      },
+      {
+        "code": "AOV",
+        "label": "Tăng AOV — chi tiêu mỗi bill",
+        "color": "#0E9A8C",
+        "desc": "Tăng chi tiêu trung bình mỗi hoá đơn (3 phương án — slide 4)"
+      },
+      {
+        "code": "BRANDING",
+        "label": "Branding — nhận diện · tương tác",
+        "color": "#A78BFA",
+        "desc": "Không đo bằng doanh thu tăng thêm: đo reach · tương tác · review · UGC"
+      }
+    ],
+    "min_store_share": 0.05,
+    "min_store_bills": 20,
+    "lto_group_rx": "LTO"
+  },
+  "$preeval": {
+    "_doc": "M7.1 · Pre-Analytics — mô hình đánh giá chương trình TRƯỚC khi chạy. Khung PP672 (Program's Details + Financial Evaluation + chi phí vận hành → EBITDA tăng thêm) × SALES = TC × AOV (TC_AOV_FnB_Marketing.pdf). Tham số ở đây là MẶC ĐỊNH; từng chương trình ghi đè ở Pre_Analysis_2026.xlsx.",
+    "vat": 1.08,
+    "base_days": 56,
+    "base_note": "Kỳ nền mặc định = 56 ngày (8 tuần) ngay trước ngày bắt đầu, bỏ ngày lễ ($campaign.base_exclude); chương trình ở tương lai xa hơn dữ liệu thì lấy 56 ngày cuối có số.",
+    "conditions": [
+      {
+        "code": "NONE",
+        "label": "Không điều kiện"
+      },
+      {
+        "code": "MIN_BILL",
+        "label": "Hoá đơn tối thiểu (min_bill)"
+      },
+      {
+        "code": "BUY_ITEMS",
+        "label": "Mua đủ món ở sheet mon (REQUIRED)"
+      },
+      {
+        "code": "GROUP_SIZE",
+        "label": "Nhóm tối thiểu (min_guests)"
+      },
+      {
+        "code": "PREBOOK",
+        "label": "Đặt bàn trước"
+      },
+      {
+        "code": "MEMBER",
+        "label": "Thành viên / thẻ"
+      }
+    ],
+    "benefits": [
+      {
+        "code": "NONE",
+        "label": "Không ưu đãi giá (món mới / LTO)"
+      },
+      {
+        "code": "PCT_OFF_BILL",
+        "label": "Giảm % hoá đơn",
+        "value": "tỷ lệ 0–1"
+      },
+      {
+        "code": "PCT_OFF_ITEMS",
+        "label": "Giảm % món chương trình",
+        "value": "tỷ lệ 0–1"
+      },
+      {
+        "code": "FIXED_OFF",
+        "label": "Giảm số tiền / voucher",
+        "value": "VND"
+      },
+      {
+        "code": "FIXED_PRICE",
+        "label": "Đồng giá / combo giá cố định",
+        "value": "VND cho bộ món REQUIRED"
+      },
+      {
+        "code": "GIFT_ITEM",
+        "label": "Tặng món (sheet mon: GIFT)"
+      },
+      {
+        "code": "GIFT_MERCH",
+        "label": "Tặng vật phẩm (merch_unit_cost)"
+      }
+    ],
+    "item_add_pct": {
+      "_doc": "Phần giá trị món chương trình là GỌI THÊM (không thay món khách vốn gọi) — theo cơ chế",
+      "NONE": 0.5,
+      "GIFT_MERCH": 0.5,
+      "FIXED_PRICE": 0.0,
+      "PCT_OFF_ITEMS": 0.3,
+      "PCT_OFF_BILL": 0.0,
+      "FIXED_OFF": 0.0,
+      "GIFT_ITEM": 0.0
+    },
+    "cannib_default": {
+      "_doc": "% hoá đơn tham gia mà KHÔNG có chương trình khách vẫn đến (theo phương án) — ghi đè ở cột cannib_pct",
+      "TC_BASE": 0.3,
+      "TC_FREQ": 0.5,
+      "TC_PARTY": 0.4,
+      "TC_SECOND": 0.5,
+      "TC_CHANNEL": 0.3,
+      "TC_DAYPART": 0.3,
+      "AOV_QTY": 0.6,
+      "AOV_VALUE": 0.6,
+      "AOV_PRICE": 0.7,
+      "BR_AWARE": 0.9,
+      "BR_ENGAGE": 0.9,
+      "BR_REVIEW": 0.9,
+      "_default": 0.5
+    },
+    "participation_default": 0.03,
+    "base_cogs_pct": {
+      "_doc": "COGS % món khác (không có BOM) — nguồn: Pre-Analysis Q3 (32–35%) + NCB Operating Engine (32%). Kế toán khoá.",
+      "NCB": 0.32,
+      "NDC": 0.33,
+      "NJFB": 0.35,
+      "ALL": 0.33
+    },
+    "scenarios": [
+      {
+        "code": "THAN_TRONG",
+        "label": "Thận trọng",
+        "bills_mult": 0.7,
+        "cannib_add": 0.15,
+        "cogs_add": 0.02
+      },
+      {
+        "code": "CO_SO",
+        "label": "Cơ sở",
+        "bills_mult": 1.0,
+        "cannib_add": 0.0,
+        "cogs_add": 0.0
+      },
+      {
+        "code": "LAC_QUAN",
+        "label": "Lạc quan",
+        "bills_mult": 1.3,
+        "cannib_add": -0.1,
+        "cogs_add": 0.0
+      }
+    ],
+    "gates": {
+      "max_cogs_pct": 0.4,
+      "max_promo_cost_pct_net": 0.3,
+      "min_gm_pct": 0.55
+    },
+    "decisions": [
+      {
+        "code": "DUYET",
+        "label": "DUYỆT CHẠY",
+        "color": "#22C55E",
+        "badge": "ok",
+        "desc": "EBITDA tăng thêm > 0 ở kịch bản Cơ sở VÀ ≥ 0 ở Thận trọng"
+      },
+      {
+        "code": "CHAY_THU",
+        "label": "CHẠY THỬ CÓ ĐIỀU KIỆN",
+        "color": "#F59E0B",
+        "badge": "warning",
+        "desc": "Có lãi ở Cơ sở nhưng lỗ ở Thận trọng — chạy thử 1–2 tuần, theo dõi TC & %cannib"
+      },
+      {
+        "code": "SUA_CO_CHE",
+        "label": "SỬA CƠ CHẾ",
+        "color": "#EF4444",
+        "badge": "bad",
+        "desc": "EBITDA tăng thêm ≤ 0 ở kịch bản Cơ sở — đổi ưu đãi / ngưỡng / chi phí"
+      },
+      {
+        "code": "BRANDING",
+        "label": "BRANDING — DUYỆT THEO NGÂN SÁCH",
+        "color": "#A78BFA",
+        "badge": "neutral",
+        "desc": "Mục tiêu Branding: không duyệt bằng EBITDA, duyệt theo chi phí / lượt tiếp cận"
+      },
+      {
+        "code": "THIEU_SO",
+        "label": "THIẾU DỮ LIỆU",
+        "color": "#9E9B93",
+        "badge": "neutral",
+        "desc": "Thiếu cửa hàng / ngày / cơ chế — chưa tính được"
+      }
+    ]
   }
 }

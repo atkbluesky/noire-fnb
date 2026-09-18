@@ -12,7 +12,7 @@ Nguyên tắc (xem 00_BLUEPRINT):
   NT2 Một chỉ số định nghĩa đúng một lần
   NT4 Mọi con số truy được về file nguồn
 """
-import os, re, sys, json, glob, unicodedata
+import os, re, sys, json, glob, io
 # Console Windows mặc định là cp1252 và không in được tiếng Việt: mọi print có dấu
 # sẽ ném UnicodeEncodeError và giết cả script giữa chừng. Ép UTF-8 ngay từ đầu.
 for _s in (sys.stdout, sys.stderr):
@@ -31,61 +31,34 @@ pd.options.mode.chained_assignment = None
 # ══════════════════════════════════════════════════════════════
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-def has_data(root, marker):
-    """Gốc dữ liệu chỉ được coi là hợp lệ khi thư mục mốc CÓ file Excel thật.
-    Nếu chỉ kiểm tra thư mục tồn tại, khung L0_input rỗng sẽ chiếm chỗ cây dữ liệu thật."""
-    d = os.path.join(root, marker)
-    if not os.path.isdir(d):
-        return False
-    for _, _, files in os.walk(d):
-        if any(f.lower().endswith((".xlsx", ".xls")) for f in files):
-            return True
-    return False
+# Gốc dữ liệu L0 do monthly_lib.pick_l0_root() chọn — MỘT bộ luật cho mọi script.
+# Trước 16/09/2026 mỗi file có find_root() riêng với thứ tự ưu tiên riêng, và
+# `os.path.join(HERE, "..")` ở đây chỉ lên tới thư mục cha của dự án chứ không tới
+# cây HIGHGATE — nên script này và tools/build_month.py chốt trên hai gốc khác nhau.
+sys.path.insert(0, os.path.join(HERE, "tools"))
+from monthly_lib import L0_ROOT, L0_WHY, l0_dir  # noqa: E402
+
+
 
 def find_root():
-    """Gốc dữ liệu L0 — thứ tự ưu tiên (xem data_sources.json · docs/10_L0_INPUT_CONTRACT.md):
-       1. biến môi trường NOIRE_ROOT
-       2. L0_input/ ngay trong dự án  ← nơi thả file hằng tháng
-       3. thư mục cha (08 Analytics Hub -> HIGHGATE)
-       4. đường dẫn cứng dự phòng"""
-    cands = [
-        os.environ.get("NOIRE_ROOT"),
-        os.path.join(HERE, "L0_input"),                     # thả file ngay trong dự án
-        os.path.abspath(os.path.join(HERE, "..")),          # 08 Analytics Hub -> HIGHGATE
-        r"D:\PROJECT\3. HIGHGATE 5.2026",
-        "/sessions/awesome-wonderful-keller/mnt",
-    ]
-    cands = [c for c in cands if c]
-    for c in cands:                                         # vòng 1 — gốc CÓ dữ liệu thật
-        if has_data(c, "05 Data Raw"):
-            return c
-    for c in cands:                                         # vòng 2 — gốc đúng cấu trúc nhưng còn rỗng
-        if os.path.isdir(os.path.join(c, "05 Data Raw")):
-            return c
-    return cands[0]
+    return L0_ROOT
+
 
 ROOT = find_root()
-SALES = os.path.join(ROOT, "05 Data Raw", "01 Sales Revenue")
+# Mọi đường dẫn nguồn lấy từ sổ đăng ký qua monthly_lib — KHÔNG nối chuỗi thư mục ở
+# đây. Bản trước nối cứng `05 Data Raw/01 Sales Revenue/…` và tên file cứng
+# `revenue-report-group-by-date T1-T7.xlsx`: POS xuất lại thành `…T1-T9_to 13.09.xlsx`
+# là doanh thu ngày lặng lẽ đứng ở tháng 7.
+from monthly_lib import l0_by_month, l0_dir, l0_latest, file_sig  # noqa: E402
 
-def pick(*cands):
-    """Trả về đường dẫn đầu tiên tồn tại."""
-    for c in cands:
-        if os.path.exists(c):
-            return c
-    return None
-
-P_ITEM_DIR  = pick(os.path.join(SALES, "2. Báo Cáo bán hàng 2026"),
-                   os.path.join(ROOT, "Báo Cáo bán hàng 2026"))
-P_BILL_DIR  = pick(os.path.join(SALES, "1. Bảng Kê HD 2026"))
-P_DAILY     = pick(os.path.join(SALES, "Doanh thu 2026", "revenue-report-group-by-date T1-T7.xlsx"))
-P_DAILY_T8  = pick(os.path.join(SALES, "Doanh thu 2026", "revenue_by_stores_per_day Tháng 8.2026.xlsx"))
-P_MONTH_DIR = pick(os.path.join(SALES, "Doanh thu 2026"))
-P_LEAD      = pick(os.path.join(SALES, "DATA- SALE NOIRE- 2026 Lead Tiệc.xlsx"))
-P_TARGET    = pick(os.path.join(SALES, "Noire Sales Target Q3 2026.xlsx"))
-P_BOM       = pick(os.path.join(ROOT, "02 Products", "02 Costing BOM", "BOM Update T7.2026",
-                                "NOIRE_COGS_CHUAN_ALL_BRANDS_2026_CleanData.xlsx"),
-                   os.path.join(ROOT, "BOM Update T7.2026",
-                                "NOIRE_COGS_CHUAN_ALL_BRANDS_2026_CleanData.xlsx"))
+P_ITEM_BY_MONTH = l0_by_month("S01_item")      # {tháng: file mới nhất}
+P_BILL_BY_MONTH = l0_by_month("S02_bill")
+P_MONTH_BY_MONTH = l0_by_month("S04_monthly")
+P_DAILY     = l0_latest("S03_daily")
+P_DAILY_T8  = None                             # đã gộp vào file doanh thu ngày luỹ kế
+P_LEAD      = None                             # thay bằng S07 Booking (tools/build_month.py)
+P_TARGET    = None                             # thay bằng config_targets.csv (tools/tracking.py)
+P_BOM       = l0_latest("S05_bom")
 CACHE = os.environ.get("NOIRE_CACHE") or os.path.join(HERE, "_cache")
 OUT   = os.path.join(HERE, "data.json")
 QALOG = os.path.join(HERE, "qa_log_%s.txt" % datetime.now().strftime("%Y%m%d_%H%M"))
@@ -99,84 +72,51 @@ def log(msg=""):
 # ══════════════════════════════════════════════════════════════
 # 1. L1 · dim_store — bảng master, so khớp bằng alias đã chuẩn hoá
 # ══════════════════════════════════════════════════════════════
-def norm(s):
-    """Chuẩn hoá chuỗi: gộp khoảng trắng, bỏ ký tự vô hình, thường hoá."""
-    if s is None:
-        return ""
-    s = unicodedata.normalize("NFKC", str(s))
-    s = s.replace("\u200b", "").replace("\ufeff", "")
-    s = re.sub(r"\s+", " ", s).strip().lower()
-    return s
+# Chiều cửa hàng và luật phân loại CTKM ĐỀU đọc từ nguồn duy nhất, không khai lại
+# ở đây nữa:
+#     dim_store  →  data_input/01_master.xlsx, cột `aliases`
+#     nature     →  data_contract.json, khối `$promo_nature`
+# Trước 16/09/2026 file này giữ bản sao riêng của cả hai. Cả hai đều đã lệch thật:
+# bảng alias thiếu vài cách viết mà lane monthly có, còn luật nature bắt `nhân viên`
+# trước `skg` nên `Giảm 50% cho Nhân Viên SonKim Group` — nhân viên ĐỐI TÁC — bị
+# xếp vào INTERNAL.
+sys.path.insert(0, os.path.join(HERE, "tools"))
+from monthly_lib import (  # noqa: E402
+    BRAND_OF_STORE, CORE_STORES, NATURE_META, NATURES, STORE_META,
+    classify_nature, norm, store_code,
+)
 
-DIM_STORE = [
-    # store_code, brand, tier, alias POS (chuẩn hoá), tên hiển thị, mở từ
-    ("NCB_MET",  "NCB",   "core",      "noire café & bistro - the mett",                  "NCB · The Mett",      "2025-01"),
-    ("NCB_ET",   "NCB",   "core",      "noire café & bistro - empress tower",             "NCB · Empress Tower", "2025-10"),
-    ("NCB_SKC",  "NCB",   "core",      "noire café & lounge - skc",                       "NCB · SKC",           "2026-02"),
-    ("NDC_NTMK", "NDC",   "flagship",  "noire dining & cafe - 39 nguyễn thị minh khai",   "NDC · 39 NTMK",       "2025-10"),
-    ("NDC_BKL",  "NDC",   "flagship",  "noire dining & cafe - the berkley",               "NDC · The Berkley",   "2026-08"),
-    ("NJFB_CRE", "NJFB",  "core",      "noire japanese fusion & bar - the crest",         "NJFB · The Crest",    "2026-04"),
-    ("NJFB_SSV", "NJFB",  "core",      "noire japanese fusion & bar - ssv",               "NJFB · SSV",          "2025-12"),
-    ("NCB_GW",   "NCB",   "satellite", "noire café & bistro - gateway",                   "NCB · Gateway",       "2025-03"),
-    ("NCB_9ST",  "NCB",   "satellite", "noire café & bistro - the 9 stellars",            "NCB · 9 Stellars",    "2025-03"),
-    ("NCB_NDC",  "NCB",   "satellite", "noire café & bistro - nguyễn đình chiểu",         "NCB · NĐ Chiểu",      "2025-03"),
-    ("IFC_SIG",  "OTHER", "popup",     "ifc signature by noire",                          "IFC Signature",       "2026-02"),
-]
-ALIAS = {a: (c, b, t, disp) for c, b, t, a, disp, _ in DIM_STORE}
-STORE_META = {c: dict(code=c, brand=b, tier=t, name=disp, open=o) for c, b, t, a, disp, o in DIM_STORE}
-CORE7 = [c for c, b, t, *_ in DIM_STORE if t in ("core", "flagship")]
+CORE7 = CORE_STORES
 
 # Dòng tổng trá hình — bẫy có ở CẢ BA nguồn
 TOTAL_MARKERS = {"tổng", "tong", "tổng:", "tại chỗ", "mang về", "grab", "corporate", ""}
 
+
 def map_store(raw):
-    n = norm(raw)
-    if n in ALIAS:
-        return ALIAS[n]
-    n2 = re.sub(r"\s*-\s*", " - ", n)
-    if n2 in ALIAS:
-        return ALIAS[n2]
-    return (None, None, None, None)
+    """→ (code, brand, tier, tên hiển thị). Không khớp: bộ bốn None."""
+    c = store_code(raw)
+    if not c:
+        return (None, None, None, None)
+    m = STORE_META[c]
+    return (c, m["brand"], m["tier"], m["name"])
 
-# Tên store trong file TARGET viết khác POS (thiếu dấu, thiếu khoảng trắng)
-TARGET_ALIAS = [
-    (r"the ?mett", "NCB_MET"), (r"empress", "NCB_ET"), (r"\bskc\b", "NCB_SKC"),
-    (r"39 ?ntmk|minh khai", "NDC_NTMK"), (r"berkley", "NDC_BKL"),
-    (r"cres", "NJFB_CRE"), (r"\bssv\b", "NJFB_SSV"),
-    (r"gateway", "NCB_GW"), (r"9 ?stella", "NCB_9ST"),
-    (r"bistro - ndc|đình chiểu|dinh chieu", "NCB_NDC"), (r"^ifc", "IFC_SIG"),
-]
+
+def map_store_frame(col):
+    """Ánh xạ cả một cột tên cửa hàng → DataFrame 4 cột (store, brand, tier, sname).
+
+    Ánh xạ trên GIÁ TRỊ DUY NHẤT rồi nối lại: cột có ~270.000 dòng nhưng chỉ ~15 tên
+    khác nhau. Bản trước gọi pd.Series() cho từng dòng — mất nhiều phút mỗi lần chạy."""
+    uniq = {v: map_store(v) for v in pd.unique(col)}
+    return pd.DataFrame([uniq[v] for v in col], index=col.index,
+                        columns=["store", "brand", "tier", "sname"])
+
+
 def map_store_loose(raw):
-    n = norm(raw)
-    if not n:
-        return None
-    c, *_ = map_store(raw)
-    if c:
-        return c
-    for pat, code in TARGET_ALIAS:
-        if re.search(pat, n):
-            return code
-    return None
+    """Bí danh lỏng (file TARGET viết thiếu dấu, thiếu khoảng trắng) nay đã nằm
+    chung trong cột `aliases`, nên không còn cần bảng regex riêng."""
+    return store_code(raw)
 
-# ══════════════════════════════════════════════════════════════
-# 2. Phân loại BẢN CHẤT chương trình khuyến mãi (nature)
-# ══════════════════════════════════════════════════════════════
-NATURE_RULES = [
-    ("INTERNAL",   [r"chairman", r"director", r"manager", r"nội bộ", r"noi bo", r"nhân viên", r"staff", r"cbnv"]),
-    ("PARTNER",    [r"\bskg\b", r"resident", r"techcombank", r"\btcb\b", r"oneu", r"hdbank", r"shinhan",
-                    r"grab", r"dining ?city", r"đối tác", r"partner", r"onelife"]),
-    ("LOYALTY",    [r"hạng ", r"black diamond", r"\bsilver\b", r"\bgold\b", r"thẻ vip", r"the vip",
-                    r"thành viên", r"member", r"loyalty", r"tích điểm"]),
-]
-def classify_nature(name):
-    n = norm(name)
-    if not n:
-        return None
-    for nat, pats in NATURE_RULES:
-        for p in pats:
-            if re.search(p, n):
-                return nat
-    return "COMMERCIAL"
+
 
 DAYPARTS = [(0, 10, "Sáng ≤10h"), (11, 14, "Trưa 11-14h"), (15, 17, "Chiều 15-17h"),
             (18, 21, "Tối 18-21h"), (22, 23, "Khuya 22h+")]
@@ -195,41 +135,83 @@ def num(s):
 # ══════════════════════════════════════════════════════════════
 # 3. Nạp nguồn — có cache pickle để chạy lại nhanh
 # ══════════════════════════════════════════════════════════════
+# Đổi số này mỗi khi cách ĐỌC file thay đổi — mọi cache pickle cũ tự huỷ theo.
+READER_VERSION = "v3-bi-danh-cot-T8"
+
+# iPOS ĐỔI TÊN CỘT từ export T8/2026 (báo cáo bán hàng). Tên cũ là tên chuẩn của lane;
+# tên mới được đổi về tên cũ ngay khi đọc, TRƯỚC bước lọc cột — nếu không, cột bị lọc
+# mất và T8/T9 không có mã hoá đơn, không có ngày (khung giờ · thứ trong tuần bỏ rơi).
+COL_ALIAS = {
+    "Hoá đơn": "Mã hoá đơn",
+    "Số hoá đơn": "Số HĐ",
+    "Ngày": "Thời gian",            # T8: "01/08/2026 08:24:21" — cũ: "01/04/2026"
+    "Phiếu giảm giá": "Phiếu GG",
+}
+ALL_STORE_SHEET = "tất cả cửa hàng"
+
 def read_xlsx_fast(path, header_row=1, usecols=None):
     """Đọc xlsx bằng openpyxl read_only — nhẹ RAM hơn pandas.read_excel rất nhiều.
-    File bán hàng 60MB nếu dùng pandas sẽ ngốn ~2GB và chết."""
+    File bán hàng 60MB nếu dùng pandas sẽ ngốn ~2GB và chết.
+
+    BẪY (phát hiện 16/09/2026): từ T8/2026 iPOS xuất MỖI CỬA HÀNG MỘT SHEET rồi thêm
+    sheet 'Tất cả cửa hàng' ở CUỐI. Bản trước đọc `worksheets[0]` = chỉ một cửa hàng:
+    T8 nạp 5.100/34.534 dòng món (15%), T9 1.505/15.877. Mọi bảng Menu · giờ · khu vực
+    · nhân viên từ T8 thiếu 85% số mà không báo lỗi gì. Nay: có sheet tổng thì CHỈ đọc
+    sheet tổng; dòng tiêu đề dò theo nội dung (có cột 'Cửa hàng'), không đếm dòng cứng.
+    `header_row` giữ lại cho tương thích nhưng chỉ dùng khi không dò được."""
     import openpyxl
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = wb.worksheets[0]
-    hdr, rows = None, []
+    names = [n for n in wb.sheetnames if norm(n) == ALL_STORE_SHEET]
+    ws = wb[names[0]] if names else wb.worksheets[0]
+    ws.reset_dimensions()
+    hdr, rows, keep = None, [], None
     for i, r in enumerate(ws.iter_rows(values_only=True)):
-        if i < header_row:
+        if r is None:
             continue
         if hdr is None:
-            hdr = [str(c).replace("\n", " ").strip() if c is not None else "c%d" % j
-                   for j, c in enumerate(r)]
+            cells = [str(c).replace("\n", " ").replace("\u200b", "").strip() if c is not None else ""
+                     for c in r]
+
+            if "Cửa hàng" not in cells and not (i == header_row and not any(
+                    "Cửa hàng" in str(x) for x in cells)):
+                continue
+            hdr = [COL_ALIAS.get(c, c) if c else "c%d" % j for j, c in enumerate(cells)]
             keep = list(range(len(hdr))) if usecols is None else \
                    [j for j, h in enumerate(hdr) if h in usecols]
             hdr = [hdr[j] for j in keep]
             continue
         rows.append(tuple(r[j] if j < len(r) else None for j in keep))
     wb.close()
+    if hdr is None:
+        raise ValueError("%s: không thấy dòng tiêu đề có cột 'Cửa hàng'" % os.path.basename(path))
     return pd.DataFrame(rows, columns=hdr)
 
-def cached(name, loader, need=None):
-    """Cache pickle. Nếu bản cache thiếu cột cần thiết (do đổi cấu hình) thì nạp lại."""
+def cached(name, loader, need=None, src=None):
+    """Cache pickle, TỰ HUỶ khi file nguồn đổi.
+
+    Bản trước chỉ khoá theo tháng (`ITEM_2026-09.pkl`): thả bản T9 đủ tháng đè lên
+    bản 'tới 13-09' thì hệ thống vẫn đọc pickle cũ — dashboard không bao giờ thấy
+    số mới. Nay lưu kèm chữ ký file (kích thước + giờ sửa); khác là nạp lại."""
     p = os.path.join(CACHE, name + ".pkl")
+    sig_p = p + ".sig"
+    want = ("%s|%s" % (READER_VERSION, file_sig(src))) if src else None
     if os.path.exists(p):
         try:
-            df = pd.read_pickle(p)
-            if not need or set(need).issubset(df.columns):
-                return df
-            log("   cache %s thiếu cột → nạp lại từ Excel" % name)
+            have = io.open(sig_p, encoding="utf-8").read().strip() if os.path.exists(sig_p) else None
+            if want and have != want:
+                log("   cache %s cũ (file nguồn đã thay) → nạp lại từ Excel" % name)
+            else:
+                df = pd.read_pickle(p)
+                if not need or set(need).issubset(df.columns):
+                    return df
+                log("   cache %s thiếu cột → nạp lại từ Excel" % name)
         except Exception:
             pass
     df = loader()
     try:
         df.to_pickle(p)
+        if want:
+            io.open(sig_p, "w", encoding="utf-8").write(want)
     except Exception:
         pass
     return df
@@ -251,12 +233,9 @@ BILL_COLS = ["Cửa hàng", "Mã hoá đơn", "Số HĐ", "Số khách", "Nguồ
 def load_items():
     """fact_item — 1 dòng = 1 món trong 1 hoá đơn."""
     frames = []
-    for f in sorted(glob.glob(os.path.join(P_ITEM_DIR, "*.xlsx"))):
-        mo = month_of(f)
-        if not mo:
-            continue
+    for mo, f in sorted(P_ITEM_BY_MONTH.items()):
         d = cached("ITEM_" + mo, lambda f=f: read_xlsx_fast(f, 1, set(ITEM_COLS)),
-                   ["Cửa hàng", "Mã hàng", "Tổng tiền", "Thành tiền", "Tên CTKM"])
+                   ["Cửa hàng", "Mã hàng", "Tổng tiền", "Thành tiền", "Tên CTKM"], src=f)
         d["month"] = mo
         frames.append(d)
         log("   nạp fact_item %s : %6d dòng" % (mo, len(d)))
@@ -265,12 +244,9 @@ def load_items():
 def load_bills():
     """fact_bill — 1 dòng = 1 hoá đơn (bảng kê, 34 cột)."""
     frames = []
-    for f in sorted(glob.glob(os.path.join(P_BILL_DIR, "*.xlsx"))):
-        mo = month_of(f)
-        if not mo:
-            continue
+    for mo, f in sorted(P_BILL_BY_MONTH.items()):
         d = cached("BILL_" + mo, lambda f=f: read_xlsx_fast(f, 1, set(BILL_COLS)),
-                   ["Cửa hàng", "Mã hoá đơn", "Tổng tiền", "Giờ vào", "Số điện thoại"])
+                   ["Cửa hàng", "Mã hoá đơn", "Tổng tiền", "Giờ vào", "Số điện thoại"], src=f)
         d["month"] = mo
         frames.append(d)
         log("   nạp fact_bill %s : %6d dòng" % (mo, len(d)))
@@ -279,12 +255,7 @@ def load_bills():
 def load_monthly():
     """Báo cáo doanh thu tháng — nguồn ĐỐI SOÁT, không phải nguồn lấy số."""
     rows = []
-    for f in sorted(glob.glob(os.path.join(P_MONTH_DIR, "*.xlsx"))):
-        if "group-by-date" in f or "per_day" in f:
-            continue
-        mo = month_of(f)
-        if not mo:
-            continue
+    for mo, f in sorted(P_MONTH_BY_MONTH.items()):
         try:
             d = pd.read_excel(f, sheet_name=0, header=1)
         except Exception:
@@ -358,7 +329,7 @@ IT = IT[~IT["store_norm"].isin(TOTAL_MARKERS)]
 removed_item = n0 - len(IT)
 log("   fact_item: loại %d dòng tổng ('Tổng')" % removed_item)
 
-IT[["store", "brand", "tier", "sname"]] = IT["Cửa hàng"].apply(lambda x: pd.Series(map_store(x)))
+IT[["store", "brand", "tier", "sname"]] = map_store_frame(IT["Cửa hàng"])
 unmapped = IT[IT["store"].isna()]["Cửa hàng"].unique().tolist()
 IT = IT[IT["store"].notna()]
 
@@ -366,10 +337,18 @@ IT["qty"] = num(IT["Số lượng"])
 IT["line_rev"] = num(IT["Thành tiền"])      # doanh thu món trước phí DV & VAT
 IT["net"] = num(IT["Tổng tiền"])            # = Doanh thu Net (đã xác minh)
 IT["ma"] = IT["Mã hàng"].astype(str).str.strip()
-IT["hour"] = pd.to_numeric(IT["Giờ"].astype(str).str.slice(0, 2), errors="coerce")
+# T8 ghi giờ "7:38" (một chữ số) — cắt 2 ký tự ra "7:" là mất giờ. Tách theo dấu ":".
+IT["hour"] = pd.to_numeric(IT["Giờ"].astype(str).str.split(":").str[0], errors="coerce")
 IT["daypart"] = IT["hour"].map(daypart)
-IT["date"] = pd.to_datetime(IT["Thời gian"], format="%d/%m/%Y", errors="coerce")
+# T8 kèm giờ trong ô ngày ("01/08/2026 08:24:21") — lấy 10 ký tự đầu cho mọi kỳ.
+IT["date"] = pd.to_datetime(IT["Thời gian"].astype(str).str.slice(0, 10), format="%d/%m/%Y", errors="coerce")
 IT["dow"] = IT["date"].dt.dayofweek
+# Ô rỗng của iPOS là "\u200b" hoặc chuỗi rỗng — không làm sạch thì notna() coi là CÓ
+# CTKM: sau khi đọc đủ sheet T8/T9, 25.929 dòng không CTKM bị đếm là có (chốt #9).
+for _c in ("Tên CTKM", "Mã voucher"):
+    if _c in IT.columns:
+        IT[_c] = IT[_c].astype(str).str.replace("\u200b", "", regex=False).str.replace("\ufeff", "", regex=False).str.strip()\
+                       .replace({"": np.nan, "nan": np.nan, "None": np.nan, "-": np.nan})
 IT["nature"] = IT["Tên CTKM"].map(classify_nature)
 
 # ---------- 4.2 Làm sạch fact_bill ----------
@@ -383,7 +362,7 @@ removed_bill = int(mask_total.sum()) + (n0 - len(BL))
 BL = BL[~mask_total]
 log("   fact_bill: loại %d dòng tổng ('TẠI CHỖ' ở cột Mã hoá đơn + Số HĐ rỗng)" % removed_bill)
 
-BL[["store", "brand", "tier", "sname"]] = BL["Cửa hàng"].apply(lambda x: pd.Series(map_store(x)))
+BL[["store", "brand", "tier", "sname"]] = map_store_frame(BL["Cửa hàng"])
 BL = BL[BL["store"].notna()]
 BL["net"] = num(BL["Tổng tiền"])
 BL["guest"] = num(BL["Số khách"])
@@ -563,7 +542,7 @@ D["store_month"] = json.loads(a.round(2).to_json(orient="records"))
 # ---- B. daily ----
 if len(DL):
     DL["store_raw"] = DL[DL.columns[1]]
-    DL[["store", "brand", "tier", "sname"]] = DL["store_raw"].apply(lambda x: pd.Series(map_store(x)))
+    DL[["store", "brand", "tier", "sname"]] = map_store_frame(DL["store_raw"])
     DL = DL[DL["store"].notna()]
     DL["date"] = pd.to_datetime(DL[DL.columns[0]], format="%d/%m/%Y", errors="coerce")
     DL["net"] = num(DL.get("Doanh thu Net"))
@@ -598,7 +577,7 @@ pr = IT.groupby(["ma", "Tên hàng", "Loại món", "Nhóm món"]).agg(
     cogs=("cogs_amt", "sum"), has=("has_cogs", "max")).reset_index()
 pr.columns = ["ma", "name", "cat", "grp", "qty", "rev", "cogs", "has_cogs"]
 pr["cm"] = np.where(pr["has_cogs"], pr["rev"] - pr["cogs"], np.nan)
-pr["cm_pct"] = np.where(pr["has_cogs"] & (pr["rev"] > 0), pr["cm"] / pr["rev"], np.nan)
+pr["cm_pct"] = np.where(pr["has_cogs"] & (pr["rev"] > 0), pr["cm"] / pr["rev"].replace(0, np.nan), np.nan)
 pr = pr.sort_values("rev", ascending=False)
 # xếp hạng menu engineering trên nhóm CÓ COGS
 sub = pr[pr["has_cogs"] & (pr["qty"] > 0)]

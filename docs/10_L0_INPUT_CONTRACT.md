@@ -1,174 +1,194 @@
-# 10 · TẦNG L0 — HỢP ĐỒNG DỮ LIỆU VÀO
+# 10 · TẦNG L0 — THẢ FILE EXCEL THÔ, HỆ THỐNG TỰ CẬP NHẬT
 
-> **Đây là tài liệu bạn mở mỗi tháng.** Thả file đúng chỗ, đúng tên → hệ thống tự lấy.
-> Thả sai → `check_input.py` báo lỗi rõ ràng thay vì âm thầm bỏ qua.
+> **Đây là tài liệu bạn mở mỗi tháng.**
+> Việc hằng ngày chỉ có ba bước: **thả file → nháy đúp `CAP_NHAT.bat` → đọc báo cáo.**
 
 ---
 
-## 1. Dữ liệu thô nằm ở đâu
+## 1. Quy trình
 
-Hệ thống tìm **gốc dữ liệu** theo thứ tự ưu tiên sau (`find_root()` trong cả `build_hub.py`, `build_mkt.py`, `check_input.py`):
-
-| Ưu tiên | Gốc | Dùng khi nào |
-|---|---|---|
-| 1 | biến môi trường `NOIRE_ROOT` | trỏ sang ổ khác / máy khác / server |
-| 2 | **`L0_input/` ngay trong dự án** | ← **mặc định, dùng cái này** |
-| 3 | thư mục cha của dự án | khi repo nằm trong cây `HIGHGATE` gốc |
-| 4 | `D:\PROJECT\3. HIGHGATE 5.2026` | dự phòng máy cũ |
-
-Quy tắc chọn gốc: **ưu tiên gốc có file Excel thật.** Thư mục khung rỗng không được chiếm chỗ
-cây dữ liệu thật — nên bạn có thể giữ cả `L0_input/` rỗng lẫn cây HIGHGATE mà không sợ nhầm.
-
-```powershell
-# ví dụ trỏ sang ổ khác
-$env:NOIRE_ROOT = "E:\NOIRE_DATA"
-python run_pipeline.py
+```
+Export từ POS / Meta / Google / Zalo…     (giữ nguyên tên file)
+        │
+        ▼
+L0_input/<nhóm>/<nguồn>/                  (mỗi thư mục có README.md hướng dẫn riêng)
+        │
+        ▼
+CAP_NHAT.bat   ─── hoặc ───   CAP_NHAT_TU_DONG.bat  (để cửa sổ mở, thả file là tự chạy)
+        │
+        ▼
+L0_input/_BAO_CAO_CAP_NHAT.txt           file nào mới · đã dựng gì · chốt QA · THIẾU FILE GÌ
 ```
 
+| Lệnh | Làm gì |
+|---|---|
+| `CAP_NHAT.bat` · `python update.py` | Cập nhật đúng phần có file thay đổi |
+| `CAP_NHAT_TU_DONG.bat` · `python update.py --watch` | Soát `L0_input` mỗi 30 giây, thấy file mới **và đã chép xong** thì tự cập nhật |
+| `python update.py --force` | Dựng lại tất cả, bỏ qua bộ nhớ thay đổi |
+| `python check_input.py` · `python update.py --check` | Chỉ kiểm kê thiếu file, không dựng gì |
+| `python run_pipeline.py` | Lối vào cũ — chuyển tiếp sang `update.py --force` |
+
 ---
 
-## 2. Cây thư mục `L0_input/`
+## 2. Cây thư mục — một nơi duy nhất
 
-Cây này **mirror đúng cấu trúc thư mục gốc HIGHGATE** mà ETL đang trông đợi.
-Giữ nguyên tên thư mục kể cả số thứ tự và dấu tiếng Việt — đó là khoá tra cứu của code.
+Cây thư mục, tên nguồn, mẫu tên file, tháng bắt đầu **sinh ra từ một chỗ**:
+`tools/l0_registry.py` → `data_sources.json` → `tools/l0_setup.py` dựng thư mục + README.
 
 ```
 L0_input/
-├── 05 Data Raw/
-│   ├── 01 Sales Revenue/
-│   │   ├── 1. Bảng Kê HD 2026/        ← S02 · accounting_sale TN.2026.xlsx   [BẮT BUỘC]
-│   │   ├── 2. Báo Cáo bán hàng 2026/  ← S01 · Báo cáo bán hàng tháng N.2026.xlsx [BẮT BUỘC]
-│   │   ├── Doanh thu 2026/            ← S03 daily + S04 monthly              [BẮT BUỘC]
-│   │   ├── Doanh thu 2025/            ←      lịch sử để so YoY
-│   │   ├── (file) Noire Sales Target Q3 2026.xlsx          ← S06
-│   │   └── (file) DATA- SALE NOIRE- 2026 Lead Tiệc.xlsx    ← S07
-│   └── 03 Digital Ads/
-│       ├── Facebook Ads/1. Raw Ads 2026/   ← S08 · YYYY-MM ... .xlsx
-│       ├── Facebook Ads/2. Raw Ads 2025/
-│       └── Google Ads/                     ← S09 · 3 file báo cáo Google
-├── 01 Strategic/03 Budget Allocation/      ← S10 · ngân sách quý
-├── 02 Products/02 Costing BOM/BOM Update T7.2026/  ← S05 · COGS chuẩn
-├── 03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/
-│   ├── 01. Data Voucher iPOS/              ← S11 · export voucher log
-│   └── 02. Data CRM/
-│       ├── 03. KPI Plan/                   ← S14 · KPI CRM quý
-│       └── 04. KPI Actual/
-│           ├── 01. OA Zalo/                ← S12 · OA Zalo T*.xls
-│           └── 02. Member Đăng Ký/         ← S13 · member_actual_iPOS_CRM_v2.xlsx
-├── 04 Marketing Campaigns/02 LTO Promotions/
-│   ├── 2026 Q2/                            ← S17 · báo cáo LTO đã chạy
-│   └── 2026 Q3/                            ← S16 · Pre-Analysis
-└── 10 Partnership Analytics/               ← S15 · 00_Danh_Muc_Partnership.xlsx
+├── README.md                          ← bảng đầy đủ mọi nguồn (sinh tự động)
+├── _BAO_CAO_CAP_NHAT.txt              ← báo cáo sau mỗi lần chạy
+├── 01_DOANH_THU/
+│   ├── 01_Doanh_Thu_Ngay/             S03 · revenue-report-group-by-date*.xlsx     [BẮT BUỘC]
+│   ├── 02_Target/                     S00 · config_targets.csv                    [BẮT BUỘC]
+│   ├── 03_POS_Hoa_Don/                S02 · accounting_sale T8.2026.xlsx           [BẮT BUỘC]
+│   ├── 04_POS_Ban_Hang/               S01 · Báo cáo bán hàng tháng 8.2026.xlsx     [BẮT BUỘC]
+│   ├── 05_Doanh_Thu_Thang/            S04 · Tháng 8. 2026 revenue.xlsx  (đối soát)
+│   └── 06_Booking_Tiec/               S07 · NOIRE Booking Tiec Sales 2026.xlsx
+├── 02_SAN_PHAM/01_BOM_COGS/           S05 · NOIRE_COGS_CHUAN_ALL_BRANDS_2026_CleanData.xlsx
+├── 03_MARKETING/
+│   ├── 01_Meta_Ads/                   S08 · 2026-08_report.xlsx
+│   ├── 02_Google_Ads/Tháng 8.2026/    S09 · Báo cáo chiến dịch.xlsx + cụm từ + cửa hàng
+│   ├── 03_Social/
+│   │   ├── 01_Fanpage/                S18 · Facebook_Tong_hop_*.xlsx   (mẫu _MAU_Facebook_Tong_hop.xlsx)
+│   │   └── 02_Tiktok/                 S22 · TikTok_Tong_hop_*.xlsx     (mẫu _MAU_TikTok_Tong_hop.xlsx)
+│   ├── 04_Ngan_Sach/                  S10 · NOIRE_MKT_*Checked*.xlsx
+│   ├── 05_Promotion_Ke_Hoach/         S16 · NOIRE_Promotion_Pre-Analysis*.xlsx
+│   ├── 06_Promotion_Ket_Qua/          S17 · NOIRE_Bao_Cao_Hieu_Qua_LTO*.xlsx
+│   └── 07_Campaign_Tracking/          S23 · Campaign_Tracking_2026.xlsx (mẫu _MAU_Campaign_Tracking.xlsx) → M7.2
+├── 04_CRM/
+│   ├── 01_Voucher_iPOS/               S11 · exportVoucherLogOfCampaign_*.xlsx
+│   ├── 02_Zalo_OA/                    S12 · OA Zalo T8.2026.xls
+│   ├── 03_Member/                     S13 · CRM_Dashboard_*.xlsx       (mẫu _MAU_CRM_Member.xlsx)
+│   └── 04_KPI_CRM/                    S14 · *KPI CRM*.xlsx
+└── 05_DOI_TAC/
+    ├── 01_Danh_Muc/                   S15 · 00_Danh_Muc_Partnership.xlsx
+    ├── 02_eVoucher_Doi_Tac/           S21 · eVoucher*_T8.2026.xlsx (mỗi brand một file)
+    └── 03_Aggregator/                 S19 · *Promotion AGG*_T8-2026.xlsx (GrabFood · Dining City)
 ```
 
-Chi tiết đầy đủ từng nguồn (mẫu tên, sheet, dòng tiêu đề, bẫy, module tiêu thụ) nằm trong
-**`data_sources.json`** — đó mới là bản gốc, bảng dưới đây chỉ là bản rút gọn để đọc nhanh.
+Git chỉ lưu **cấu trúc thư mục + README**; file Excel thô không bao giờ lên GitHub.
 
 ---
 
-## 3. Bảng 17 nguồn — quy ước tên & tần suất
+## 3. Bốn nhịp nộp file
 
-| Mã | Nguồn | Thư mục | Mẫu tên | Tần suất | Bắt buộc |
-|---|---|---|---|---|---|
-| S01 | POS bán hàng chi tiết | `2. Báo Cáo bán hàng 2026/` | `Báo cáo bán hàng tháng 8.2026.xlsx` | tháng | ✅ |
-| S02 | Bảng kê hoá đơn | `1. Bảng Kê HD 2026/` | `accounting_sale T8.2026.xlsx` | tháng | ✅ |
-| S03 | Doanh thu theo ngày | `Doanh thu 2026/` | `revenue-report-group-by-date*.xlsx` | tháng | — |
-| S04 | Doanh thu theo tháng *(đối soát)* | `Doanh thu 2026/` | `revenue-report tháng 8.2026.xlsx` | tháng | ✅ |
-| S05 | BOM / COGS | `BOM Update T7.2026/` | `NOIRE_COGS_CHUAN_ALL_BRANDS_2026_CleanData.xlsx` | khi Bếp cập nhật | — |
-| S06 | Sales target | `01 Sales Revenue/` | `Noire Sales Target Q3 2026.xlsx` | quý | — |
-| S07 | Lead tiệc | `01 Sales Revenue/` | `DATA- SALE NOIRE- 2026 Lead Tiệc.xlsx` | tuần | — |
-| S08 | Meta Ads | `1. Raw Ads 2026/` | `2026-08 ….xlsx` | tháng | — |
-| S09 | Google Ads | `Google Ads/` | `Báo cáo chiến dịch.xlsx` + 2 file cụm từ | tháng | — |
-| S10 | Ngân sách MKT | `03 Budget Allocation/` | `NOIRE_MKT_Q3_2026_Checked_….xlsx` | quý | — |
-| S11 | Voucher iPOS | `01. Data Voucher iPOS/` | `exportVoucherLogOfCampaign_*.xlsx` | tuần | — |
-| S12 | Zalo OA | `01. OA Zalo/` | `OA Zalo T8.2026.xls` | tháng | — |
-| S13 | Member đăng ký | `02. Member Đăng Ký/` | `member_actual_iPOS_CRM_v2.xlsx` | tháng | — |
-| S14 | KPI CRM | `03. KPI Plan/` | `NOIRE Q3. 2026 KPI CRM PhanBoNgay V2.xlsx` | quý | — |
-| S15 | Partnership | `10 Partnership Analytics/` | `00_Danh_Muc_Partnership.xlsx` | khi có đối tác mới | — |
-| S16 | Pre-Analytics | `2026 Q3/` | `NOIRE_Promotion_Pre-Analysis_Q3_2026.xlsx` | quý | — |
-| S17 | Báo cáo LTO đã chạy | `2026 Q2/` | `NOIRE_Bao_Cao_Hieu_Qua_LTO_*.xlsx` | sau campaign | — |
-
-**“Bắt buộc”** = thiếu thì `check_input.py` trả mã lỗi và `build_hub.py` không có dữ liệu để chạy.
-Các nguồn còn lại thiếu thì module tương ứng hiện khung rỗng, phần còn lại vẫn chạy.
-
----
-
-## 4. Cách hệ thống nhận ra “tháng nào”
-
-Không có bảng khai báo tháng. **Tháng được rút thẳng từ tên file** bằng regex:
-
-| Nguồn | Regex | Khớp ví dụ |
+| Nhịp | Nghĩa | Nguồn |
 |---|---|---|
-| S01 · S02 | `(?:tháng\|thang\|T)\s*(\d{1,2})[\.\s]*(\d{4})` | `…tháng 8.2026.xlsx` · `…T8.2026.xlsx` |
-| S08 Meta | `(\d{4})-(\d{2})` | `2026-08 report.xlsx` |
-| S12 Zalo OA | `T(\d{1,2})\.(\d{4})` | `OA Zalo T8.2026.xls` |
+| `monthly` | **Một file mỗi tháng**, tháng nằm trong tên file | POS hoá đơn · POS bán hàng · Doanh thu tháng · Meta · Zalo OA · Aggregator · eVoucher |
+| `monthly_folder` | **Một thư mục mỗi tháng** `Tháng N.YYYY/` | Google Ads |
+| `cumulative` | Một file luỹ kế — xuất lại **từ đầu kỳ** rồi thả đè | Doanh thu ngày · Booking · Voucher · CRM Member · Facebook/TikTok tổng hợp |
+| `config` / `quarterly` | Sửa khi có thay đổi | Target · BOM · Ngân sách · KPI CRM · Đối tác |
 
-**Hệ quả:** đặt tên sai định dạng → file bị bỏ qua **im lặng** ở bước gom tháng.
-Đây là lý do phải chạy `check_input.py` trước — nó in ra đúng dải tháng đã nhận diện được
-và cảnh báo tháng bị hụt giữa chuỗi.
-
----
-
-## 5. Bốn quy tắc bắt buộc khi thả file
-
-**❶ File mới không ghi đè file cũ.** Trùng tên → thêm hậu tố `_v2`. Lịch sử là tài sản.
-
-**❷ Không xoá file cũ.** Chuỗi lịch sử càng dài, phân tích mùa vụ và benchmark càng đúng.
-
-**❸ Ba tầng doanh thu phải đối soát nhau.**
-`fact_item` rollup ≈ `fact_bill` rollup ≈ báo cáo tháng. Lệch > 0,5% → chốt QA #4 báo đỏ, **dừng, không tin số**.
-
-**❹ Cửa hàng mới phải khai báo có ý thức.** Store không có trong `DIM_STORE` sẽ làm chốt QA #2 báo đỏ,
-không tự động bỏ qua. Xem cách thêm ở [`11_L1_MAPPING_DIM.md`](11_L1_MAPPING_DIM.md).
+**Tháng được đọc từ tên file** — `T8.2026`, `tháng 8.2026`, `2026-08`, `T8-2026`. Đổi tên mất
+tháng thì file bị **bỏ qua** và báo cáo ghi rõ dưới dòng *“không đọc được tháng từ tên file”*.
 
 ---
 
-## 6. Chín cái bẫy đã chặn sẵn trong code
+## 4. Hệ thống tự làm gì khi thấy file mới
 
-Đây là những lỗi đã từng xảy ra trên dữ liệu thật. Code đã xử lý — **liệt kê ở đây để đừng ai gỡ ra**.
+`update.py` giữ chữ ký từng file (kích thước + giờ sửa) ở `_cache/l0_manifest.json`, so với lần
+trước, rồi **chỉ dựng lại phần bị ảnh hưởng**:
+
+| File thay đổi | Dựng lại |
+|---|---|
+| Doanh thu ngày · Target | `tools/tracking.py` → phần `tracking` của **mọi tháng** + lane POS luỹ kế |
+| POS hoá đơn / bán hàng tháng N | phần `pos` của **tháng N** + lane POS luỹ kế |
+| Meta Ads tháng N | phần `meta` của tháng N |
+| Google Ads / Fanpage / Zalo OA / AGG / eVoucher tháng N | đúng phần đó của tháng N |
+| Member · Booking (luỹ kế) | phần tương ứng của mọi tháng |
+| Voucher · KPI CRM · Đối tác · Ngân sách · Pre-Analysis | lane Marketing luỹ kế |
+| Campaign Tracking (S23) — hoặc BẤT KỲ phần tháng nào dựng lại | `tools/campaign.py` → `data_input/03_campaign.xlsx` (M7.2 đo lại mọi chương trình) |
+
+Sau đó luôn chạy `tools/export_derived.py` (nếu lane luỹ kế chạy) và loader Node → 16 chốt QA.
+
+**Bước nào lỗi thì không ghi nhớ thay đổi** — lần chạy sau tự làm lại. Không có chuyện
+“lỗi một lần là mất cập nhật vĩnh viễn”.
+
+**Chế độ tự động chờ file chép xong**: phải thấy hai lần soát liên tiếp giống nhau mới chạy.
+File POS 60MB đang chép dở mà dựng ngay là đọc ra Excel hỏng.
+
+---
+
+## 4b. Ba lớp kiểm tra sau mỗi lần cập nhật
+
+Cả ba in trong `L0_input/_BAO_CAO_CAP_NHAT.txt` và trong `python check_input.py`.
+
+| Lớp | Công cụ | Trả lời |
+|---|---|---|
+| **Kiểm kê** | `tools/l0_report.py` | Nguồn nào chưa có file · tháng nào thiếu · hai file cùng tháng · tên file không đọc được tháng |
+| **Mẫu file** | `tools/l0_validate.py` | File có đủ **sheet + cột bắt buộc** không. Mẫu chuẩn của từng nguồn khai ở `SCHEMA` trong `tools/l0_registry.py` và in trong `README.md` của từng thư mục. Tên cột cũ và mới của iPOS đều hợp lệ |
+| **Độ đủ tháng** | `tools/month_audit.py [YYYY-MM]` | Có file ≠ đủ số. Kiểm **số ngày** (doanh thu · OA · member), **khớp chéo** POS ↔ Tracking ≤0,5%, file luỹ kế **xuất tới hết tháng** (voucher · booking), fanpage đủ 4 trang, aggregator đã khai hoa hồng. Ra % và danh sách việc còn thiếu |
+
+### Mẫu nhập liệu cho nguồn không có file xuất sẵn
+
+Bốn nguồn do team **tự tổng hợp**, mỗi thư mục có sẵn file mẫu `_MAU_…` (hệ thống bỏ qua mọi file bắt đầu bằng `_MAU_`):
+
+| Thư mục | Mẫu | Vì sao phải dùng mẫu |
+|---|---|---|
+| `03_Social/01_Fanpage` | `_MAU_Facebook_Tong_hop.xlsx` | **Người xem (reach) không cộng theo ngày được.** Cộng 31 ngày CSV ra NCB T8 = 322.042; số thật cả kỳ = 238.590 — thổi phồng 35%. Phải chép số CẢ THÁNG từ Meta Business Suite |
+| `03_Social/02_Tiktok` | `_MAU_TikTok_Tong_hop.xlsx` | TikTok Studio không xuất file số tháng, chỉ chụp màn hình |
+| `03_MARKETING/07_Campaign_Tracking` | `_MAU_Campaign_Tracking.xlsx` | Khai báo chương trình · target · chi phí · đối chứng không nằm ở hệ thống nào. **Target phải điền `submitted` TRƯỚC ngày chạy.** Khi chưa có file thật, M7.2 chạy trên chính file mẫu và hiện băng DỮ LIỆU MẪU |
+| `04_CRM/03_Member` | `_MAU_CRM_Member.xlsx` | CRM đăng ký không có export — tối thiểu sheet `KPI_Thang` (Tháng · Khách đăng ký) |
+
+---
+
+## 5. Ba quy tắc khi thả file
+
+**❶ Không đổi tên file export.** Tên là nơi duy nhất chứa tháng.
+
+**❷ Thay file = thả bản mới, không cần xoá bản cũ.** Hai file cùng tháng (ví dụ
+`accounting_sale T9.2026_ tới 13-09.xlsx` rồi `accounting_sale T9.2026.xlsx`) → hệ thống lấy
+**bản sửa gần nhất** và ghi tên bản bị bỏ qua vào báo cáo. **Không bao giờ cộng đôi.**
+
+**❸ Không sửa tay file trong `data_input/`.** Đó là đầu ra — lần cập nhật sau ghi đè.
+Ngoại lệ có chủ đích: các sheet khai tay trong `01_master.xlsx` (dim_store · ngân sách ·
+pre_analytics · system_*) — hệ thống không bao giờ ghi đè chúng.
+
+---
+
+## 6. Các bẫy đã chặn sẵn trong code
+
+Lỗi đã từng xảy ra trên dữ liệu thật. **Liệt kê để đừng ai gỡ ra.**
+
+### 6a. Bẫy phát hiện khi dựng hệ thống L0 mới (16/09/2026)
+
+| # | Bẫy | Hậu quả nếu không chặn | Chặn ở đâu |
+|---|---|---|---|
+| A | **Từ T8/2026 iPOS xuất mỗi cửa hàng một sheet**, sheet `Tất cả cửa hàng` nằm CUỐI | Lane cũ đọc sheet đầu = 1 cửa hàng: T8 nạp **5.100/34.534 dòng (15%)** — Menu, khung giờ, khu vực, nhân viên thiếu 85% | `build_hub.read_xlsx_fast` · `build_month.read_pos_sheets`: có sheet tổng thì chỉ đọc sheet tổng |
+| B | **iPOS đổi tên cột từ T8**: `Mã hoá đơn→Hoá đơn` · `Số HĐ→Số hoá đơn` · `Thời gian→Ngày` (kèm giờ) · `Phiếu GG→Phiếu giảm giá` · giờ `08:27→7:38` | T8/T9 mất mã hoá đơn + ngày → khung giờ, thứ trong tuần bỏ rơi 2 tháng | `build_hub.COL_ALIAS` · bí danh `want` trong `build_month` |
+| C | **Ô CTKM rỗng ghi bằng `​` hoặc chuỗi rỗng** | 25.929 dòng không có CTKM bị đếm là có | làm sạch `Tên CTKM` trước `classify_nature` |
+| D | **Cache pickle khoá theo tháng, không theo file** | Thả bản T9 đủ tháng đè bản dở → hệ thống vẫn đọc pickle cũ, dashboard **không bao giờ** thấy số mới | `build_hub.cached(..., src=)` lưu chữ ký file + `READER_VERSION` |
+| E | **Hai file cùng tháng** | `glob` nạp hết → cộng đôi; `next()` chọn ngẫu nhiên → có lúc lấy bản dở | `monthly_lib.l0_by_month` lấy bản mới nhất, báo bản bị bỏ |
+| F | **Tên file tracking/doanh thu ngày nối cứng** (`…T1-T7.xlsx`) | POS xuất lại thành `…T1-T9_to 13.09.xlsx` → doanh thu ngày đứng ở T7 | `l0_latest("S03_daily")` |
+| G | **Tracking Sales không phải file thô** — sinh từ doanh thu ngày; có 2 bản khác nhau cùng thư mục (`_moi (13.09)`) | Dashboard đọc bản 08/09, T9 net = 0 | `tools/tracking.py` tự dựng từ `L0_input` mỗi lần có file doanh thu ngày mới |
+| H | **Số thứ tự thư mục bị đánh lại** (`3. Digital Ads → 6. Digital Ads`) | 5 nguồn chết nhiều tháng, lane chỉ ghi “chưa có dữ liệu” | cây `L0_input` cố định + `resolve_path` bỏ qua số thứ tự |
+| I | **Hai lane luỹ kế ghi `data.json` ở gốc mà không ai đọc** | ~25 bảng dashboard đóng băng từ 10/09 | `tools/export_derived.py` đưa vào `data_input/` |
+| J | `\bT8` không khớp `OneU_T8.2026` (gạch dưới là ký tự chữ) | eVoucher báo “không đọc được tháng” | `(?<![A-Za-z])T` trong `MONTH_RX_T` |
+
+### 6b. Bẫy cũ (giữ nguyên)
 
 | # | Bẫy | Nguồn | Chặn ở đâu |
 |---|---|---|---|
-| 1 | **Dòng tổng lẫn trong dữ liệu — cả 3 nguồn đều có.** File tháng có `TỔNG`, file bán hàng có `Tổng`, bảng kê ghi `TẠI CHỖ` ở cột *Mã hoá đơn*. Nạp nhầm là nhân đôi toàn bộ | S01·S02·S04 | `TOTAL_MARKERS` + lọc `Số HĐ` rỗng |
-| 2 | **Tên cửa hàng không nhất quán.** SKC trong POS là “Café & **Lounge**”; JFB The Crest có **hai dấu cách** trước dấu gạch | S01·S02 | `norm()` + bảng `ALIAS` — tuyệt đối không dò chuỗi |
-| 3 | **Ô rỗng của iPOS là ký tự vô hình `\u200b`.** Không làm sạch thì tỷ lệ nhận diện khách báo 100% thay vì 8,6% | S02 | `clean_txt()` |
-| 4 | **Export Meta có cả dòng cấp `campaign` lẫn `adset`** (có tháng tách theo tuổi × giới tính). Cộng tất cả ra 549tr thay vì 157tr — sai 3,5 lần | S08 | lọc `Cấp độ phân phối = campaign` |
-| 5 | **File `OA Zalo *.xls` thật ra là HTML**, không phải Excel | S12 | `pd.read_html` (cần `lxml`) |
-| 6 | **Chiến dịch tuyển dụng nhân sự nằm chung tài khoản quảng cáo** (6,99tr) — không phải marketing thương hiệu | S08 | `HR_PAT`, tách khỏi Ad Cost Ratio |
-| 7 | **Báo cáo Google cụm từ tìm kiếm có xen dòng `Tổng số: Chiến dịch`** — không loại là nhân đôi chi phí (6,28tr thay vì 3,14tr) | S09 | lọc chuỗi `Tổng số` |
-| 8 | **Sheet ngân sách có dòng trống xen giữa tiêu đề và bảng** — đọc cứng `header=1` ra toàn cột `Unnamed` | S10 | `find_header()` dò theo từ khoá |
-| 9 | **Ad Cost Ratio phải tính trên tháng trọn kỳ.** Chi ads T8 đủ tháng nhưng doanh thu T8 mới 18/31 ngày → ra 1,55% thay vì 0,74% thật | S08+S02 | `coverage[].partial` + `LAST_FULL_MONTH` |
-
-Ngoài ra hai bẫy kỹ thuật:
-
-- **Không dùng `pd.read_excel` cho file bán hàng 60MB** → dùng `read_xlsx_fast()` (openpyxl read_only).
-- **Sheet `01_COGS_ALL` có tiêu đề ở dòng 4** → `header=3`. Sheet `1. Tổng hợp (Master)` của Pre-Analysis cũng vậy.
+| 1 | **Dòng tổng lẫn trong dữ liệu.** File tháng có `TỔNG`, file bán hàng có `Tổng`, bảng kê ghi `TẠI CHỖ` ở cột *Mã hoá đơn*. Nạp nhầm là nhân đôi | S01·S02·S04 | `TOTAL_MARKERS` + lọc `Số HĐ` rỗng |
+| 2 | **Tên cửa hàng không nhất quán.** SKC là “Café & **Lounge**”; The Crest có **hai dấu cách** | mọi nguồn | cột `aliases` ở `01_master.xlsx → dim_store` |
+| 3 | **Ô rỗng iPOS là `​`.** Không làm sạch thì tỷ lệ nhận diện khách báo 100% thay vì 8,6% | S02 | `clean_txt()` |
+| 4 | **Export Meta có cả dòng `campaign` lẫn `adset`.** Cộng tất cả ra 549tr thay vì 157tr | S08 | lọc `Cấp độ phân phối = campaign` |
+| 5 | **File `OA Zalo *.xls` thật ra là HTML** — đừng mở rồi lưu lại bằng Excel | S12 | `read_html_table()` |
+| 6 | **Chiến dịch tuyển dụng nằm chung tài khoản ads** (6,99tr) | S08 | `HR_PAT` |
+| 7 | **Báo cáo Google cụm từ có xen dòng `Tổng số:`** — nhân đôi chi phí | S09 | `IS_TOTAL` |
+| 8 | **Sheet ngân sách có dòng trống giữa tiêu đề và bảng** | S10 | `find_header()` |
+| 9 | **Ad Cost Ratio phải tính trên tháng trọn kỳ** | S08+S02 | `coverage[].partial` |
 
 ---
 
-## 7. Kiểm tra trước khi chạy
+## 7. Thêm một nguồn mới
 
-```bash
-python check_input.py
-```
+1. Thêm một khối vào `SOURCES` trong **`tools/l0_registry.py`** (id · dir · pattern · cadence · month_regex · since).
+2. `python tools/l0_registry.py` → `python tools/l0_setup.py` — có ngay thư mục + README.
+3. Viết hàm đọc trong `tools/build_month.py`, thêm một dòng vào `BUILDERS` kèm id nguồn —
+   `update.py` tự biết khi nào chạy lại nó.
+4. Khai sheet mới ở `data_contract.json`, chạy `python tools/gen_contract_doc.py`.
 
-Kết quả in ra:
-
-- gốc dữ liệu đang dùng và trạng thái của nó;
-- từng nguồn: `[OK]` / `[TRỐNG]` (không bắt buộc) / `[THIẾU]` (bắt buộc);
-- với nguồn theo tháng: dải kỳ nhận diện được + **cảnh báo tháng bị hụt giữa chuỗi**;
-- kỳ có đủ mọi nguồn theo tháng;
-- sổ thiếu dữ liệu — quyết định module nào chạy được.
-
-Mã thoát `1` nghĩa là còn nguồn bắt buộc chưa có. `run_pipeline.py` vẫn chạy tiếp để bạn thấy
-lỗi cụ thể của ETL, nhưng đừng tin số cho tới khi `check_input.py` sạch.
-
----
-
-## 8. Thêm một nguồn mới — làm gì
-
-1. Tạo thư mục trong `L0_input/` theo đúng cây của tổ chức nguồn.
-2. Thêm một khối vào mảng `sources` của `data_sources.json` (id, layer, produces, dir, pattern, feeds_modules, traps).
-3. Chỉ khi ETL cần đọc nội dung mới → viết loader trong `build_hub.py` hoặc `build_mkt.py`.
-4. Nếu nguồn sinh khoá mới trong JSON → khai báo type trong `src/types/hub.ts` hoặc `mkt.ts`.
-5. Cập nhật `docs/14_L4_OUTPUT_CONTRACT.md` và file `docs/modules/<module>.md` tiêu thụ nó.
+Không bước nào cần sửa `update.py` hay `check_input.py`.

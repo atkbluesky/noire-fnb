@@ -279,7 +279,7 @@ export interface GoogleAdsMonth {
   cpa: number | null;
 }
 
-/* ── Nền tảng trung gian — GrabFood · Dining City… (M8) ───────────────── */
+/* ── Nền tảng trung gian — GrabFood · Dining City… (M7) ───────────────── */
 export interface AggregatorRow {
   month: string;
   platform: string;
@@ -313,7 +313,7 @@ export interface AggregatorStat {
   empty: boolean;
 }
 
-/* ── Kết quả đối tác theo tháng (M10) ─────────────────────────────────── */
+/* ── Kết quả đối tác theo tháng (M9) ─────────────────────────────────── */
 export interface PartnerMonth {
   month: string;
   code: string;

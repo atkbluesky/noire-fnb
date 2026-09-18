@@ -117,6 +117,16 @@ def date_of(v):
     m = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})", s)
     if m:
         return f"{int(m.group(3)):04d}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+    # Excel để locale tiếng Việt gõ ngày thành CHUỖI '06-thg 02-26'. Sổ booking tiệc có
+    # 38 dòng như vậy — không đọc được thì cả 38 lead lặng lẽ rơi khỏi phễu.
+    m = re.match(r"^(\d{1,2})-thg (\d{1,2})-(\d{2}|\d{4})$", s)
+    if m:
+        y = int(m.group(3))
+        y = y + 2000 if y < 100 else y
+        try:
+            return date(y, int(m.group(2)), int(m.group(1))).strftime("%Y-%m-%d")
+        except ValueError:
+            return None
     return None
 
 
@@ -133,70 +143,417 @@ def days_in_month(m: str) -> int:
 # "Café & Lounge" chứ không phải "Café & Bistro"; JFB The Crest có hai dấu cách.
 # Vì vậy phải so khớp bằng bảng alias đã chuẩn hoá, tuyệt đối không dò chuỗi tên.
 # ══════════════════════════════════════════════════════════════════════
-STORE_ALIAS = {
-    "noire cafe & bistro - the mett": "NCB_MET",
-    "noire café & bistro - the mett": "NCB_MET",
-    "the mett": "NCB_MET",
-    "noire et": "NCB_ET",
-    "noire cafe & bistro - empress tower": "NCB_ET",
-    "noire café & bistro - empress tower": "NCB_ET",
-    "empress tower": "NCB_ET",
-    "noire cafe & lounge - skc": "NCB_SKC",
-    "noire café & lounge - skc": "NCB_SKC",
-    "noire cafe & bistro - skc": "NCB_SKC",
-    "skc": "NCB_SKC",
-    "noire cafe & bistro - gateway": "NCB_GW",
-    "noire café & bistro - gateway": "NCB_GW",
-    "gateway": "NCB_GW",
-    "noire cafe & bistro - the 9 stellars": "NCB_9ST",
-    "noire café & bistro - the 9 stellars": "NCB_9ST",
-    "9 stellars": "NCB_9ST",
-    "noire cafe & bistro - nguyễn đình chiểu": "NCB_NDC",
-    "noire café & bistro - nguyễn đình chiểu": "NCB_NDC",
-    "noire cafe & bistro - nguyen dinh chieu": "NCB_NDC",
-    "nđ chiểu": "NCB_NDC",
-    "noire dining & cafe - 39 nguyễn thị minh khai": "NDC_NTMK",
-    "noire dining & café - 39 nguyễn thị minh khai": "NDC_NTMK",
-    "39 nguyễn thị minh khai": "NDC_NTMK",
-    "39 nguyen thi minh khai": "NDC_NTMK",
-    "39 ntmk": "NDC_NTMK",
-    "noire 39 ntmk": "NDC_NTMK",
-    "noire dining": "NDC_NTMK",
-    "noire dining & cafe - the berkley": "NDC_BKL",
-    "noire dining & café - the berkley": "NDC_BKL",
-    "the berkley": "NDC_BKL",
-    "noire berkley": "NDC_BKL",
-    "noire japanese fusion & bar - the crest": "NJFB_CRE",
-    "the crest": "NJFB_CRE",
-    "noire jfb crest": "NJFB_CRE",
-    "noire japanese fusion & bar - ssv": "NJFB_SSV",
-    "ssv": "NJFB_SSV",
-    "noire jfb ssv": "NJFB_SSV",
-    "ifc signature by noire": "IFC_SIG",
-    "ifc signature": "IFC_SIG",
-    "vifc cafe by noire": "IFC_SIG",
-}
+def _load_dim_store():
+    """Đọc dim_store từ 01_master.xlsx — NGUỒN DUY NHẤT của chiều cửa hàng.
 
-BRAND_OF_STORE = {
-    "NCB_MET": "NCB", "NCB_ET": "NCB", "NCB_SKC": "NCB",
-    "NCB_GW": "NCB", "NCB_9ST": "NCB", "NCB_NDC": "NCB",
-    "NDC_NTMK": "NDC", "NDC_BKL": "NDC",
-    "NJFB_CRE": "NJFB", "NJFB_SSV": "NJFB",
-    "IFC_SIG": "OTHER",
-}
+    Trước đây bảng này có ba bản sao: sheet dim_store ở 01_master.xlsx, hằng
+    STORE_ALIAS/BRAND_OF_STORE ở chính file này, và DIM_STORE + TARGET_ALIAS ở
+    build_hub.py. Thêm một cửa hàng phải sửa ba chỗ; quên một chỗ là doanh thu
+    cửa hàng đó lặng lẽ rơi khỏi một nửa hệ thống. Nay chỉ còn một chỗ: cột
+    `aliases` của sheet dim_store.
+    """
+    path = os.path.join(DATA_INPUT, "01_master.xlsx")
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            "Không thấy data_input/01_master.xlsx — đây là nơi khai dim_store, "
+            "không có nó thì không lane nào ánh xạ được tên cửa hàng.")
+    import openpyxl
+
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = wb["dim_store"]
+    hdr, rows = None, []
+    for r in ws.iter_rows(values_only=True):
+        if hdr is None:
+            hdr = {str(c).strip(): j for j, c in enumerate(r) if c}
+            continue
+        if not r or hdr["code"] >= len(r) or not r[hdr["code"]]:
+            continue
+        rows.append({k: (r[j] if j < len(r) else None) for k, j in hdr.items()})
+    wb.close()
+
+    meta, alias = {}, {}
+    for r in rows:
+        code = str(r["code"]).strip()
+        meta[code] = {
+            "code": code,
+            "brand": str(r.get("brand") or "OTHER").strip(),
+            "tier": str(r.get("tier") or "core").strip(),
+            "name": str(r.get("name") or code).strip(),
+            "open": str(r["open"])[:7] if r.get("open") else None,
+            "alias_re": (str(r["alias_re"]).strip() if r.get("alias_re") else None),
+        }
+        for a in str(r.get("aliases") or "").split("|"):
+            a = norm(a)
+            if a:
+                alias[a] = code
+    if not meta:
+        raise ValueError("sheet dim_store rỗng — không ánh xạ được cửa hàng nào")
+    return meta, alias
+
+
+STORE_META, STORE_ALIAS = _load_dim_store()
+BRAND_OF_STORE = {c: m["brand"] for c, m in STORE_META.items()}
+#: Cửa hàng chính — dùng cho phép so sánh loại trừ satellite/popup.
+CORE_STORES = [c for c, m in STORE_META.items() if m["tier"] in ("core", "flagship")]
+
+# store_code() dò theo CHUỖI CON nên bí danh DÀI phải xét trước: "39 ntmk" phải
+# thắng "ntmk". Trước đây thứ tự là thứ tự gõ tay trong dict — một bí danh ngắn
+# của cửa hàng khai trước có thể nuốt tên của cửa hàng khai sau mà không ai biết.
+_ALIAS_ORDER = sorted(STORE_ALIAS, key=len, reverse=True)
+
+# Cột `alias_re` — mẫu nhận cửa hàng từ CHUỖI TỰ DO (tên chiến dịch ads, tên sheet),
+# khác hẳn `aliases` vốn khớp một ô "tên cửa hàng". Hai chế độ khớp, nhưng vẫn khai
+# ở một chỗ. Trước đây bảng này có hai bản: GADS_STORE ở tools/build_month.py và
+# GSTORE ở build_mkt.py — và chúng ĐÃ lệch: bản kia có `minh khai`, bản này không.
+STORE_RE = [(c, re.compile(m["alias_re"], re.I))
+            for c, m in STORE_META.items() if m.get("alias_re")]
+
+
+def store_in_text(text):
+    """Dò mã cửa hàng trong một chuỗi tự do. Không thấy → None."""
+    t = norm(text)
+    if not t:
+        return None
+    for code, rx in STORE_RE:
+        if rx.search(t):
+            return code
+    return None
 
 
 def store_code(name, strict=False):
     """Tên cửa hàng bất kỳ → mã dim_store. Không khớp: None (hoặc ném lỗi nếu strict)."""
     n = norm(name).replace("  ", " ")
+    if not n:
+        return None
     if n in STORE_ALIAS:
         return STORE_ALIAS[n]
-    for alias, code in STORE_ALIAS.items():
-        if alias in n:
-            return code
+    for a in _ALIAS_ORDER:
+        if a in n:
+            return STORE_ALIAS[a]
     if strict:
-        raise KeyError(f"Cửa hàng chưa khai trong STORE_ALIAS: {name!r}")
+        raise KeyError(f"Cửa hàng chưa khai ở dim_store.aliases: {name!r}")
     return None
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Bản chất chương trình khuyến mãi — đọc từ $promo_nature của hợp đồng
+#
+# Trước đây bảng luật này có NĂM bản sao: build_hub.py, tools/build_month.py,
+# scripts/build-data.mjs, src/types/hub.ts, src/views/PromotionView.tsx.
+# ══════════════════════════════════════════════════════════════════════
+_NAT = CONTRACT["$promo_nature"]
+#: Thứ tự hiển thị = thứ tự khai ở hợp đồng.
+NATURE_META: list = _NAT["labels"]
+NATURES = [n["code"] for n in NATURE_META]
+NATURE_DEFAULT = _NAT["default"]
+_NATURE_RULES = [(r["nature"], [re.compile(p) for p in r["re"]]) for r in _NAT["rules"]]
+
+
+def classify_nature(name):
+    """Tên CTKM → một nhãn bản chất. Tên rỗng → None (hoá đơn không gắn CTKM).
+
+    Luật xét TỪ TRÊN XUỐNG đúng thứ tự khai ở hợp đồng, khớp đầu tiên thắng.
+    Không khớp luật nào mà vẫn có tên CTKM = marketing thương mại."""
+    n = norm(name)
+    if not n:
+        return None
+    for nat, pats in _NATURE_RULES:
+        if any(p.search(n) for p in pats):
+            return nat
+    return NATURE_DEFAULT
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phễu booking tiệc — đọc từ $booking của hợp đồng
+#
+# Chốt là gì, dòng nào là đặt bàn chứ không phải tiệc, chiến dịch ads nào thuộc phễu
+# booking: khai MỘT lần ở data_contract.json. ETL gắn nhãn sẵn vào sheet `booking`
+# và `ads_campaign_detail`, loader và màn hình M10 chỉ đọc nhãn — không tự đoán lại.
+# ══════════════════════════════════════════════════════════════════════
+BOOKING = CONTRACT["$booking"]
+_BK_STAGE = {m: s["code"] for s in BOOKING["stages"] for m in s["match"]}
+_BK_SEG = BOOKING["segment"]
+_BK_ADS_RE = [re.compile(p) for p in BOOKING["ads"]["re"]]
+_BK_ADS_EX = [re.compile(p) for p in BOOKING["ads"]["exclude_re"]]
+_BK_PAGES = set(BOOKING["ads"]["pages"])
+_BK_RKIND = [(k["code"], [re.compile(p) for p in k["re"]]) for k in BOOKING["result_kinds"]]
+_BK_LOST = [(k["label"], [re.compile(p) for p in k["re"]]) for k in BOOKING["lost_reasons"]]
+
+
+def booking_stage(status):
+    """Status thô trong sổ booking → won | open | lost."""
+    return _BK_STAGE.get(norm(status), BOOKING["stage_default"])
+
+
+_BK_ETYPE = {k: v for k, v in BOOKING["etype_alias"].items() if not k.startswith("$")}
+_BK_ETYPE_SEEN = {}
+
+
+def booking_etype(etype):
+    """Loại sự kiện gõ tay → tên chuẩn ($booking.etype_alias). 'TBA' → None."""
+    n = norm(etype)
+    if not n:
+        return None
+    if n in _BK_ETYPE:
+        return _BK_ETYPE[n]
+    return _BK_ETYPE_SEEN.setdefault(n, str(etype).strip())
+
+
+def booking_segment(etype, guests):
+    """'table' nếu là đặt bàn nhỏ (loại bữa ăn thường VÀ ít khách), còn lại 'event'."""
+    if guests is not None and guests < _BK_SEG["table_max_guests"] \
+            and norm(etype) in _BK_SEG["table_types"]:
+        return "table"
+    return "event"
+
+
+def ads_page(campaign):
+    """Mã fanpage đứng đầu tên chiến dịch kiểu mới `NEC | Messages | 2026` → 'NEC'."""
+    m = re.match(r"^\s*([a-z]{2,5})\s*\|", norm(campaign))
+    return m.group(1).upper() if m else None
+
+
+def ads_is_booking(campaign):
+    n = norm(campaign)
+    if any(p.search(n) for p in _BK_ADS_EX):
+        return False
+    return (ads_page(campaign) or "").lower() in _BK_PAGES or any(p.search(n) for p in _BK_ADS_RE)
+
+
+def ads_result_kind(result_type):
+    """Cột 'Loại kết quả' của Meta → msg | lead | like | engage | click | other."""
+    n = norm(result_type)
+    for code, pats in _BK_RKIND:
+        if n and any(p.search(n) for p in pats):
+            return code
+    return BOOKING["result_default"]
+
+
+def booking_lost_reason(*texts):
+    """Lý do mất lead (gõ tự do ở 'Reason if lost' / 'Comment') → một nhóm chuẩn."""
+    n = norm(" · ".join(str(t) for t in texts if t))
+    if not n:
+        return BOOKING["lost_blank"]
+    for label, pats in _BK_LOST:
+        if any(p.search(n) for p in pats):
+            return label
+    return BOOKING["lost_default"]
+
+
+# ══════════════════════════════════════════════════════════════════════
+# TẦNG L0 — MỘT thư mục thả file, MỘT sổ đăng ký, MỘT bộ hàm đọc
+#
+#   L0_input/                     ← nơi DUY NHẤT thả file Excel thô
+#   data_sources.json             ← sổ đăng ký (sinh từ tools/l0_registry.py)
+#   l0_files / l0_latest / l0_by_month / l0_scan   ← mọi script đọc qua đây
+#
+# Lịch sử (16/09/2026): trước đây có hai cây dữ liệu (HIGHGATE và L0_input), bốn
+# hàm find_root() khác nhau, đường dẫn nối cứng ở từng script — năm nguồn chết âm
+# thầm vì phòng ban đánh lại số thư mục. Nay gốc cố định là L0_input/.
+# ══════════════════════════════════════════════════════════════════════
+import fnmatch  # noqa: E402
+import glob as _glob  # noqa: E402
+
+SOURCES_PATH = os.path.join(ROOT, "data_sources.json")
+with open(SOURCES_PATH, encoding="utf-8") as _f:
+    SOURCES_DOC = json.load(_f)
+SOURCES = {s["id"]: s for s in SOURCES_DOC["sources"]}
+
+L0_ROOT = os.environ.get("NOIRE_ROOT") or os.path.join(ROOT, "L0_input")
+L0_WHY = "biến môi trường NOIRE_ROOT" if os.environ.get("NOIRE_ROOT") else "L0_input/ trong dự án"
+
+#: File khung / file tạm — KHÔNG phải dữ liệu. `~$…` là file khoá Excel tạo ra khi
+#: đang mở file; đọc nhầm nó là lỗi "file hỏng" khó hiểu nhất.
+_PLACEHOLDER = {".gitkeep", ".gitignore", "readme.md", "thumbs.db", ".ds_store",
+                "desktop.ini", "_huong_dan.txt"}
+_NUM_PREFIX = re.compile(r"^\s*\d+\s*[._)-]?\s*")
+
+
+def _is_data(path: str) -> bool:
+    b = os.path.basename(path)
+    # `_MAU_…` = file mẫu nhập liệu đặt sẵn trong thư mục nguồn — KHÔNG phải số liệu.
+    return (os.path.isfile(path) and not b.startswith("~$") and not b.startswith(".")
+            and not b.upper().startswith("_MAU_")
+            and b.lower() not in _PLACEHOLDER and not b.lower().endswith((".bak", ".tmp")))
+
+
+def _seg_key(name: str) -> str:
+    """Tên thư mục bỏ số thứ tự đầu → khoá so khớp. `6. Digital Ads` ≡ `03 Digital Ads`."""
+    return _NUM_PREFIX.sub("", norm(name).replace("_", " "))
+
+
+def resolve_path(root: str, rel: str):
+    """Ghép `root` với đường dẫn tương đối, chấp nhận lệch số thứ tự ở mỗi cấp."""
+    cur = root
+    for seg in str(rel).replace("\\", "/").split("/"):
+        if not seg:
+            continue
+        nxt = os.path.join(cur, seg)
+        if os.path.isdir(nxt):
+            cur = nxt
+            continue
+        want, hit = _seg_key(seg), None
+        try:
+            for child in os.listdir(cur):
+                if os.path.isdir(os.path.join(cur, child)) and _seg_key(child) == want:
+                    hit = child
+                    break
+        except OSError:
+            return None
+        if hit is None:
+            return None
+        cur = os.path.join(cur, hit)
+    return cur
+
+
+def l0_dir(sid, *sub):
+    """Thư mục của một nguồn trong L0_input. Không có → None."""
+    s = SOURCES.get(sid)
+    rel = "/".join([s["dir"], *sub]) if s else "/".join([sid, *sub])
+    return resolve_path(L0_ROOT, rel)
+
+
+def l0_files(sid):
+    """Mọi file DỮ LIỆU khớp mẫu của nguồn. Mẫu `a | b` = nhiều mẫu; có `/` = thư mục con."""
+    d = l0_dir(sid)
+    if not d:
+        return []
+    out = set()
+    for pat in [p.strip() for p in SOURCES[sid]["pattern"].split("|") if p.strip()]:
+        if "/" in pat:
+            cands = _glob.glob(os.path.join(d, pat))
+        else:
+            cands = [os.path.join(d, f) for f in os.listdir(d)
+                     if fnmatch.fnmatch(f.lower(), pat.lower())]
+        out.update(c for c in cands if _is_data(c))
+    return sorted(out)
+
+
+def l0_latest(sid):
+    """File sửa gần nhất của nguồn — dùng cho nguồn luỹ kế / cấu hình."""
+    fs = l0_files(sid)
+    return max(fs, key=os.path.getmtime) if fs else None
+
+
+def file_month(sid, path):
+    """Tháng của một file theo `month_regex` của nguồn (xét cả tên thư mục con)."""
+    rx = SOURCES[sid].get("month_regex")
+    if not rx:
+        return None
+    rel = os.path.relpath(path, l0_dir(sid) or os.path.dirname(path))
+    m = re.search(rx, rel, re.I)
+    if not m:
+        return None
+    a, b = m.group(1), m.group(2)
+    y, mo = (a, b) if len(a) == 4 else (b, a)
+    mo = int(mo)
+    return f"{int(y):04d}-{mo:02d}" if 1 <= mo <= 12 else None
+
+
+def _group_by_month(sid):
+    """Gom file theo tháng. Nguồn `monthly_folder` (một THƯ MỤC mỗi tháng) có nhiều
+    file mỗi tháng là BÌNH THƯỜNG — chỉ nguồn `monthly` mới coi là trùng."""
+    by = {}
+    for f in l0_files(sid):
+        m = file_month(sid, f)
+        if m:
+            by.setdefault(m, []).append(f)
+    return by
+
+
+def l0_by_month(sid):
+    """{tháng: file} cho nguồn theo tháng. Hai file cùng tháng → lấy file MỚI NHẤT.
+
+    Trước đây build_hub.py nạp HẾT mọi file khớp tháng: thả `accounting_sale T9.2026
+    _ tới 13-09.xlsx` rồi thả thêm bản đủ tháng là doanh thu T9 bị CỘNG ĐÔI."""
+    return {m: max(fs, key=os.path.getmtime) for m, fs in _group_by_month(sid).items()}
+
+
+def l0_duplicates(sid):
+    """{tháng: [file bị BỎ QUA vì đã có bản mới hơn cùng tháng]}."""
+    out = {}
+    if SOURCES[sid]["cadence"] != "monthly" or SOURCES[sid].get("many_per_month"):
+        return out
+    for m, fs in _group_by_month(sid).items():
+        if len(fs) > 1:
+            keep = max(fs, key=os.path.getmtime)
+            out[m] = sorted(x for x in fs if x != keep)
+    return out
+
+
+def l0_month_file(sid, month):
+    """File của một tháng (bản mới nhất nếu có nhiều)."""
+    return l0_by_month(sid).get(month)
+
+
+def l0_month_files(sid, month):
+    """MỌI file của một tháng — cho nguồn `many_per_month` (vd. eVoucher mỗi brand một file)."""
+    return sorted(_group_by_month(sid).get(month, []))
+
+
+def file_sig(path):
+    """Chữ ký file để biết file đã bị thay chưa (kích thước + giờ sửa)."""
+    try:
+        st = os.stat(path)
+        return f"{st.st_size}:{int(st.st_mtime)}"
+    except OSError:
+        return None
+
+
+def month_range(a, b):
+    y, m = int(a[:4]), int(a[5:7])
+    out = []
+    while f"{y:04d}-{m:02d}" <= b:
+        out.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m == 13:
+            y, m = y + 1, 1
+    return out
+
+
+def last_closed_month(today=None):
+    """Tháng đã khép sổ gần nhất — mốc để BÁO THIẾU file theo tháng."""
+    from datetime import date as _d
+    t = today or _d.today()
+    y, m = (t.year, t.month - 1) if t.month > 1 else (t.year - 1, 12)
+    return f"{y:04d}-{m:02d}"
+
+
+def l0_scan(until=None):
+    """Kiểm kê toàn bộ L0_input theo sổ đăng ký. Mỗi nguồn trả một dict có
+    state ∈ OK | THIEU_THANG | TRONG | KHONG_CO_THU_MUC."""
+    from datetime import datetime as _dt
+    until = until or last_closed_month()
+    rep = []
+    for sid, s in SOURCES.items():
+        d = l0_dir(sid)
+        r = dict(id=sid, name=s["name"], dir=s["dir"], required=bool(s.get("required")),
+                 cadence=s["cadence"], pattern=s["pattern"], files=[], months=[],
+                 missing=[], duplicates={}, unrecognised=[], latest=None)
+        if not d:
+            r["state"] = "KHONG_CO_THU_MUC"
+            rep.append(r)
+            continue
+        fs = l0_files(sid)
+        r["files"] = [os.path.relpath(f, d) for f in fs]
+        if not fs:
+            r["state"] = "TRONG"
+            rep.append(r)
+            continue
+        lat = max(fs, key=os.path.getmtime)
+        r["latest"] = dict(file=os.path.relpath(lat, d),
+                           modified=_dt.fromtimestamp(os.path.getmtime(lat)).strftime("%Y-%m-%d %H:%M"))
+        if s["cadence"] in ("monthly", "monthly_folder"):
+            by = l0_by_month(sid)
+            r["months"] = sorted(by)
+            want = month_range(s["since"], until) if s.get("since", "9999") <= until else []
+            r["missing"] = [m for m in want if m not in by]
+            r["duplicates"] = {m: [os.path.relpath(x, d) for x in v]
+                               for m, v in l0_duplicates(sid).items()}
+            r["unrecognised"] = [os.path.relpath(f, d) for f in fs if not file_month(sid, f)]
+        r["state"] = "THIEU_THANG" if r["missing"] else "OK"
+        rep.append(r)
+    return rep
 
 
 # ══════════════════════════════════════════════════════════════════════

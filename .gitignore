@@ -13,8 +13,12 @@ src/data/daily.json
 src/data/product.json
 
 # ─── Lane dữ liệu thô (chỉ tồn tại ở máy local, KHÔNG đẩy lên GitHub) ─
-L0_input/
-!L0_input/README.md
+# Cấu trúc thư mục + README hướng dẫn ĐƯỢC commit; file Excel thô thì KHÔNG.
+# Phải dùng `L0_input/**` chứ không phải `L0_input/`: loại cả thư mục thì git
+# không cho gỡ loại file con, và README trong từng thư mục nguồn bị mất.
+L0_input/**
+!L0_input/**/
+!L0_input/**/README.md
 !L0_input/**/.gitkeep
 _cache/
 qa_log_*.txt
@@ -57,3 +61,6 @@ Thumbs.db
 
 # ─── File .bak rác sinh ra khi ghi đè workbook ────────────────────────
 *.bak
+
+# ─── Khối M7.2 do loader sinh (1 MB) — Vercel dựng lại ở bước prebuild ───
+src/data/campaign.json

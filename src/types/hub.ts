@@ -111,12 +111,32 @@ export interface BomStat {
   nocost: number;
 }
 
+/** Bản chất CTKM — nhãn, màu và thứ tự hiển thị do `data_contract.json → $promo_nature`
+ *  quyết định, loader chuyển nguyên xuống đây. Thêm một bản chất thì sửa hợp đồng,
+ *  KHÔNG sửa file .tsx nào. */
+export interface NatureMeta {
+  code: string;
+  label: string;
+  short: string;
+  color: string;
+  badge: string;
+  /** `full` tính đủ vào ROI marketing · `partial` chỉ phần NOIRE gánh · `none` không tính. */
+  roi: 'full' | 'partial' | 'none';
+  desc: string;
+}
+
 export interface NatureData {
   month: string;
   brand: string;
-  nature: 'COMMERCIAL' | 'INTERNAL' | 'PARTNER' | 'LOYALTY';
+  /** Mã bản chất — giá trị hợp lệ do `nature_meta` quyết định, không cố định trong type. */
+  nature: string;
+  /** Doanh thu CTKM — Σ Tổng tiền CẢ hoá đơn gắn tên CTKM (cấp hoá đơn, gồm VAT/phí; cùng nền store_month và M7.2).
+   *  basis = 'ITEM' chỉ ở tháng chưa có bảng kê: Thành tiền dòng món, trước VAT — không so được với 'BILL'. */
   rev: number;
+  /** Chi phí ưu đãi — giảm giá + phiếu GG ở cấp HOÁ ĐƠN. */
+  disc: number;
   bills: number;
+  basis?: 'BILL' | 'ITEM';
 }
 
 export interface CampaignItem {
@@ -181,48 +201,81 @@ export interface RepeatStat {
   max: number;
 }
 
-export interface LeadMonth {
-  m: string;
-  leads: number;
-  exp: number;
-}
+export type BookingStage = 'won' | 'open' | 'lost';
 
-export interface LeadSource {
-  month?: string | null;
-  src: string;
-  leads: number;
-  exp: number;
-}
-
-export interface LeadType {
-  month?: string | null;
-  etype: string;
-  leads: number;
-  exp: number;
-}
-
-/** Một dòng booking đã gộp: tháng SỰ KIỆN × outlet × loại × nguồn × trạng thái. */
+/** Một dòng booking đã gộp: tháng NHẬN LEAD (month) × tháng DIỄN RA (ev_month) ×
+ *  cửa hàng × phân khúc × loại × nguồn × trạng thái. Luật: data_contract.json → $booking. */
 export interface BookingRow {
   month: string;
+  ev_month: string | null;
+  store: string | null;
+  brand: string | null;
   outlet: string | null;
+  /** 'event' = tiệc & sự kiện · 'table' = đặt bàn nhỏ lẫn trong sổ */
+  seg: 'event' | 'table';
   etype: string | null;
   source: string | null;
   status: string | null;
+  stage: BookingStage;
+  lost_reason: string | null;
   leads: number;
   guests: number;
+  /** Σ Expected Revenue của exp_n lead có báo giá — ô trống KHÔNG tính là 0 */
   exp: number;
+  exp_n: number;
+  /** Σ Closed Revenue của closed_n lead Confirmed đã nhập số */
   closed: number;
+  closed_n: number;
+  /** số lead thiếu ngày nhận, tháng nhận lấy theo ngày sự kiện */
+  inq_est: number;
+}
+
+/** Chiến dịch Meta thuộc phễu booking (funnel = 'booking'), theo tháng. */
+export interface BookingAd {
+  month: string;
+  campaign: string;
+  page: string | null;
+  brand: string | null;
+  /** msg | lead | like | engage | click | other */
+  rkind: string;
+  spend: number;
+  impr: number;
+  reach: number;
+  clicks: number;
+  result: number;
+}
+
+/** Fanpage chuyên tiệc (NEC) theo tháng — số của cả trang, tự nhiên + trả phí. */
+export interface BookingPage {
+  month: string;
+  code: string;
+  page: string | null;
+  views: number | null;
+  reach: number | null;
+  engage: number | null;
+  clicks: number | null;
+  profile_views: number | null;
+  follows: number | null;
+  contacts: number | null;
+  msgs: number | null;
+}
+
+export interface BookingMeta {
+  stages: { code: BookingStage; label: string; color: string; desc: string }[];
+  segment: { table_max_guests: number; table_types: string[]; labels: Record<'event' | 'table', string> };
+  mkt_sources: string[];
+  result_kinds: { code: string; label: string; contact: boolean }[];
+  lost_reasons: string[];
+  pages: string[];
 }
 
 export interface BookingStat {
   leads: number;
   won: number;
-  open: number;
   win_rate: number | null;
-  exp: number;
   closed: number;
-  pipeline: number;
-  guests: number;
+  table_rows: number;
+  ads_spend: number;
   months: string[];
 }
 
@@ -274,8 +327,13 @@ export interface HubData {
   cogs_cov: CogsCoverage[];
   cogs_flags: CogsFlag[];
   bom_stat: BomStat;
+  /** Từ điển bản chất CTKM — nguồn: data_contract.json → $promo_nature. */
+  nature_meta: NatureMeta[];
   nature: NatureData[];
   campaigns: CampaignItem[];
+  /** CTKM theo tháng × tên × brand — Tổng tiền cả hoá đơn gắn CTKM (cùng định nghĩa M7.2) */
+  promo_month?: { month: string; name: string; brand: string; nature: string;
+    bills: number; net: number; disc: number; voucher: number }[];
   staff: StaffData[];
   zone: ZoneData[];
   payment: PaymentData[];
@@ -284,10 +342,10 @@ export interface HubData {
   identify: IdentifyData[];
   repeat: RepeatItem[];
   repeat_stat: RepeatStat;
-  lead_month: LeadMonth[];
-  lead_source: LeadSource[];
-  lead_type: LeadType[];
   booking: BookingRow[];
+  booking_ads: BookingAd[];
+  booking_page: BookingPage[];
+  booking_meta: BookingMeta;
   booking_stat: BookingStat;
   target: TargetItem[];
   recon: ReconItem[];

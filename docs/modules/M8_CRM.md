@@ -1,9 +1,9 @@
-# M9 · CRM · VOUCHER · ZALO OA
+# M8 · CRM · VOUCHER · ZALO OA
 
 | | |
 |---|---|
 | **Câu hỏi** | Bán cho ai, họ có quay lại? |
-| **`activeView`** | `m9` |
+| **`activeView`** | `m8` |
 | **View** | `src/views/CRMView.tsx` |
 | **ETL** | `build_hub.py` mục K *(nhận diện/quay lại)* + `build_mkt.py` §2 *(voucher)* · §3 *(Zalo OA)* · §4 *(member/KPI)* |
 | **Giai đoạn** | P6 — ✅ xong |
@@ -60,7 +60,7 @@ Kiểm tra lại trên toàn bộ 19 file log với đúng khoá join (`Mã giao
 > **Cơ chế có phát mã nên được ưu tiên hơn giảm giá trực tiếp tại quầy** —
 > không chỉ vì kiểm soát chi phí, mà vì **đo được**.
 
-Đây là kết luận có tác động trực tiếp tới thiết kế chương trình khuyến mãi (M7) và pre-analytics (M6).
+Đây là kết luận có tác động trực tiếp tới thiết kế chương trình khuyến mãi (M7.1) và pre-analytics (M6).
 
 ## 5. Cầu nối CRM → doanh thu
 

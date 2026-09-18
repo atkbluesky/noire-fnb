@@ -11,7 +11,8 @@ export type BadgeVariant =
   | 'nature-comm'
   | 'nature-int'
   | 'nature-part'
-  | 'nature-loy';
+  | 'nature-loy'
+  | 'nature-care';
 
 interface StatusBadgeProps {
   label: string;
@@ -48,6 +49,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         return 'bg-status-warningBg text-status-warning border-status-warning/30';
       case 'nature-loy':
         return 'bg-[#82846C]/20 text-[#D6D3CA] border-[#82846C]/30';
+      case 'nature-care':
+        return 'bg-[#38BDF8]/15 text-[#7DD3FC] border-[#38BDF8]/40';
       case 'neutral':
       default:
         return 'bg-brand-surface text-brand-muted border-brand-border';

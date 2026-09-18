@@ -1,9 +1,9 @@
-# M10 · PARTNERSHIP
+# M9 · PARTNERSHIP
 
 | | |
 |---|---|
 | **Câu hỏi** | Hợp tác đối tác mang lại gì? |
-| **`activeView`** | `m10` |
+| **`activeView`** | `m9` |
 | **View** | `src/views/PartnershipView.tsx` |
 | **ETL** | `tools/build_month.py` — `read_partnership()` |
 | **Nguồn** | `01_master.xlsx`: `partners` · `partner_camp`<br>`monthly/YYYY-MM.xlsx`: `partner_month` |
@@ -25,7 +25,7 @@ S11 voucher → lọc theo Campaign ID iPOS của từng đối tác
 
 **Cơ chế gắn kết quả:** mỗi đối tác có một hoặc nhiều `Campaign ID iPOS` khai trong sheet “2. Mã CTKM”.
 ETL lọc `fact_voucher` theo các ID đó rồi gắn ngược kết quả thật vào dòng đối tác.
-Đây là lý do voucher là kênh đo được — xem [`M9_CRM.md`](M9_CRM.md) §4.
+Đây là lý do voucher là kênh đo được — xem [`M8_CRM.md`](M8_CRM.md) §4.
 
 ## 2. Màn hình hiển thị gì
 
@@ -56,7 +56,7 @@ Brand · Từ · Đến. Lọc brand áp cho danh mục đối tác và voucher 
 | Chưa tách phần NOIRE trả vs phần nền tảng trả | Quy ước `PARTNER` yêu cầu ghi rõ hai phần này |
 
 **Ngưỡng độ sâu cho aggregator:** kênh chiếm dưới 1% doanh thu chuỗi chỉ báo cáo 3 dòng,
-không dựng slide riêng. Grab hiện 0,2% — nên M9 tập trung vào đối tác voucher, không vào aggregator.
+không dựng slide riêng. Grab hiện 0,2% — nên M8 tập trung vào đối tác voucher, không vào aggregator.
 
 ## 6. Checklist nâng cấp
 

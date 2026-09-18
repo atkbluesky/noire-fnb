@@ -207,7 +207,38 @@ const SCHEMA = {
   dim_target:  { req: ['month', 'store', 'target'], must: false },
 };
 
-const NATURES = new Set(['COMMERCIAL', 'INTERNAL', 'PARTNER', 'LOYALTY']);
+/* Bản chất CTKM đọc từ hợp đồng, KHÔNG gõ lại ở đây. Trước đây danh sách này là
+   một hằng cứng và nó đã lệch với lane Python thật: thêm nhãn CARE ở Python thì
+   loader vẫn báo "nhãn lạ" cho tới khi có người nhớ ra phải sửa cả file này. */
+const NATURE_META = CONTRACT.$promo_nature.labels;
+const NATURES = new Set(NATURE_META.map((n) => n.code));
+const NATURE_RULES = CONTRACT.$promo_nature.rules.map((r) => ({
+  nature: r.nature,
+  re: r.re.map((x) => new RegExp(x)),
+}));
+
+/** Chuan hoa ten de so khop — phai TRUNG KHOP monthly_lib.norm() ben Python. */
+function normName(v) {
+  return String(v ?? '')
+    .normalize('NFKC')
+    .replace(/[​﻿]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** Ten CTKM -> ban chat. Cung bang luat, cung thu tu voi lane Python.
+ *
+ *  Vi sao loader phai tu suy lai thay vi tin cot `nature` co san: sheet
+ *  `campaigns` cua 02_snapshot.xlsx la anh chup do lane cu sinh ra, nature trong
+ *  do dong cung theo luat CU. Sua luat o hop dong ma van doc cot cu thi bang
+ *  Top 25 se hien nhan sai trong khi bieu do ben canh da hien nhan dung. */
+function classifyNature(name) {
+  const n = normName(name);
+  if (!n) return null;
+  for (const r of NATURE_RULES) if (r.re.some((x) => x.test(n))) return r.nature;
+  return CONTRACT.$promo_nature.default;
+}
 const TIERS = new Set(['flagship', 'core', 'satellite', 'popup']);
 
 function validate(tables, stores, over, scan = {}) {
@@ -298,7 +329,7 @@ function validate(tables, stores, over, scan = {}) {
   // ❾ nhãn bản chất CTKM hợp lệ
   const badNat = [...new Set(T(tables, 'nature').map((r) => r.nature).filter((x) => x && !NATURES.has(x)))];
   add(9, 'Nhãn bản chất CTKM hợp lệ', badNat.length === 0,
-      badNat.length ? `nhãn lạ: ${badNat.join(', ')}` : '4 nhãn chuẩn');
+      badNat.length ? `nhãn lạ: ${badNat.join(', ')}` : `${NATURES.size} nhãn chuẩn`);
 
   /* ⓯ khối POS phụ phải khớp store_month của CÙNG tháng
      Đây là cái bẫy đã bắt được T8/2026: store_month lấy từ file tracking (đủ 31 ngày)
@@ -333,6 +364,25 @@ function validate(tables, stores, over, scan = {}) {
            : [unknown.length && `sheet chưa khai: ${unknown.join(', ')}`,
               stray.length && `${stray.length} dòng lạc tháng — ${stray.slice(0, 3).join(' · ')}`]
              .filter(Boolean).join(' · '));
+
+  /* ⓰ hai lane phân loại CTKM phải cho cùng kết quả
+     Bảng luật nằm ở data_contract.json, nhưng nó được THI HÀNH hai lần: một lần
+     bằng Python khi dựng fact_promo_day, một lần bằng JS ngay tại file này. Hai
+     engine regex không giống nhau tuyệt đối (`` cạnh ký tự có dấu là ví dụ),
+     nên phải có chốt canh. `nature` trong fact là kết quả của Python; ở đây phân
+     loại lại `name_pos` bằng JS rồi đối chiếu. Lệch một dòng là báo ngay. */
+  const fpd = T(tables, 'fact_promo_day');
+  const mismatch = [];
+  const seenName = new Set();
+  for (const r of fpd) {
+    if (!r.name_pos || seenName.has(r.name_pos)) continue;
+    seenName.add(r.name_pos);
+    const js = classifyNature(r.name_pos);
+    if (r.nature && js !== r.nature) mismatch.push(`${r.name_pos}: py=${r.nature} js=${js}`);
+  }
+  add(16, 'Phân loại CTKM: lane Python ≡ lane JS', mismatch.length === 0,
+      mismatch.length ? mismatch.slice(0, 4).join(' · ')
+                      : `${seenName.size} tên CTKM cho cùng kết quả`);
 
   return { qa, covPct };
 }
@@ -518,12 +568,45 @@ function buildHub(tables, over, scan) {
       loss: T(tables, 'dim_cogs').filter((r) => n0(r.pct) >= 1).length,
       nocost: T(tables, 'dim_cogs').filter((r) => !n0(r.cogs)).length,
     }, over.bom_stat),
-    nature: T(tables, 'nature').map((r) => ({
-      month: r.month, nature: r.nature, brand: r.brand,
-      rev: n0(r.rev), disc: n0(r.disc), bills: n0(r.bills),
-    })),
+    /* Nhãn, màu và THỨ TỰ hiển thị của bản chất CTKM đi kèm dữ liệu, để màn hình
+       không phải khai lại lần nữa. Thêm một bản chất = sửa data_contract.json,
+       không đụng tới .tsx. */
+    nature_meta: NATURE_META,
+    /* Doanh thu gắn CTKM theo bản chất — CÙNG ĐỊNH NGHĨA với M7.2 và store_month:
+       `rev` = Σ Tổng tiền CẢ hoá đơn gắn tên CTKM (bảng kê hoá đơn, gồm VAT/phí) · `disc` = giảm giá + phiếu GG
+       · `bills` = số hoá đơn. Tháng có fact_promo_day dùng số cấp hoá đơn; sheet `nature` (Thành tiền dòng món,
+       trước VAT) chỉ còn làm dự phòng cho tháng chưa có bảng kê — hai nền này KHÔNG so được với nhau. */
+    nature: (() => {
+      const fpd = T(tables, 'fact_promo_day');
+      const billMonths = new Set(fpd.map((r) => String(r.date).slice(0, 7)));
+      const m = {};
+      for (const r of fpd) {
+        const month = String(r.date).slice(0, 7);
+        const nature = classifyNature(r.name_pos) ?? r.nature;
+        const k = `${month}|${nature}|${r.brand}`;
+        const x = (m[k] ||= { month, nature, brand: r.brand, rev: 0, disc: 0, bills: 0, basis: 'BILL' });
+        x.rev += n0(r.net); x.disc += n0(r.disc) + n0(r.voucher); x.bills += n0(r.bills);
+      }
+      const legacy = T(tables, 'nature').filter((r) => !billMonths.has(r.month)).map((r) => ({
+        month: r.month, nature: r.nature, brand: r.brand, rev: n0(r.rev), disc: n0(r.disc), bills: n0(r.bills), basis: 'ITEM',
+      }));
+      return [...Object.values(m), ...legacy].sort((a, b) => (a.month + a.nature + a.brand).localeCompare(b.month + b.nature + b.brand));
+    })(),
+    /* CTKM theo THÁNG × tên × brand — cùng định nghĩa với M7.2: `net` = Σ Tổng tiền CẢ hoá đơn gắn
+       tên CTKM (gồm VAT) · `disc` = giảm giá + chiết khấu · `voucher` = phần trả bằng phiếu GG.
+       Thay cho `campaigns` (doanh thu chạm theo THÀNH TIỀN dòng món, không lọc được theo tháng). */
+    promo_month: Object.values(T(tables, 'fact_promo_day').reduce((m, r) => {
+      if (!n0(r.bills)) return m;
+      const month = String(r.date).slice(0, 7);
+      const k = `${month}|${r.name_pos}|${r.brand}`;
+      const x = (m[k] ||= { month, name: r.name_pos, brand: r.brand, nature: classifyNature(r.name_pos) ?? r.nature,
+        bills: 0, net: 0, disc: 0, voucher: 0 });
+      x.bills += n0(r.bills); x.net += n0(r.net); x.disc += n0(r.disc); x.voucher += n0(r.voucher);
+      return m;
+    }, {})),
     campaigns: T(tables, 'campaigns').map((r) => ({
-      name: r.name, nature: r.nature, brand: r.brand, rev: n0(r.rev), bills: n0(r.bills),
+      name: r.name, nature: classifyNature(r.name) ?? r.nature, brand: r.brand,
+      rev: n0(r.rev), bills: n0(r.bills),
     })).sort((a, b) => b.rev - a.rev),
     staff: T(tables, 'staff').map((r) => ({
       store: r.store, name: r.name, net: n0(r.net), tc: n0(r.tc), guest: n0(r.guest),
@@ -556,72 +639,84 @@ function buildHub(tables, over, scan) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   4b. KHỐI BOOKING TIỆC & SỰ KIỆN  (nuôi màn hình M11)
+   4b. KHỐI BOOKING TIỆC & SỰ KIỆN  (nuôi màn hình M10)
    ════════════════════════════════════════════════════════════════════
 
-   Grain của sheet `booking` là tháng SỰ KIỆN × outlet × loại × nguồn × trạng thái.
-   Ba bảng lead_* là lát cắt của chính nó — loader tự gộp, người nộp không phải
-   khai ba lần. Ai đã có sẵn lead_* rời (bản trước 09/2026) thì vẫn dùng được:
-   sheet khai tay thắng, `booking` chỉ điền vào chỗ trống.
+   Ba nguồn, MỘT phễu:
+     ads_campaign_detail (funnel = 'booking')  → chi phí · hiển thị · click · hội thoại/lead form
+     social_month (code ∈ $booking.ads.pages)   → fanpage chuyên tiệc (NEC): liên hệ, tin nhắn
+     booking                                     → lead Sales ghi sổ · chốt · doanh thu
 
-   BOOKING_WON: chỉ `Confirmed` mới tính là chốt. `Tentative` nghe như sắp chốt
-   nhưng thực tế vẫn rơi, gộp vào sẽ thổi phồng tỷ lệ thắng. */
-const BOOKING_WON = new Set(['confirmed']);
-const BOOKING_OPEN = new Set(['pending', 'tentative']);
-const bkStatus = (v) => String(v ?? '').trim().toLowerCase();
+   Grain `booking`: tháng NHẬN LEAD × tháng DIỄN RA × cửa hàng × phân khúc × loại ×
+   nguồn × trạng thái. Nối ba nguồn theo THÁNG NHẬN LEAD — tháng chi tiền ads mới sinh
+   ra lead đó. Không nối được tới từng khách (sổ Sales không ghi mã hội thoại).
+
+   Mọi luật (chốt là gì · đặt bàn nhỏ · ads nào là booking) ở data_contract.json →
+   $booking. ETL đã gắn nhãn `stage` · `seg`; ở đây chỉ dự phòng cho sheet khai tay. */
+const BK = CONTRACT.$booking;
+const BK_STAGE = new Map(BK.stages.flatMap((s) => s.match.map((m) => [m, s.code])));
+const BK_PAGES = new Set(BK.ads.pages.map((x) => x.toUpperCase()));
+const stageOf = (status) => BK_STAGE.get(normName(status)) ?? BK.stage_default;
 
 function buildBooking(tables) {
-  const bk = T(tables, 'booking').map((r) => ({
-    month: r.month, outlet: r.outlet ?? null, etype: r.etype ?? null,
-    source: r.source ?? null, status: r.status ?? null,
-    leads: n0(r.leads), guests: n0(r.guests), exp: n0(r.exp), closed: n0(r.closed),
+  const booking = T(tables, 'booking').map((r) => ({
+    month: r.month, ev_month: r.ev_month ?? null,
+    store: r.store ?? null, brand: r.brand ?? null, outlet: r.outlet ?? null,
+    seg: r.seg ?? 'event', etype: r.etype ?? null, source: r.source ?? null,
+    status: r.status ?? null, stage: r.stage ?? stageOf(r.status),
+    lost_reason: r.lost_reason ?? null,
+    leads: n0(r.leads), guests: n0(r.guests),
+    exp: n0(r.exp), exp_n: num(r.exp_n) ?? (n0(r.exp) > 0 ? n0(r.leads) : 0),
+    closed: n0(r.closed), closed_n: num(r.closed_n) ?? (n0(r.closed) > 0 ? n0(r.leads) : 0),
+    inq_est: n0(r.inq_est),
   })).filter((r) => r.month);
 
-  /** Gộp `booking` theo một cột, trả về [{<key>, leads, exp}] — đúng hình dạng lead_*. */
-  const roll = (keyName, pick) => {
-    const m = new Map();
-    for (const r of bk) {
-      const k = JSON.stringify([r.month, pick(r) ?? '(không rõ)']);
-      const o = m.get(k) ?? { month: r.month, [keyName]: pick(r) ?? '(không rõ)', leads: 0, exp: 0 };
-      o.leads += r.leads; o.exp += r.exp;
-      m.set(k, o);
-    }
-    return [...m.values()];
-  };
+  const booking_ads = T(tables, 'ads_campaign_detail')
+    .filter((r) => r.funnel === 'booking')
+    .map((r) => ({
+      month: r.month, campaign: r.campaign, page: r.page ?? null, brand: r.brand ?? null,
+      rkind: r.rkind ?? BK.result_default,
+      spend: n0(r.spend), impr: n0(r.impr), reach: n0(r.reach), clicks: n0(r.clicks), result: n0(r.result),
+    }))
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)) || b.spend - a.spend);
 
-  const declared = {
-    month: T(tables, 'lead_month').map((r) => ({ m: r.m, leads: n0(r.leads), exp: n0(r.exp) })),
-    source: T(tables, 'lead_source').map((r) => ({
-      month: r.month ?? null, src: r.src, leads: n0(r.leads), exp: n0(r.exp) })),
-    type: T(tables, 'lead_type').map((r) => ({
-      month: r.month ?? null, etype: r.etype, leads: n0(r.leads), exp: n0(r.exp) })),
-  };
+  const booking_page = dedupe(T(tables, 'social_month'), ['month', 'platform', 'brand', 'page'])
+    .filter((r) => BK_PAGES.has(String(r.code ?? '').toUpperCase()))
+    .map((r) => ({
+      month: r.month, code: String(r.code).toUpperCase(), page: r.page ?? null,
+      views: num(r.views), reach: num(r.reach), engage: num(r.engage), clicks: num(r.clicks),
+      profile_views: num(r.profile_views), follows: num(r.follows),
+      contacts: num(r.contacts), msgs: num(r.msgs),
+    }))
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)));
 
-  const byMonth = [...new Set(bk.map((r) => r.month))].sort().map((m) => {
-    const rs = bk.filter((r) => r.month === m);
-    return { m, leads: sum(rs, (r) => r.leads), exp: sum(rs, (r) => r.exp) };
-  });
-
-  const won = bk.filter((r) => BOOKING_WON.has(bkStatus(r.status)));
-  const open = bk.filter((r) => BOOKING_OPEN.has(bkStatus(r.status)));
-  const leads = sum(bk, (r) => r.leads);
+  const ev = booking.filter((r) => r.seg === 'event');
+  const won = ev.filter((r) => r.stage === 'won');
+  const leads = sum(ev, (r) => r.leads);
 
   return {
-    booking: bk,
+    booking,
+    booking_ads,
+    booking_page,
+    /* Nhãn, màu, thứ tự đi kèm dữ liệu — màn hình không khai lại. */
+    booking_meta: {
+      stages: BK.stages.map(({ code, label, color, desc }) => ({ code, label, color, desc })),
+      segment: { table_max_guests: BK.segment.table_max_guests, table_types: BK.segment.table_types,
+                 labels: BK.segment.labels },
+      mkt_sources: BK.mkt_sources,
+      result_kinds: BK.result_kinds.map(({ code, label, contact }) => ({ code, label, contact })),
+      lost_reasons: [...BK.lost_reasons.map((x) => x.label), BK.lost_default, BK.lost_blank],
+      pages: [...BK_PAGES],
+    },
     booking_stat: {
       leads,
       won: sum(won, (r) => r.leads),
-      open: sum(open, (r) => r.leads),
       win_rate: div(sum(won, (r) => r.leads), leads),
-      exp: sum(bk, (r) => r.exp),
       closed: sum(won, (r) => r.closed),
-      pipeline: sum(open, (r) => r.exp),
-      guests: sum(bk, (r) => r.guests),
-      months: [...new Set(bk.map((r) => r.month))].sort(),
+      table_rows: sum(booking.filter((r) => r.seg === 'table'), (r) => r.leads),
+      ads_spend: sum(booking_ads, (r) => r.spend),
+      months: [...new Set(booking.map((r) => r.month))].sort(),
     },
-    lead_month: declared.month.length ? declared.month : byMonth,
-    lead_source: declared.source.length ? declared.source : roll('src', (r) => r.source),
-    lead_type: declared.type.length ? declared.type : roll('etype', (r) => r.etype),
   };
 }
 
@@ -738,8 +833,10 @@ function buildMkt(tables, over) {
     use_rate: div(n0(r.used), n0(r.issued)),
   }));
 
-  const pre_q3 = T(tables, 'pre_analytics').map((r) => ({
-    name: r.name, brand: r.brand, kind: r.kind, roi: num(r.roi), nc: n0(r.nc),
+  // Kế hoạch khuyến mãi đọc từ `pre_plan` (tools/campaign.py đọc thẳng file Pre-Analysis S16).
+  // Sheet `pre_analytics` trong 01_master chép tay — không dùng nữa, tránh hai nguồn lệch nhau.
+  const pre_q3 = T(tables, 'pre_plan').map((r) => ({
+    name: r.name, brand: r.brand, kind: r.kind, roi: num(r.roi), nc: n0(r.net_contrib),
   }));
   const neg = pre_q3.filter((r) => r.roi !== null && r.roi < 0);
 
@@ -1130,6 +1227,174 @@ function buildSocial(tables, over) {
 /* ════════════════════════════════════════════════════════════════════
    6. CHẠY
    ════════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════
+   6. KHỐI M7.2 · PROMOTION TRACKING  →  src/data/campaign.json
+   ════════════════════════════════════════════════════════════════════
+   Số đã TÍNH SẴN ở tools/campaign.py (kỳ nền · đối chứng · lift · ROI · nhãn).
+   Loader chỉ ghép khai báo + kết quả + chuỗi ngày, gắn danh mục từ hợp đồng, và đo
+   ĐỘ PHỦ: bao nhiêu % doanh thu CTKM thương mại đã được khai thành chương trình. */
+function buildCampaign(tables) {
+  const C = CONTRACT.$campaign;
+  const res = T(tables, 'campaign_result');
+  const dim = new Map(T(tables, 'dim_campaign').map((r) => [r.campaign_id, r]));
+  const tgt = new Map(T(tables, 'campaign_target').map((r) => [r.campaign_id, r]));
+  const costBy = {};
+  for (const r of T(tables, 'campaign_cost')) (costBy[r.campaign_id] ||= []).push({
+    type: r.cost_type, planned: num(r.planned), actual: num(r.actual), note: r.note ?? null,
+  });
+  const campaigns = res.map((r) => {
+    const d = dim.get(r.campaign_id) || {};
+    const t = tgt.get(r.campaign_id) || null;
+    return {
+      id: r.campaign_id, name: d.name ?? r.campaign_id, name_pos: d.name_pos ?? null,
+      pre_id: d.pre_id ?? null, source: d.source ?? null, match_note: d.match_note ?? null,
+      eval_scope: r.eval_scope ?? 'STORE', eval_note: r.eval_note ?? null,
+      prog: {
+        sales: num(r.act_sales ?? r.promo_sales), base: num(r.base_sales), plan: num(r.plan_sales),
+        store_net: num(r.store_net), store_tc: num(r.store_tc), gross: num(r.promo_gross),
+        basis: r.revenue_basis ?? 'CTKM', lto_qty: num(r.lto_qty), lto_rev: num(r.lto_rev), lto_items: num(r.lto_items),
+        bills: num(r.promo_bills), plan_tc: num(r.plan_tc), share: num(r.promo_share),
+        disc: num(r.promo_disc), voucher: num(r.promo_voucher), breakeven: num(r.breakeven_sales),
+      },
+      store: { incr: num(r.store_incr_net), lift: num(r.store_lift_pct), flow: num(r.store_flow_through) },
+      brand: d.brand ?? null, nature: d.nature ?? null,
+      lever: d.lever_primary ?? null, lever2: d.lever_secondary ?? null,
+      mechanic: d.mechanic ?? null, window: d.window ?? null,
+      // nhịp chạy do engine SUY từ POS (không còn là cột khai tay) — chỉ dùng chọn cách đo
+      cadence: r.cadence ?? d.cadence ?? null, recur_dow: num(r.recur_dow ?? d.recur_dow),
+      objective: r.objective ?? d.objective ?? null, content: d.content ?? null,
+      plan_group: r.plan_group ?? null, plan_primary: r.plan_primary === undefined || r.plan_primary === null ? null : n0(r.plan_primary),
+      date_from: d.date_from ?? null, date_to: d.date_to ?? null,
+      status: d.status ?? null, owner: d.owner ?? null, hypothesis: d.hypothesis ?? null,
+      discount_rule: d.discount_rule ?? null, cost_owner: d.cost_owner ?? null,
+      label: r.label, measurable: !!n0(r.measurable), reason: r.reason ?? null,
+      period_from: r.period_from ?? null, period_to: r.period_to ?? null, days_run: num(r.days_run),
+      base_from: r.base_from ?? null, base_to: r.base_to ?? null,
+      stores: String(r.stores ?? '').split('|').filter(Boolean),
+      control: r.control_stores ?? null, control_factor: num(r.control_factor),
+      overlap: String(r.overlap ?? '').split('|').filter(Boolean), ramp_warning: !!n0(r.ramp_warning),
+      act: { net: num(r.act_net), tc: num(r.act_tc), guest: num(r.act_guest) },
+      exp: { net: num(r.exp_net), tc: num(r.exp_tc), guest: num(r.exp_guest) },
+      incr: num(r.incr_net), lift: num(r.lift_pct),
+      dec: { tc: num(r.d_tc), aov: num(r.d_aov), party: num(r.d_party), ta: num(r.d_ta), mix: num(r.d_mix) },
+      driver: r.driver ?? null, lever_note: r.lever_note ?? null,
+      promo: { bills: num(r.promo_bills), guests: num(r.promo_guests), net: num(r.promo_net) },
+      cost: {
+        discount: num(r.cost_discount), voucher: num(r.cost_voucher), manual: num(r.cost_manual),
+        ads_auto: num(r.cost_ads_auto), total: num(r.cost_total), planned_used: r.cost_planned_used ?? null,
+        promo_actual: num(r.cost_promo_actual), fixed_actual: num(r.cost_fixed_actual),
+        lines: costBy[r.campaign_id] || [],
+      },
+      cm_pct: num(r.cm_pct), flow: num(r.flow_through), roi: num(r.roi), breakeven: num(r.breakeven_lift),
+      target: t ? {
+        net: num(t.tgt_net), tc: num(t.tgt_tc), aov: num(t.tgt_aov), ta: num(t.tgt_ta),
+        incr: num(t.tgt_incr_net), submitted: t.submitted ?? null, note: t.note ?? null,
+        verified: r.target_verified === null || r.target_verified === undefined ? null : !!n0(r.target_verified),
+      } : null,
+      att: { net: num(r.att_net), tc: num(r.att_tc), aov: num(r.att_aov), ta: num(r.att_ta), incr: num(r.att_incr) },
+    };
+  }).sort((a, b) => String(b.period_from).localeCompare(String(a.period_from)));
+
+  // độ phủ khai báo: doanh thu CTKM COMMERCIAL/LOYALTY/PARTNER trên POS đã được gắn vào chương trình
+  const ROI_NAT = new Set(['COMMERCIAL', 'LOYALTY', 'PARTNER']);
+  const fpd = T(tables, 'fact_promo_day').filter((r) => ROI_NAT.has(r.nature));
+  const unmapped = T(tables, 'campaign_unmapped').map((r) => ({
+    name_pos: r.name_pos, nature: r.nature, brand: r.brand, first: r.first, last: r.last,
+    days: num(r.days), bills: num(r.bills), net: num(r.net), disc: num(r.disc),
+  }));
+  const totNet = sum(fpd, (r) => r.net);
+  const unNet = sum(unmapped, (r) => r.net);
+
+  return {
+    meta: {
+      demo: res.some((r) => n0(r.demo) === 1),
+      empty: !res.length,
+      default_cm_pct: C.default_cm_pct, maturity_days: C.maturity_days,
+    },
+    taxonomy: {
+      levers: C.levers, mechanics: C.mechanics, windows: C.windows, cadences: C.cadences,
+      cost_types: C.cost_types, labels: C.labels, natures: CONTRACT.$promo_nature.labels,
+      pre_kinds: C.pre_kinds, sources: C.sources, objectives: C.objectives,
+    },
+    // M7.1 · kế hoạch Pre-Analysis + kết quả thực tế nối qua campaign_id
+    // M7.1 · phiếu đánh giá trước khi chạy (tools/preeval.py — khung PP672 × SALES = TC × AOV)
+    preeval: {
+      scenarios: CONTRACT.$preeval.scenarios,
+      decisions: CONTRACT.$preeval.decisions,
+      gates: CONTRACT.$preeval.gates,
+      programs: Object.values(T(tables, 'pre_eval').reduce((m, r) => {
+        const x = (m[r.program_id] ||= {
+          id: r.program_id, name: r.name, brand: r.brand, stores: String(r.stores ?? '').split('|').filter(Boolean),
+          date_from: r.date_from, date_to: r.date_to, days: num(r.days), objective: r.objective ?? null,
+          lever: r.lever ?? null, status: r.status ?? null, decision: r.decision, decision_note: r.decision_note ?? null,
+          campaign_id: r.campaign_id ?? null, quarter: r.quarter ?? null, season_factor: num(r.season_factor),
+          scheme_mode: r.scheme_mode ?? null, tc_base: num(r.tc_base), participation_src: r.participation_src ?? null,
+          cannib_src: r.cannib_src ?? null, other_cogs_pct: num(r.other_cogs_pct), opex_pct: num(r.opex_pct),
+          base_note: r.base_note ?? null, scn: {}, fin: {}, schemes: [], base: [],
+        });
+        x.scn[r.scenario] = {
+          bills: num(r.bills), bills_incr: num(r.bills_incr), cannib: num(r.cannib_pct), rev_incl: num(r.rev_incl),
+          net_incr: num(r.net_incr), gp_incr: num(r.gp_incr), promo_cost: num(r.promo_cost),
+          program_cost: num(r.program_cost), opex_incr: num(r.opex_incr), ebitda: num(r.ebitda_incr),
+          ebitda_pct: num(r.ebitda_pct), roi: num(r.roi), breakeven_bills: num(r.breakeven_bills),
+          max_cannib: num(r.max_cannib), redemption_needed: num(r.redemption_needed), stock_days: num(r.stock_days),
+          gate_flags: r.gate_flags ?? null, tc_share: num(r.tc_share), safety_bills: num(r.safety_bills),
+        };
+        return m;
+      }, {})).map((p) => {
+        p.fin = T(tables, 'pre_eval_fin').filter((r) => r.program_id === p.id).reduce((m, r) => {
+          (m[r.scenario] ||= []).push({
+            row: r.row, label: r.label, base: num(r.base), without: num(r.without), with: num(r.with_promo),
+            total: num(r.total), cannib: num(r.cannib_pct), incr: num(r.incr), incr_pct: num(r.incr_pct),
+          });
+          return m;
+        }, {});
+        p.schemes = T(tables, 'pre_eval_scheme').filter((r) => r.program_id === p.id).map((r) => ({
+          id: r.scheme_id, name: r.scheme_name, condition: r.condition, benefit: r.benefit, bills: num(r.bills),
+          bill_value: num(r.bill_value), discount: num(r.discount), rev: num(r.rev_after_disc), ta: num(r.ta),
+          cogs: num(r.cogs), cogs_pct: num(r.cogs_pct), margin_pct: num(r.margin_pct), merch: num(r.merch_cost),
+          promo_cost: num(r.promo_cost), note: r.basis_note ?? null,
+        }));
+        p.base = T(tables, 'pre_eval_base').filter((r) => r.program_id === p.id).map((r) => ({
+          store: r.store, from: r.base_from ?? null, to: r.base_to ?? null, days: num(r.base_days),
+          net: num(r.net_incl), tc: num(r.tc), guests: num(r.guests), aov: num(r.aov_incl), ta: num(r.ta_incl),
+          tc_day: num(r.tc_day), tax_factor: num(r.tax_factor), disc_share: num(r.disc_share), note: r.note ?? null,
+        }));
+        return p;
+      }),
+    },
+    plan: T(tables, 'pre_plan').map((r) => ({
+      pre_id: r.pre_id, campaign_id: r.campaign_id ?? null, name: r.name, brand: r.brand, kind: r.kind,
+      plan_status: r.plan_status ?? null, est_tc: num(r.est_tc), base: num(r.base_gross), growth: num(r.growth),
+      target: num(r.target_gross), incr: num(r.incr_gross), aov: num(r.target_aov), cogs: num(r.cogs_pct),
+      promo_cost: num(r.promo_cost), fixed_cost: num(r.fixed_cost), total_cost: num(r.total_cost),
+      nc: num(r.net_contrib), roi: num(r.roi), breakeven: num(r.breakeven_incr), driver: num(r.driver),
+      assessment: r.assessment ?? null, file: r.source_file ?? null,
+      label: r.label ?? null, period_from: r.period_from ?? null, period_to: r.period_to ?? null,
+      act_sales: num(r.act_net), act_bills: num(r.act_promo_bills ?? r.act_tc), act_incr: num(r.incr_net),
+      act_promo_net: num(r.act_promo_net),
+      act_cost: num(r.cost_total), act_nc: num(r.flow_through), act_roi: num(r.roi_actual),
+    })),
+    // tên CTKM POS → chương trình (M7 tra ngược bảng CTKM theo doanh thu chạm)
+    pos_map: Object.fromEntries(T(tables, 'dim_campaign').flatMap((d) => String(d.name_pos ?? '')
+      .split('|').map((x) => x.trim()).filter(Boolean).map((x) => [x.toLowerCase(), d.campaign_id]))),
+    campaigns,
+    // số POS theo tháng × cửa hàng — màn hình cộng đúng kỳ + brand đang lọc
+    month: T(tables, 'campaign_month').map((r) => ({
+      id: r.campaign_id, m: r.month, s: r.store, bills: n0(r.bills), guests: n0(r.guests), net: n0(r.net),
+      gross: n0(r.gross), disc: n0(r.disc), voucher: n0(r.voucher),
+      dup_bills: n0(r.dup_bills), dup_guests: n0(r.dup_guests), dup_net: n0(r.dup_net),
+    })),
+    daily: T(tables, 'campaign_daily').map((r) => ({
+      id: r.campaign_id, date: r.date, p: n0(r.in_period), act: num(r.act_net), exp: num(r.exp_net),
+      bills: num(r.promo_bills),
+    })),
+    unmapped,
+    issues: T(tables, 'campaign_issue').map((r) => ({ id: r.campaign_id, field: r.field, level: r.level, msg: r.msg })),
+    coverage: { promo_net: totNet, unmapped_net: unNet, mapped_pct: div(totNet - unNet, totNet) },
+  };
+}
+
 async function main() {
   const t0 = Date.now();
   log('─'.repeat(72));
@@ -1140,6 +1405,7 @@ async function main() {
   const over = statsOf(tables);
   const hub = buildHub(tables, over, { unknown, stray });
   const mkt = buildMkt(tables, over);
+  const campaign = buildCampaign(tables);
 
   await mkdir(OUT, { recursive: true });
 
@@ -1157,6 +1423,7 @@ async function main() {
   await writeFile(path.join(OUT, 'product.json'), JSON.stringify(product), 'utf8');
   await writeFile(path.join(OUT, 'data.json'), JSON.stringify(hub), 'utf8');
   await writeFile(path.join(OUT, 'data_mkt.json'), JSON.stringify(mkt), 'utf8');
+  await writeFile(path.join(OUT, 'campaign.json'), JSON.stringify(campaign), 'utf8');
 
   // Chốt của hai khối được gộp lại, sắp theo SỐ chốt — không phải theo thứ tự
   // dựng — để bảng in ra đọc được từ trên xuống.
@@ -1181,6 +1448,7 @@ async function main() {
   log(`   → src/data/data_mkt.json  ${kb(mkt)} KB   (tải ngay khi mở dashboard)`);
   log(`   → src/data/daily.json     ${kb(daily)} KB   (chỉ tải khi mở M1 Doanh thu)`);
   log(`   → src/data/product.json   ${kb(product)} KB   (chỉ tải khi mở M2 Menu)`);
+  log(`   → src/data/campaign.json  ${kb(campaign)} KB   (chỉ tải khi mở cụm M7)${campaign.meta.demo ? ' · DỮ LIỆU MẪU' : ''}`);
   log(`   xong trong ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   log('─'.repeat(72));
 

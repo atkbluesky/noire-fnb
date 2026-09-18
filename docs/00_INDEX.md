@@ -14,9 +14,10 @@ Bộ `docs/` này là tài liệu **hiện trạng code** — mô tả đúng nh
 | Bạn đang cần | Đọc file |
 |---|---|
 | Hiểu tổng thể hệ thống trong 5 phút | [`01_KIEN_TRUC_TONG_THE.md`](01_KIEN_TRUC_TONG_THE.md) |
+| **Sắp gõ một hằng số vào code — kiểm tra trước** | [`02_NGUON_SU_THAT_DUY_NHAT.md`](02_NGUON_SU_THAT_DUY_NHAT.md) *(mỗi định nghĩa một chỗ)* |
 | **Cập nhật số liệu tháng mới — làm gì, theo thứ tự nào** | [`16_CAP_NHAT_HANG_THANG.md`](16_CAP_NHAT_HANG_THANG.md) ← **bắt đầu ở đây** |
 | Tra cột của một sheet cụ thể | [`15_PROCESSED_INPUT_CONTRACT.md`](15_PROCESSED_INPUT_CONTRACT.md) *(sinh từ `data_contract.json`)* |
-| Thả file THÔ từ iPOS/Meta/Google *(lane cũ)* | [`10_L0_INPUT_CONTRACT.md`](10_L0_INPUT_CONTRACT.md) |
+| Thả file THÔ từ iPOS/Meta/Google | [`10_L0_INPUT_CONTRACT.md`](10_L0_INPUT_CONTRACT.md) |
 | Biết một con số đến từ đâu | [`12_L2_FACT.md`](12_L2_FACT.md) → [`13_L3_METRIC.md`](13_L3_METRIC.md) |
 | Sửa/thêm cửa hàng, brand, phân loại CTKM | [`11_L1_MAPPING_DIM.md`](11_L1_MAPPING_DIM.md) |
 | Biết `data.json` có gì, ai dùng khoá nào | [`14_L4_OUTPUT_CONTRACT.md`](14_L4_OUTPUT_CONTRACT.md) |

@@ -31,60 +31,40 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 MARKERS = ("04 Marketing Campaigns", "10 Partnership Analytics", "05 Data Raw")
 
-def has_data(root, marker):
-    """Chỉ nhận gốc khi thư mục mốc CÓ file Excel thật — khung L0_input rỗng không được
-    chiếm chỗ cây dữ liệu thật. Cùng quy tắc với build_hub.py để hai script luôn cùng gốc."""
-    d = os.path.join(root, marker)
-    if not os.path.isdir(d):
-        return False
-    for _, _, files in os.walk(d):
-        if any(f.lower().endswith((".xlsx", ".xls")) for f in files):
-            return True
-    return False
+# Gốc dữ liệu L0 do monthly_lib.pick_l0_root() chọn — MỘT bộ luật cho mọi script.
+# Trước 16/09/2026 mỗi file có find_root() riêng với thứ tự ưu tiên riêng, và
+# `os.path.join(HERE, "..")` ở đây chỉ lên tới thư mục cha của dự án chứ không tới
+# cây HIGHGATE — nên script này và tools/build_month.py chốt trên hai gốc khác nhau.
+sys.path.insert(0, os.path.join(HERE, "tools"))
+from monthly_lib import L0_ROOT, L0_WHY, l0_dir, store_in_text  # noqa: E402
+
 
 def find_root():
-    """Gốc dữ liệu L0 — cùng thứ tự ưu tiên với build_hub.py:
-       NOIRE_ROOT -> L0_input/ trong dự án -> thư mục cha -> đường dẫn cứng dự phòng."""
-    cands = [c for c in [os.environ.get("NOIRE_ROOT"),
-                         os.path.join(HERE, "L0_input"),
-                         os.path.abspath(os.path.join(HERE, "..")),
-                         r"D:\PROJECT\3. HIGHGATE 5.2026",
-                         "/sessions/awesome-wonderful-keller/mnt"] if c]
-    for c in cands:                                     # vòng 1 — gốc CÓ dữ liệu thật
-        if any(has_data(c, m) for m in MARKERS):
-            return c
-    for c in cands:                                     # vòng 2 — gốc đúng cấu trúc nhưng còn rỗng
-        if any(os.path.isdir(os.path.join(c, m)) for m in MARKERS):
-            return c
-    return HERE
+    return L0_ROOT
+
 
 ROOT  = find_root()
 CACHE = os.environ.get("NOIRE_CACHE") or os.path.join(HERE, "_cache")
 OUT   = os.path.join(HERE, "data_mkt.json")
 os.makedirs(CACHE, exist_ok=True)
 
-def P(*parts):
-    p = os.path.join(ROOT, *parts)
-    return p if os.path.exists(p) else None
+# Mọi đường dẫn nguồn lấy từ sổ đăng ký qua monthly_lib — KHÔNG nối chuỗi thư mục.
+from monthly_lib import l0_by_month, l0_dir, l0_latest  # noqa: E402
 
-# Nguồn ads đã chuyển về 05 Data Raw (có thêm T8 + Google). Giữ đường cũ làm dự phòng.
-D_ADS   = P("05 Data Raw", "03 Digital Ads", "Facebook Ads", "1. Raw Ads 2026") or \
-          P("04 Marketing Campaigns", "03 Digital Ads", "Facebook Ads", "1. Raw Ads 2026")
-D_ADS25 = P("05 Data Raw", "03 Digital Ads", "Facebook Ads", "2. Raw Ads 2025") or \
-          P("04 Marketing Campaigns", "03 Digital Ads", "Facebook Ads", "2. Raw Ads 2025")
-D_GADS  = P("05 Data Raw", "03 Digital Ads", "Google Ads")
-D_BUDG  = P("01 Strategic", "03 Budget Allocation") or P("03 Budget Allocation")
-D_VOU   = P("03 Customer Engagement", "02 Loyalty Program", "Camp Loyalty report", "01. Data Voucher iPOS")
-D_OA    = P("03 Customer Engagement", "02 Loyalty Program", "Camp Loyalty report",
-            "02. Data CRM", "04. KPI Actual", "01. OA Zalo")
-F_MEM   = P("03 Customer Engagement", "02 Loyalty Program", "Camp Loyalty report",
-            "02. Data CRM", "04. KPI Actual", "02. Member Đăng Ký", "member_actual_iPOS_CRM_v2.xlsx")
-F_KPI   = P("03 Customer Engagement", "02 Loyalty Program", "Camp Loyalty report",
-            "02. Data CRM", "03. KPI Plan", "NOIRE Q3. 2026 KPI CRM PhanBoNgay V2.xlsx")
-F_PART  = P("10 Partnership Analytics", "00_Danh_Muc_Partnership.xlsx")
-F_PRE3  = P("04 Marketing Campaigns", "02 LTO Promotions", "2026 Q3", "NOIRE_Promotion_Pre-Analysis_Q3_2026.xlsx")
-F_LTO   = P("04 Marketing Campaigns", "02 LTO Promotions", "2026 Q2",
-            "NOIRE_Bao_Cao_Hieu_Qua_LTO_Summer_Crush_Q2.2026.xlsx")
+D_ADS   = l0_dir("S08_ads_meta")
+D_ADS25 = None                               # lịch sử 2025 chưa đưa vào L0_input
+# Google Ads trong L0_input xếp theo `Tháng N.YYYY/`; lane này chỉ cần bản mới nhất
+# (bảng theo tháng do tools/build_month.py dựng).
+_g = l0_by_month("S09_ads_google")
+D_GADS  = os.path.dirname(_g[max(_g)]) if _g else None
+D_BUDG  = l0_dir("S10_budget")
+D_VOU   = l0_dir("S11_voucher")
+D_OA    = l0_dir("S12_zalo_oa")
+F_MEM   = l0_latest("S13_member")
+F_KPI   = l0_latest("S14_crm_kpi")
+F_PART  = l0_latest("S15_partnership")
+F_PRE3  = l0_latest("S16_pre_analytics")
+F_LTO   = l0_latest("S17_lto_actual")
 
 LOG = []
 def log(m=""):
@@ -225,10 +205,7 @@ else:
 # 1b. GOOGLE ADS — Performance Max theo cửa hàng (chạy từ T8/2026)
 # ══════════════════════════════════════════════════════════════
 log("\n[1b] Google Ads ...")
-GSTORE = [("NJFB_CRE", r"njfb.?crest|crest"), ("NJFB_SSV", r"njfb.?ssv|\bssv\b"),
-          ("NCB_SKC", r"ncb.?skc|\bskc\b"), ("NCB_ET", r"ncb.?et|empress"),
-          ("NCB_MET", r"the ?mett|ncb.?met"), ("NDC_NTMK", r"39.?ntmk|minh khai"),
-          ("NDC_BKL", r"berkley")]
+# Bảng nhận cửa hàng từ tên chiến dịch: cột `alias_re` của sheet dim_store.
 try:
     fc = os.path.join(D_GADS, "Báo cáo chiến dịch.xlsx")
     per = pd.read_excel(fc, header=None, nrows=2).iloc[1, 0]
@@ -241,7 +218,7 @@ try:
     grows = []
     for _, r in g.iterrows():
         nm = str(r[cc])
-        st = next((s for s, p in GSTORE if re.search(p, norm(nm))), None)
+        st = store_in_text(nm)
         grows.append(dict(campaign=nm[:56], store=st,
                           brand=(st.split("_")[0] if st else tag(nm, BRAND_PAT, "Không xác định")),
                           status=str(r.get(col(g, "trạng thái chiến dịch"), "")).strip(),
@@ -304,11 +281,7 @@ except Exception as e:
 log("\n[1c] Ngân sách phân bổ ...")
 MTH = {"jul": "2026-07", "aug": "2026-08", "sep": "2026-09"}
 try:
-    fb = None
-    for cand in ["NOIRE_MKT_Q3_2026_Checked_Ads_Channel_by_Month_Brand.xlsx",
-                 "NOIRE - MKT Phân Bổ Ngân Sách Q3.2026 - Final.xlsx"]:
-        p = os.path.join(D_BUDG, cand)
-        if os.path.exists(p): fb = p; break
+    fb = l0_latest("S10_budget")
     xl = pd.ExcelFile(fb)
     B = {}
     # -- Summary
@@ -612,18 +585,12 @@ except Exception as e:
 # ══════════════════════════════════════════════════════════════
 log("\n[6/6] Pre-Analytics ...")
 try:
-    PA = pd.read_excel(F_PRE3, sheet_name="1. Tổng hợp (Master)", header=3)
-    PA = PA.loc[:, ~PA.columns.astype(str).str.startswith("Unnamed")]
-    cn = col(PA, "chương trình"); cb = col(PA, "brand"); cl = col(PA, "loại")
-    cro = col(PA, "roi"); cnc = col(PA, "net contribution")
-    PA = PA[PA[cn].notna()] if cn else PA.iloc[0:0]
-    rows = []
-    for _, r in PA.iterrows():
-        roi = pd.to_numeric(r.get(cro), errors="coerce")
-        rows.append(dict(name=str(r[cn])[:60], brand=str(r.get(cb, "")).strip(),
-                         kind=str(r.get(cl, "")).strip(),
-                         roi=float(roi) if pd.notna(roi) else None,
-                         nc=float(pd.to_numeric(r.get(cnc), errors="coerce") or 0)))
+    # Bộ đọc DUY NHẤT của file Pre-Analysis (dùng chung với M7.1 / M7.2) — không tự đọc sheet Master
+    import pre_analysis  # tools/ đã nằm trên sys.path (monthly_lib)
+    rows = [dict(name=str(x["name"])[:60], brand=x.get("brand") or "", kind=x["kind"],
+                 roi=float(x["roi"]) if x.get("roi") is not None else None,
+                 nc=float(x.get("net_contrib") or 0))
+            for x in (pre_analysis.read(F_PRE3) if F_PRE3 else [])]
     D["pre_q3"] = rows
     neg = [x for x in rows if x["roi"] is not None and x["roi"] < 0]
     D["pre_stat"] = dict(n=len(rows), neg=len(neg),
