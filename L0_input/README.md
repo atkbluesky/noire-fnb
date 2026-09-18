@@ -35,13 +35,14 @@ cứ thả file là hệ thống tự cập nhật sau khi file chép xong.
 | `03_MARKETING/05_Promotion_Ke_Hoach` | Pre-Analysis chương trình khuyến mãi |  | `NOIRE_Promotion_Pre-Analysis*.xlsx` |
 | `03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia` | M7.1 · Sổ Pre-Analysis chuẩn (đánh giá chương trình trước khi chạy) |  | `Pre_Analysis_*.xlsx` |
 | `03_MARKETING/06_Promotion_Ket_Qua` | Báo cáo hiệu quả LTO đã chạy |  | `NOIRE_Bao_Cao_Hieu_Qua_LTO*.xlsx` |
-| `05_DOI_TAC/03_Aggregator` | Aggregator — báo cáo nền tảng trung gian (Grab Dine Out · GrabFood · Dining City) |  | `*Promotion AGG*.xlsx` |
+| `03_MARKETING/08_Bao_Cao_MKT_Thang` | Báo cáo marketing tháng (Promotion-AGG) |  | `*Promotion AGG*.xlsx` |
 | `03_MARKETING/07_Campaign_Tracking` | M7 · Danh mục chương trình (master chung M7 · M7.1 · M7.2) |  | `Campaign_Tracking*.xlsx` |
 | `04_CRM/01_Voucher_iPOS` | Nhật ký voucher iPOS |  | `exportVoucherLogOfCampaign_*.xlsx` |
 | `04_CRM/02_Zalo_OA` | Zalo OA |  | `OA Zalo T*.xls*` |
 | `04_CRM/03_Member` | Member đăng ký (CRM Dashboard đã làm sạch) |  | `CRM_Dashboard*.xlsx | member_actual*.xlsx` |
 | `04_CRM/04_KPI_CRM` | KPI CRM theo quý |  | `*KPI CRM*.xlsx` |
-| `05_DOI_TAC/01_Danh_Muc` | Danh mục đối tác |  | `00_Danh_Muc_Partnership*.xlsx` |
-| `05_DOI_TAC/02_eVoucher_Doi_Tac` | eVoucher đối tác (Techcombank × OneU…) |  | `eVoucher*.xlsx` |
+| `05_DOI_TAC/01_Danh_Muc` | Danh mục đối tác — Partner + Aggregator |  | `NOIRE_Doi_Tac*.xlsx` |
+| `05_DOI_TAC/02_eVoucher_Doi_Tac` | Log eVoucher đối tác (Techcombank × OneU…) |  | `eVoucher*.xlsx` |
+| `05_DOI_TAC/03_Aggregator` | Số Aggregator theo tháng (tự thống kê) |  | `NOIRE_Aggregator*.xlsx` |
 
 _Sinh tự động từ tools/l0_registry.py._

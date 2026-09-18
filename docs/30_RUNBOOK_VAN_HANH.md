@@ -45,7 +45,7 @@ Bảng đầy đủ ở [`16_CAP_NHAT_HANG_THANG.md`](16_CAP_NHAT_HANG_THANG.md)
 | `05 Data Raw/4. Social Media/Facebook/` | `Tháng 9.2026/<BRAND>/*.csv` |
 | `05 Data Raw/2. Data Khách Hàng CRM/…/01. OA Zalo/` | `OA Zalo T9.2026.xls` |
 | `05 Data Raw/2. Data Khách Hàng CRM/…/02. Member Đăng Ký/` | `member_actual_iPOS_CRM_updateT9.2026.xlsx` |
-| `05 Data Raw/Promotion-AGG/` | `NOIRE_Bao_Cao_Promotion AGG - MKT_T9-2026.xlsx` |
+| `05 Data Raw/Promotion-AGG/` → `L0_input/03_MARKETING/08_Bao_Cao_MKT_Thang/` | `NOIRE_Bao_Cao_Promotion AGG - MKT_T9-2026.xlsx` |
 | `05 Data Raw/Partnership/` | `eVoucher … _T9.2026.xlsx` |
 | `05 Data Raw/10. Booking & Event/` | `NOIRE Booking Tiec Sales 2026.xlsx` *(ghi đè bản cũ)* |
 

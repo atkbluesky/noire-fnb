@@ -1,4 +1,4 @@
-# DANH SÁCH MODULE — 16 TAB
+# DANH SÁCH MODULE — 17 TAB
 
 Mỗi file mô tả một tab theo cùng một cấu trúc:
 **chuỗi trace (nguồn → tầng → khoá) · màn hình hiển thị gì · chỉ số & công thức · bộ lọc ·
@@ -18,7 +18,8 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | **M7** | [`M7_Promotion.md`](M7_Promotion.md) | **Promotion** — mục mẹ · tổng quan 5 bản chất chi phí ưu đãi | P4 | ✅ |
 | └ M7.1 | [`M7_1_Pre_Analytics.md`](M7_1_Pre_Analytics.md) | Pre-Analytics · Plan — kế hoạch Pre-Analysis + thực tế | P5.5 | ✅ nối 5/25 CT với POS |
 | └ M7.2 | [`M7_2_Promotion_Tracking.md`](M7_2_Promotion_Tracking.md) | Promotion Tracking — chấm từng chương trình | P5.5 | 🟡 chờ team brand điền ô CAM |
-| M8 | [`M8_CRM.md`](M8_CRM.md) | CRM · Voucher · Zalo OA | P6 | ⚠️ nhận diện 8,6% |
+| M8 | [`M8_CRM.md`](M8_CRM.md) | CRM · Voucher | P6 | ⚠️ nhận diện 8,6% |
+| └ M8.1 | [`M8_1_Zalo_OA.md`](M8_1_Zalo_OA.md) | Zalo OA Performance | P6.1 | 🟡 chờ credential + DB |
 | M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership — Aggregator + Partner | P7 | ✅ đo trên hoá đơn POS · chung số với M7 |
 | M10 | [`M10_Booking.md`](M10_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
 | R1 | [`R1_Insight.md`](R1_Insight.md) | Insight & Cảnh báo | P9 | ✅ |

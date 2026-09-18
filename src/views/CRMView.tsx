@@ -23,7 +23,6 @@ export const CRMView: React.FC = () => {
   const totalIdBills = ID.reduce((a, b) => a + b.id_bills, 0);
   const overallIdRate = totalBills > 0 ? totalIdBills / totalBills : 0;
 
-  const OA = (MKT_DATA.oa || []).filter(o => ms.includes(o.month));
   const VJ = MKT_DATA.voucher_join || { rate: 0, window: [], out_window: 0, by_month: [] };
 
   // 1. Identification Rate by Month Chart
@@ -142,57 +141,6 @@ export const CRMView: React.FC = () => {
     ],
   };
 
-  // 3. Zalo OA Chart
-  const oaOption: EChartsOption = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' },
-    },
-    legend: {
-      top: 0,
-      textStyle: { color: '#9E9B93', fontSize: 11 },
-    },
-    grid: { top: 35, right: 20, bottom: 25, left: 55 },
-    xAxis: {
-      type: 'category',
-      data: OA.map(o => formatMonthLabel(o.month)),
-      axisLine: { lineStyle: { color: '#2A2A33' } },
-      axisLabel: { color: '#F3F2EE', fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        formatter: (val: number) => formatNumber(val),
-        color: '#9E9B93',
-        fontSize: 10,
-      },
-      splitLine: { lineStyle: { color: '#1F1F26', type: 'dashed' } },
-    },
-    series: [
-      {
-        name: 'Quan tâm mới',
-        type: 'bar',
-        data: OA.map(o => o.follows),
-        itemStyle: { color: '#C5A059' },
-        barMaxWidth: 28,
-      },
-      {
-        name: 'Tin nhắn tới OA',
-        type: 'bar',
-        data: OA.map(o => o.msgs),
-        itemStyle: { color: '#82846C' },
-        barMaxWidth: 28,
-      },
-      {
-        name: 'Lượt xem trang',
-        type: 'line',
-        data: OA.map(o => o.views),
-        lineStyle: { color: '#EF4444', width: 2 },
-        itemStyle: { color: '#EF4444' },
-      },
-    ],
-  };
-
   // Voucher Join Table
   /* ── Phễu voucher (khoá voucher_stat · voucher_month) ────────────── */
   const VS = MKT_DATA.voucher_stat || { issued: 0, used: 0, rate: 0 };
@@ -264,10 +212,6 @@ export const CRMView: React.FC = () => {
         />
       ),
     },
-    {
-      key: 'oa', header: 'OA follow', align: 'right', sortable: true,
-      render: r => <span className="font-mono text-brand-muted">{formatNumber(r.oa)}</span>,
-    },
   ];
 
   const voucherJoinColumns: Column<typeof VJ.by_month[0]>[] = [
@@ -309,7 +253,7 @@ export const CRMView: React.FC = () => {
           BÁN CHO AI, HỌ CÓ QUAY LẠI
         </span>
         <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
-          M8 · CRM · Tần Suất Khách &amp; Zalo OA
+          M8 · CRM · Tần Suất Khách &amp; Voucher
         </h2>
         <p className="text-xs text-brand-muted mt-1">
           Chỉ số sống còn của F&amp;B không chỉ nằm ở doanh thu một lần mà là tỷ lệ khách hàng trung thành quay lại.
@@ -384,16 +328,8 @@ export const CRMView: React.FC = () => {
         </Card>
       </div>
 
-      {/* Row 2: Zalo OA & Voucher Matching */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card
-          title="Zalo Official Account (Kênh Riêng NCB)"
-          description="Tăng trưởng lượng người quan tâm, tin nhắn và lượt xem trang OA"
-          chip="ZALO OA"
-        >
-          <EChartWrapper option={oaOption} height={260} />
-        </Card>
-
+      {/* Row 2: Voucher Matching — Zalo OA đã tách sang M8.1 */}
+      <div>
         <Card
           title="Độ Khớp Voucher ↔ Hoá Đơn POS"
           description={`Tỷ lệ khớp thực tế đạt ${formatPercent(VJ.rate)} trong kỳ có dữ liệu (${VJ.window?.map(formatMonthLabel).join('–')})`}

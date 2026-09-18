@@ -5,8 +5,8 @@
 | **Câu hỏi** | Bán bằng cách nào, tốn bao nhiêu? |
 | **`activeView`** | `m7` *(mục mẹ — con: `m71` Pre-Analytics · `m72` Promotion Tracking)* |
 | **View** | `src/views/PromotionView.tsx` |
-| **ETL** | `tools/build_month.py` — `read_pos()` *(nature · fact_promo_day · fact_partner)* · `read_promotion()` *(aggregator — chỉ Dining City + đối soát)* |
-| **Nguồn** | `monthly/YYYY-MM.xlsx`: `nature` · `fact_promo_day` · `fact_partner` · `aggregator` · `02_snapshot.xlsx`: `campaigns` |
+| **ETL** | `tools/build_month.py` — `read_pos()` *(nature · fact_promo_day · fact_partner)* · `build_mkt.py` §5 *(danh mục đối tác · số aggregator tự thống kê)* |
+| **Nguồn** | `monthly/YYYY-MM.xlsx`: `nature` · `fact_promo_day` · `fact_partner` · `01_master.xlsx`: `partners` · `partner_agg` · `02_snapshot.xlsx`: `campaigns` |
 | **Giai đoạn** | P4 — ✅ xong phần phân loại |
 | **Trạng thái** | ✅ đủ số · ✅ **Đối tác = Aggregator + Partner** (18/09/2026, chung số với M9) · ✅ **chi phí ưu đãi đã sửa** · ⛔ chưa đo được Lift → **M7.2** |
 
@@ -304,7 +304,9 @@ Bản chất **PARTNER** giờ là **“Đối tác · Aggregator + Partner”**
 
 **Thẻ “Đối tác” ở M7 = hoá đơn gắn CTKM đối tác + hoá đơn nền tảng KHÔNG gắn CTKM** (Grab nhận qua Nguồn / PTTT,
 Dining City từ báo cáo team). Dòng phụ của thẻ tách hai kênh; khối **“Đối tác = Aggregator + Partner”** cuối trang
-thay cho khối Aggregator cũ (số tự khai ở báo cáo S19) — giờ Grab đo thẳng trên hoá đơn POS.
+thay cho khối Aggregator cũ — Grab đo thẳng trên hoá đơn POS (Nguồn = GRAB/GRABFOOD), Dining City lấy số tự thống kê ở
+`05_DOI_TAC/03_Aggregator/NOIRE_Aggregator_Theo_Thang.xlsx`. Hoá đơn trả GRAB DEBIT nhưng Nguồn = TẠI CHỖ KHÔNG tính
+(xem M9 §3).
 
 **Không đếm đôi:** hoá đơn Grab có gắn CTKM không phải đối tác (quà sinh nhật, Monday Treat — T8: 5 HĐ) chỉ nằm ở
 “Đối tác”; loader rút khỏi bản chất của CTKM đó.

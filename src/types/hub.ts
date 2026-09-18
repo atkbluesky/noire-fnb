@@ -27,6 +27,20 @@ export interface DailySales {
   tc?: number;
 }
 
+/** Ranh giới khách lẻ / tiệc — đọc từ data_contract.json → $guest_segment. */
+export interface GuestSegmentMeta {
+  party_min_guests: number;
+  min_sample_bills: number;
+  labels: { solo: string; party: string };
+}
+
+export interface DailyBundle {
+  rows: DailySales[];
+  /** Phần khách tiệc của `rows` (HĐ ≥ party_min_guests khách). Khách lẻ = rows − party. */
+  party: DailySales[];
+  segment: GuestSegmentMeta;
+}
+
 export interface DaypartData {
   month: string;
   daypart: string;

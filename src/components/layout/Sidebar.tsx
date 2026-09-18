@@ -11,6 +11,7 @@ import {
   Tag,
   Target,
   Users,
+  MessageCircle,
   Handshake,
   CalendarCheck,
   Lightbulb,
@@ -142,10 +143,19 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
       {
         id: 'm8',
         code: 'M8',
-        title: 'CRM · Voucher · Zalo OA',
+        title: 'CRM · Voucher',
         icon: <Users className="h-4 w-4" />,
         status: 'ok',
         statusText: 'iPOS Log',
+      },
+      {
+        id: 'm81',
+        code: 'M8.1',
+        title: 'Zalo OA Performance',
+        icon: <MessageCircle className="h-4 w-4" />,
+        status: 'warning',
+        statusText: 'OpenAPI',
+        parent: 'm8',
       },
       {
         id: 'm9',

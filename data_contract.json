@@ -221,7 +221,7 @@
     "$partner_code": "Luật PARTNER mang thêm `partner` = Mã ĐT ở danh mục đối tác (L0 S15 · 00_Danh_Muc_Partnership.xlsx). Kênh (AGGREGATOR/PARTNER), tên, kỳ hợp đồng, % NOIRE chịu khai ở danh mục — KHÔNG khai lại ở đây."
   },
   "$partner": {
-    "$doc": "ĐỐI TÁC = hai kênh AGGREGATOR + PARTNER — nguồn DUY NHẤT cho kênh và cách nhận hoá đơn đối tác trên POS. M7 (thẻ bản chất Đối tác) và M9 cùng đọc bảng fact_partner nên số khớp nhau. Đặc tả: docs/modules/M9_Partnership.md",
+    "$doc": "ĐỐI TÁC = hai kênh AGGREGATOR + PARTNER — nguồn DUY NHẤT cho kênh và cách nhận số. Danh mục, cơ chế ưu đãi, phí, kỳ hạn, số aggregator tự thống kê: MỘT file L0 S15 (tools/partner_template.py định nghĩa cột). M7 (thẻ bản chất Đối tác) và M9 cùng đọc partner_fact của loader nên số khớp nhau. Đặc tả: docs/modules/M9_Partnership.md",
     "channels": [
       {
         "code": "AGGREGATOR",
@@ -232,7 +232,7 @@
       },
       {
         "code": "PARTNER",
-        "label": "Partner · ngân hàng · ví · doanh nghiệp",
+        "label": "Partner · ngân hàng · ví · thẻ",
         "short": "Partner",
         "color": "#A855F7",
         "desc": "Đối tác mang khách tới bằng ưu đãi riêng: ngân hàng (Techcombank × OneU · Shinhan · HDBank) · ví & e-voucher (Urbox · Betakee) · tổ chức thẻ (Visa)."
@@ -248,22 +248,38 @@
       {
         "code": "CTKM",
         "label": "POS · tên CTKM",
+        "count": true,
         "desc": "Hoá đơn gắn tên CTKM khớp luật PARTNER của $promo_nature."
       },
       {
         "code": "NGUON",
         "label": "POS · Nguồn đơn",
-        "desc": "Hoá đơn có cột Nguồn là nền tảng (GRAB · GRABFOOD) — không gắn CTKM đối tác."
+        "count": true,
+        "desc": "Hoá đơn có cột Nguồn là nền tảng (GRAB · GRABFOOD) — thu ngân chọn khi nhận đơn."
       },
       {
         "code": "PTTT",
-        "label": "POS · thanh toán qua nền tảng",
-        "desc": "Hoá đơn trả qua ví nền tảng (GRAB DEBIT) nhưng thu ngân chưa chọn Nguồn — vẫn là đơn nền tảng."
+        "label": "POS · trả qua nền tảng + hoa hồng",
+        "count": true,
+        "desc": "Trả qua ví nền tảng (GRAB DEBIT) VÀ POS ghi Hoa hồng — chắc chắn là đơn nền tảng dù thu ngân quên chọn Nguồn."
       },
       {
-        "code": "REPORT",
-        "label": "Báo cáo team (ước tính)",
-        "desc": "Nền tảng không để lại dấu vết trên POS (Dining City) — lấy số team khai ở báo cáo Promotion-AGG (S19). Không đối soát được hoá đơn."
+        "code": "XAC_NHAN",
+        "label": "Cần xác nhận",
+        "count": false,
+        "desc": "Trả qua ví nền tảng nhưng Nguồn = TẠI CHỖ và không có hoa hồng (thường trả chia VISA + GRAB DEBIT). KHÔNG cộng vào doanh thu đối tác — hiện riêng để thu ngân / team kiểm lại."
+      },
+      {
+        "code": "TU_THONG_KE",
+        "label": "Tự thống kê",
+        "count": true,
+        "desc": "Nền tảng không để lại dấu vết trên POS (Dining City) — số team nhập ở file 05_DOI_TAC/03_Aggregator (sheet AGG_THANG)."
+      },
+      {
+        "code": "PHI",
+        "label": "Phí hợp tác / nền tảng",
+        "count": true,
+        "desc": "Dòng chỉ mang chi phí (phí hợp tác, phí cố định tháng, hoa hồng thực trả) — không có doanh thu, hoá đơn."
       }
     ],
     "pos": [
@@ -276,17 +292,22 @@
         "pttt_re": [
           "grab"
         ],
-        "why": "Hoá đơn Grab không gắn CTKM. Grab Dine Out (khách ăn tại quán, trả qua Grab) có Số khách > 0 và KHÔNG có Hoa hồng trên POS. GrabFood giao hàng có Hoa hồng trên POS (≈25%) hoặc Số khách = 0 → tách sang delivery_partner."
+        "why": "Hoá đơn Grab không gắn CTKM, nhận theo cột Nguồn. Grab Dine Out (khách ăn tại quán) có Số khách > 0 và KHÔNG có Hoa hồng trên POS. GrabFood giao hàng có Hoa hồng trên POS (≈25%) hoặc Số khách = 0 → tách sang delivery_partner. Khớp PTTT mà không có Nguồn lẫn Hoa hồng → basis XAC_NHAN, không tính."
       }
     ],
-    "overlap": "Một hoá đơn chỉ thuộc MỘT đối tác. Thứ tự nhận: tên CTKM (luật PARTNER) → Nguồn → PTTT. Hoá đơn Grab có gắn CTKM không phải đối tác (vd. quà sinh nhật) vẫn tính cho Grab ở M7 · M9 — loader rút nó khỏi bản chất của CTKM để tổng không bị đếm đôi.",
-    "report_map": {
-      "$doc": "Tên nền tảng ở báo cáo Promotion-AGG (S19, sheet aggregator) → Mã ĐT. Team ghi `GrabFood` cho số Grab Dine Out tại NDC · NJFB (đối soát T8: 29 HĐ · 49.942.000 đ NJFB The Crest khớp POS Nguồn GRABFOOD). Số báo cáo CHỈ được dùng khi POS không có hoá đơn của đối tác đó trong tháng — tránh đếm đôi.",
-      "GrabFood": "P03",
-      "Grab Dine Out": "P03",
-      "Dining City": "P02"
-    },
+    "overlap": "Một hoá đơn chỉ thuộc MỘT đối tác. Thứ tự nhận: tên CTKM (luật PARTNER) → Nguồn → PTTT. Hoá đơn Grab có gắn CTKM không phải đối tác (vd. quà sinh nhật) vẫn tính cho Grab ở M7 · M9 — loader rút nó khỏi bản chất của CTKM để tổng không bị đếm đôi. Nền tảng nguồn 'Tự thống kê' KHÔNG lấy số POS và ngược lại.",
     "$note_skg": "SonKim Group và Cư dân & toà nhà KHÔNG phải partnership (xác nhận 18/09/2026) — đây là chương trình khuyến mãi NOIRE tự chạy nhắm vào hệ sinh thái SonKim/cư dân, chấm COMMERCIAL ở M7/M7.2 như mọi campaign khác. Guard 'nhân viên sonkim'/'tòa nhà' ở $promo_nature.rules chỉ để tránh rơi nhầm vào INTERNAL, không đưa vào M9."
+  },
+  "$guest_segment": {
+    "$doc": "PHÂN KHÚC KHÁCH CẤP HOÁ ĐƠN — nguồn sự thật DUY NHẤT cho ranh giới khách lẻ / khách tiệc ở M1. Một hoá đơn POS có `Số khách` ≥ `party_min_guests` là TIỆC, còn lại (kể cả 0 khách — giao hàng, corporate) là KHÁCH LẺ. ETL (tools/build_month.py) xuất phần tiệc ra sheet `daily_party`; khách lẻ = `daily` − `daily_party`, nên lẻ + tiệc luôn cộng đúng bằng tổng chính thức. Lý do tách: T8/2026 tiệc chỉ 54/11.157 HĐ (0,5% TC) nhưng 5,7% Net, AOV tiệc ≈ 5,6tr so với lẻ ≈ 450k — gộp chung thì vài bàn tiệc trong tuần đủ làm AOV/TA toàn chuỗi 'nhảy' giả. Ngưỡng 10 trùng `$booking.segment.table_max_guests` (dưới 10 khách = đặt bàn nhỏ).",
+    "party_min_guests": 10,
+    "min_sample_bills": 5,
+    "suspect_ta_below": 30000,
+    "$suspect": "HĐ tiệc có Net/khách < `suspect_ta_below` gần như chắc là nhập nhầm Số khách (vd. 81 khách · 50k). Vẫn xếp là tiệc theo luật, ETL chỉ CẢNH BÁO để vận hành sửa trên POS.",
+    "labels": {
+      "solo": "Khách lẻ",
+      "party": "Khách tiệc"
+    }
   },
   "$booking": {
     "$doc": "PHỄU BOOKING TIỆC — nguồn sự thật DUY NHẤT cho: trạng thái nào là chốt, dòng nào là đặt bàn chứ không phải tiệc, chiến dịch Meta nào là quảng cáo booking, loại kết quả ads nào là liên hệ, nhóm lý do mất lead. Đọc bởi tools/monthly_lib.py (ETL), scripts/build-data.mjs (loader) và HUB_DATA.booking_meta (màn hình M10). Trước 17/09/2026 quy ước `chỉ Confirmed là chốt` nằm cùng lúc ở build-data.mjs và BookingView.tsx.",
@@ -631,7 +652,8 @@
       ],
       "req": [
         "code",
-        "name"
+        "name",
+        "channel"
       ],
       "cols": [
         "code",
@@ -644,28 +666,79 @@
         "end",
         "status",
         "noire_share",
-        "fee_month",
+        "fee",
+        "fee_period",
         "commission_pct",
+        "fee_month",
+        "fee_unit",
+        "fee_unit_amount",
+        "sponsor",
+        "source",
         "media",
+        "owner",
         "note"
       ],
-      "derived": [],
-      "desc": "Danh mục đối tác — chép từ L0 S15 (00_Danh_Muc_Partnership.xlsx · sheet `1. Đối Tác`). `channel` = AGGREGATOR | PARTNER. `noire_share` = phần chiết khấu NOIRE chịu (1 = chịu hết). `commission_pct` = % hoa hồng nền tảng — dùng ước tính phí khi POS không ghi Hoa hồng. Kết quả (hoá đơn · doanh thu · chi phí) KHÔNG nằm ở đây — loader tính từ fact_partner theo tháng."
+      "desc": "Danh mục đối tác — từ file đối tác L0 S15, sheet 1_PARTNER (channel = PARTNER) và 2_AGGREGATOR (channel = AGGREGATOR). `source` = POS | TU_THONG_KE. `noire_share` = phần ưu đãi NOIRE chịu. `fee` + `fee_period` = phí hợp tác · `commission_pct` = hoa hồng / chiết khấu cho đối tác · `fee_month` = phí cố định tháng · `fee_unit_amount` theo `fee_unit` (booking / khách). Kết quả KHÔNG nằm ở đây — loader tính từ fact_partner + partner_agg."
     },
-    "partner_camp": {
+    "partner_program": {
       "tier": "master",
       "key": [
-        "code",
-        "cid"
+        "prog"
+      ],
+      "req": [
+        "prog",
+        "code"
       ],
       "cols": [
+        "prog",
         "code",
         "name",
-        "cid",
+        "brand",
         "mech",
-        "rate"
+        "offer",
+        "rate",
+        "cap",
+        "min_bill",
+        "condition",
+        "start",
+        "end",
+        "codes",
+        "cid",
+        "pos_name",
+        "note"
       ],
-      "desc": "Cầu nối đối tác ↔ Campaign ID iPOS — để truy vết doanh thu về đúng đối tác."
+      "desc": "Chương trình ưu đãi của đối tác — sheet 3_CHUONG_TRINH: cơ chế, nội dung ưu đãi khách nhận, mức, trần, HĐ tối thiểu, kỳ chạy, số mã phát, Campaign ID iPOS (nối log eVoucher)."
+    },
+    "partner_agg": {
+      "tier": "master",
+      "key": [
+        "month",
+        "code",
+        "brand",
+        "store"
+      ],
+      "req": [
+        "month",
+        "code"
+      ],
+      "cols": [
+        "month",
+        "brand",
+        "store",
+        "code",
+        "bookings",
+        "cancels",
+        "guests",
+        "bills",
+        "net",
+        "disc_noire",
+        "disc_platform",
+        "commission",
+        "fee_other",
+        "method",
+        "note"
+      ],
+      "desc": "Số aggregator TỰ THỐNG KÊ theo tháng × brand — file 05_DOI_TAC/03_Aggregator/NOIRE_Aggregator_Theo_Thang.xlsx, sheet AGG_THANG. `net` = Tổng tiền hoá đơn (gồm VAT & phí phục vụ, KHÔNG trừ phí nền tảng). Với nền tảng nguồn POS chỉ lấy `commission` · `fee_other` (phí thực trả)."
     },
     "partner_plan": {
       "tier": "master",
@@ -684,31 +757,42 @@
         "issued",
         "use_rate",
         "aov",
-        "cost",
         "rev",
-        "gp"
+        "cost",
+        "gp",
+        "note"
       ],
-      "desc": "Kế hoạch đối tác theo tháng — chép từ L0 S15 sheet `3. Kế Hoạch`. Ô trống = chưa đặt kế hoạch (hiện '—'), không phải 0."
+      "desc": "Kế hoạch đối tác theo tháng — file danh mục đối tác, sheet 4_KE_HOACH. Ô trống = chưa đặt kế hoạch (hiện '—'), không phải 0."
     },
-    "partner_month": {
-      "tier": "monthly",
-      "monthCol": "month",
+    "partner_voucher": {
+      "tier": "master",
       "key": [
+        "cid",
+        "kind",
         "month",
-        "code"
+        "store"
+      ],
+      "req": [
+        "cid",
+        "kind",
+        "month"
       ],
       "cols": [
+        "cid",
+        "campaign",
+        "partner",
+        "brand",
+        "expire",
+        "kind",
         "month",
-        "code",
+        "store",
         "issued",
         "used",
-        "rev",
+        "locked",
+        "gross",
         "disc"
       ],
-      "derived": [
-        "use_rate"
-      ],
-      "desc": "Kết quả đối tác THEO THÁNG — tách khỏi con số luỹ kế ở sheet partners."
+      "desc": "Log eVoucher đối tác (L0 S21) theo chiến dịch × tháng. Dòng phát: `issued` theo THÁNG của Ngày phát hành mã (store trống) · dòng dùng: `used` · `gross` (HĐ trước giảm) · `disc` theo THÁNG của Ngày sử dụng × cửa hàng. Không lấy tháng từ tên file. Không chứa số điện thoại khách."
     },
     "pre_analytics": {
       "tier": "master",
@@ -829,6 +913,28 @@
         "tc"
       ],
       "desc": "Doanh thu theo NGÀY × cửa hàng. Ngày phải nằm trong tháng của file."
+    },
+    "daily_party": {
+      "tier": "monthly",
+      "monthCol": "date",
+      "key": [
+        "date",
+        "store"
+      ],
+      "req": [
+        "date",
+        "store",
+        "net",
+        "tc"
+      ],
+      "cols": [
+        "date",
+        "store",
+        "net",
+        "guest",
+        "tc"
+      ],
+      "desc": "Phần KHÁCH TIỆC của `daily`: chỉ các hoá đơn có Số khách ≥ $guest_segment.party_min_guests, gộp theo NGÀY × cửa hàng. ETL tự sinh từ bảng kê hoá đơn (S02). Khách lẻ = daily − daily_party."
     },
     "coverage": {
       "tier": "monthly",
@@ -1364,39 +1470,6 @@
         "target"
       ],
       "desc": "KPI social cam kết theo tháng, ví dụ kpi = net_follow hoặc er."
-    },
-    "aggregator": {
-      "tier": "monthly",
-      "monthCol": "month",
-      "key": [
-        "month",
-        "platform",
-        "store"
-      ],
-      "req": [
-        "month",
-        "platform"
-      ],
-      "cols": [
-        "month",
-        "platform",
-        "brand",
-        "store",
-        "sales",
-        "orders",
-        "items",
-        "guests",
-        "discount",
-        "commission",
-        "ads_spend",
-        "note"
-      ],
-      "derived": [
-        "aov",
-        "take_rate",
-        "net_after"
-      ],
-      "desc": "Nền tảng trung gian (GrabFood, ShopeeFood, Dining City…). sales = doanh thu ghi nhận trên nền tảng."
     },
     "booking": {
       "tier": "monthly",

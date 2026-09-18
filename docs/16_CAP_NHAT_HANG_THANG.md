@@ -47,7 +47,8 @@ sợ đụng tháng cũ. Tách ra: tháng mới là một file mới, tháng cũ
 | **Social** | `05 Data Raw/4. Social Media/Facebook/Tháng N.2026/<BRAND>/` | 6 file CSV export từ Meta Business Suite |
 | **Booking & Event** | `05 Data Raw/10. Booking & Event/` | `NOIRE Booking Tiec Sales 2026.xlsx` |
 | **Partnership** | `05 Data Raw/Partnership/` | `eVoucher … _TN.2026.xlsx` |
-| **Promotion · Aggregator · POSM** | `05 Data Raw/Promotion-AGG/` | `NOIRE_Bao_Cao_Promotion AGG - MKT_TN-2026.xlsx` |
+| **Báo cáo MKT tháng (chi phí ngoài media)** | `L0_input/03_MARKETING/08_Bao_Cao_MKT_Thang/` | `NOIRE_Bao_Cao_Promotion AGG - MKT_TN-2026.xlsx` (bản ĐẦY ĐỦ, có sheet Budget) |
+| **Aggregator theo tháng** | `L0_input/05_DOI_TAC/03_Aggregator/` | `NOIRE_Aggregator_Theo_Thang.xlsx` — điền dòng tháng mới (Dining City đủ số · Grab chỉ hoa hồng / ưu đãi theo sao kê) |
 
 **Đặt tên đúng quy ước là điều kiện đủ.** Script dò file theo tháng trong TÊN file và TÊN thư
 mục — `Tháng 8.2026`, `T8.2026`, `2026-08`. Đặt sai tên thì script báo "không thấy … của
@@ -179,7 +180,7 @@ Cột tên `YYYY-MM` là ngân sách của tháng đó.
 | `member` | `member_actual_iPOS_CRM_updateTN.YYYY.xlsx` | M9 |
 | `aggregator` · `budget_nonmedia` | `NOIRE_Bao_Cao_Promotion AGG` → sheet `Aggregator` C2, sheet `Budget` C4 | M8 · M4 |
 | `booking` → `lead_month` · `lead_source` · `lead_type` | `NOIRE Booking Tiec Sales 2026.xlsx` → `Sales Info` | M11 |
-| `partner_month` | `eVoucher … _TN.YYYY.xlsx` | M10 |
+| `partner_voucher` | log eVoucher đối tác (thả đè bản mới) | M9 |
 | `voucher_month` · `voucher_join` | Log voucher iPOS (lane cũ) | M9 |
 
 ---

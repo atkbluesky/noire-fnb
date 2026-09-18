@@ -30,7 +30,8 @@ from monthly_lib import (  # noqa: E402
     CONTRACT,
     BRAND_OF_STORE, ads_is_booking, ads_page, ads_result_kind, booking_lost_reason,
     booking_etype, booking_segment, booking_stage, L0_ROOT, L0_WHY, MONTHLY_DIR, ROOT, SOURCES, agg,
-    classify_nature, partner_of_bill, date_of, days_in_month, l0_by_month, l0_dir, l0_latest,
+    classify_nature, partner_of_bill, date_of, days_in_month, GUEST_SEG, is_party_bill,
+    l0_by_month, l0_dir, l0_latest,
     l0_files, l0_month_file, l0_month_files, month_of, norm,
     read_html_table, read_utf16_csv, read_workbook, store_code, store_in_text,
     to_num, write_workbook,
@@ -782,7 +783,7 @@ def read_member(month):
 
 
 # ══════════════════════════════════════════════════════════════════════
-# 7. BÁO CÁO PROMOTION-AGG → aggregator · budget_nonmedia
+# 7. BÁO CÁO PROMOTION-AGG → budget_nonmedia
 # ══════════════════════════════════════════════════════════════════════
 def _find_section(rows, marker, header_needle):
     """Báo cáo là biểu mẫu trình bày, không phải bảng phẳng: định vị theo CHỮ
@@ -807,92 +808,14 @@ def _grid(path, sheet):
     return g
 
 
-AGG_PLATFORM = {
-    "grabfood": "GrabFood", "shopeefood": "ShopeeFood", "befood": "beFood",
-    "dingning city": "Dining City", "dining city": "Dining City",
-    "grab dine out": "Grab Dine Out",
-}
-
-
 def read_promotion(month):
-    hit = l0_month_file("S19_aggregator", month)
+    hit = l0_month_file("S25_mkt_report", month)
     if not hit:
         warn(f"không thấy báo cáo Promotion-AGG của {month}")
         return {}
     out = {}
-
-    # ---- C2 · theo nền tảng ----
-    try:
-        g = _grid(hit, "Aggregator")
-    except KeyError:
-        g = None
-    if g:
-        h = _find_section(g, "C2.", "Nền tảng")
-        rows = []
-        if h is not None:
-            head = [norm(c) for c in g[h]]
-            def at(r, *needles):
-                for n in needles:
-                    for j, c in enumerate(head):
-                        if c and norm(n) in c:
-                            return r[j] if j < len(r) else None
-                return None
-            cur_platform = None
-            for r in g[h + 1:]:
-                name = str(r[0]).strip() if r and r[0] else ""
-                if not name:
-                    continue
-                if norm(name) in ("tổng", "tong", "khác", "khac"):
-                    if norm(name).startswith("t"):
-                        break
-                    continue
-                plat = AGG_PLATFORM.get(norm(name))
-                st = store_code(name)
-                if plat:
-                    cur_platform = plat
-                    # Dòng nền tảng có thể là TỔNG của các dòng cửa hàng ngay dưới.
-                    # Giữ lại tạm, cuối vòng mới quyết định lấy dòng nào.
-                    rows.append({"_lvl": "platform", "platform": plat, "store": None,
-                                 "sales": to_num(at(r, "sales")),
-                                 "orders": to_num(at(r, "order")),
-                                 "items": to_num(at(r, "số món")),
-                                 "guests": to_num(at(r, "khách")),
-                                 "discount": to_num(at(r, "discount")),
-                                 "commission": to_num(at(r, "commission")),
-                                 "ads_spend": to_num(at(r, "ads spend")),
-                                 "note": None})
-                elif st and cur_platform:
-                    rows.append({"_lvl": "store", "platform": cur_platform, "store": st,
-                                 "sales": to_num(at(r, "sales")),
-                                 "orders": to_num(at(r, "order")),
-                                 "items": to_num(at(r, "số món")),
-                                 "guests": to_num(at(r, "khách")),
-                                 "discount": to_num(at(r, "discount")),
-                                 "commission": to_num(at(r, "commission")),
-                                 "ads_spend": to_num(at(r, "ads spend")),
-                                 "note": None})
-        # Nền tảng nào đã có dòng cửa hàng thì BỎ dòng tổng của nền tảng đó,
-        # nếu không doanh thu bị đếm hai lần.
-        has_store = {r["platform"] for r in rows if r["_lvl"] == "store"}
-        keep = [r for r in rows if not (r["_lvl"] == "platform" and r["platform"] in has_store)]
-        agg_rows = []
-        for r in keep:
-            if not r.get("sales"):
-                continue
-            code = r["store"]
-            agg_rows.append({
-                "month": month, "platform": r["platform"],
-                "brand": (code or "")[:4].rstrip("_") or None,
-                "store": code,
-                "sales": round(r["sales"]), "orders": round(r["orders"] or 0),
-                "items": r["items"], "guests": r["guests"],
-                "discount": r["discount"], "commission": r["commission"],
-                "ads_spend": r["ads_spend"], "note": r["note"],
-            })
-        if agg_rows:
-            out["aggregator"] = agg_rows
-            log(f"      Aggregator: {len(agg_rows)} dòng · "
-                f"{sum(r['sales'] for r in agg_rows):,.0f} đ".replace(",", "."))
+    # Khối C2 (số aggregator theo nền tảng) KHÔNG đọc ở đây nữa: một số chỉ có một nơi nhập —
+    # file 05_DOI_TAC/03_Aggregator (S19 · AGG_THANG). Báo cáo này chỉ còn nuôi chi phí ngoài media.
 
     # ---- C4 · chi phí ngoài media ----
     try:
@@ -1071,33 +994,6 @@ def read_booking(month):
     log(f"      Booking: {len(sel)} lead nhận trong tháng → {len(out)} dòng gộp · "
         f"chốt {sum(r['closed'] for r in out if r['stage'] == 'won'):,.0f} đ".replace(",", "."))
     return {"booking": sorted(out, key=lambda r: (-r["leads"], -r["exp"]))}
-
-
-# ══════════════════════════════════════════════════════════════════════
-# 9. PARTNERSHIP → partner_month
-# ══════════════════════════════════════════════════════════════════════
-def read_partnership(month):
-    files = l0_month_files("S21_evoucher", month)
-    if not files:
-        return {}
-    # File eVoucher chỉ là DANH SÁCH MÃ ĐÃ PHÁT — không có lượt dùng, doanh thu.
-    # Vì vậy chỉ điền `issued`; used/rev/disc để TRỐNG (chưa đo được), không điền 0.
-    issued = defaultdict(int)
-    for f in sorted(files):
-        from openpyxl import load_workbook
-        wb = load_workbook(f, read_only=True, data_only=True)
-        ws = wb.worksheets[0]
-        ws.reset_dimensions()
-        n = sum(1 for r in ws.iter_rows(min_row=2, values_only=True) if r and r[0])
-        wb.close()
-        code = "P01" if "techcombank" in norm(f) else None
-        if not code:
-            continue
-        issued[code] += n
-        log(f"      Partnership: {os.path.basename(f)[:46]} → {n} mã")
-    return {"partner_month": [{"month": month, "code": c, "issued": n}
-                              for c, n in sorted(issued.items())]} if issued else {}
-
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1298,6 +1194,28 @@ def read_pos(month, built=None):
                                 "id_bills": sum(1 for b in bills if b["phone"])}]
             out["_bills_n"] = len(bills)
             out["_bill_store"] = agg(bills, ["store"], sums=["net", "tc", "guest"])
+
+            # ---------- khách tiệc (M1): HĐ có Số khách ≥ ngưỡng $guest_segment ----------
+            # Chỉ xuất phần TIỆC; khách lẻ = daily − daily_party. Bảng kê khớp Tracking
+            # Sales tới từng đồng (recon T1–T9/2026) nên phần dư chính là khách lẻ thật,
+            # và lẻ + tiệc luôn cộng đúng bằng số chính thức.
+            party = [b for b in bills if is_party_bill(b["guest"])]
+            if party:
+                out["daily_party"] = [
+                    {"date": r["date"], "store": r["store"], "net": round(r["net"]),
+                     "guest": round(r["guest"]), "tc": round(r["tc"])}
+                    for r in sorted(agg(party, ["date", "store"], sums=["net", "guest", "tc"]),
+                                    key=lambda x: (x["date"], x["store"]))]
+                log("      Khách tiệc (≥%d khách): %d HĐ · %s đ"
+                    % (GUEST_SEG["party_min_guests"], len(party),
+                       format(round(sum(b["net"] for b in party)), ",").replace(",", ".")))
+                sus = [b for b in party if b["net"] / b["guest"] < GUEST_SEG["suspect_ta_below"]]
+                if sus:
+                    warn("%s: %d HĐ tiệc có Net/khách < %s đ — nghi nhập nhầm Số khách trên POS: %s"
+                         % (month, len(sus), format(GUEST_SEG["suspect_ta_below"], ",").replace(",", "."),
+                            ", ".join("%s %s %d khách/%s đ" % (b["store"], b["date"], b["guest"],
+                                                              format(round(b["net"]), ",").replace(",", "."))
+                                      for b in sorted(sus, key=lambda x: -x["guest"])[:5])))
             log("      POS bảng kê: %s hoá đơn · %d sheet"
                 % (format(len(bills), ",").replace(",", "."), len(sheets)))
 
@@ -1504,6 +1422,16 @@ def read_pos(month, built=None):
             "tc_bill": round(bl[c]["tc"]) if c in bl else None,
             "guest_bill": round(bl[c]["guest"]) if c in bl else None,
         } for c in sorted(sm)]
+    # Khách lẻ = daily − daily_party → phần tiệc không bao giờ được vượt tổng ngày.
+    dl = {(date_of(r.get("date")), r.get("store")): r for r in (built or {}).get("daily", [])}
+    if dl:
+        over = [p for p in out.get("daily_party", [])
+                if (p["date"], p["store"]) not in dl
+                or any(p[k] > (to_num(dl[(p["date"], p["store"])].get(k), 0) or 0)
+                       for k in ("net", "guest", "tc"))]
+        if over:
+            warn("%s: %d dòng daily_party vượt daily cùng ngày × cửa hàng (%s) — khách lẻ sẽ âm"
+                 % (month, len(over), ", ".join("%s %s" % (p["date"], p["store"]) for p in over[:5])))
     return out
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1520,9 +1448,8 @@ BUILDERS = [
     ("social", "Social · Facebook + TikTok", read_social, ["S18_social", "S22_tiktok"]),
     ("oa", "Zalo OA", read_oa, ["S12_zalo_oa"]),
     ("member", "Member đăng ký", read_member, ["S13_member"]),
-    ("promotion", "Promotion & Aggregator", read_promotion, ["S19_aggregator"]),
+    ("promotion", "Chi phí ngoài media (báo cáo MKT)", read_promotion, ["S25_mkt_report"]),
     ("booking", "Booking tiệc", read_booking, ["S07_lead"]),
-    ("partnership", "Partnership", read_partnership, ["S21_evoucher"]),
 ]
 PART_SOURCES = {k: srcs for k, _, _, srcs in BUILDERS}
 # Sheet mà MỖI phần sở hữu trong file tháng. Phần đã chạy xong mà không ra số → sheet
@@ -1531,15 +1458,14 @@ PART_SOURCES = {k: srcs for k, _, _, srcs in BUILDERS}
 PART_SHEETS = {
     "tracking": ["store_month", "daily", "coverage", "dim_target"],
     "pos": ["channel", "daypart", "identify", "nature", "fact_promo_day", "fact_lto_line",
-            "fact_partner", "recon"],
+            "fact_partner", "daily_party", "recon"],
     "meta": ["ads_month", "ads_brand", "ads_objective", "ads_campaign_detail"],
     "google": ["ads_google", "gads_channel", "gads_kw"],
     "social": ["social_month"],
     "oa": ["oa"],
     "member": ["member"],
-    "promotion": ["aggregator", "budget_nonmedia"],
+    "promotion": ["budget_nonmedia"],
     "booking": ["booking"],
-    "partnership": ["partner_month"],
 }
 
 
@@ -1554,7 +1480,7 @@ def build(month, dry=False, parts=None):
         try:
             # read_pos cần store_month để lập bảng đối soát — lấy bản vừa dựng, không
             # có thì lấy bản đang nằm trong file tháng.
-            ctx = {"store_month": built.get("store_month") or keep.get("store_month", [])}
+            ctx = {k: built.get(k) or keep.get(k, []) for k in ("store_month", "daily")}
             got = (fn(month, ctx) if fn is read_pos else fn(month)) or {}
         except Exception as e:                                      # noqa: BLE001
             # LỖI thì giữ số cũ (không sở hữu sheet) — khác hẳn "chạy xong, không có số".

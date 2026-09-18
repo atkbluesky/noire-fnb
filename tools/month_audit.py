@@ -58,7 +58,6 @@ def audit(month):
     # nhãn → nguồn: trước tháng `since` của nguồn thì chưa áp dụng, không tính điểm
     SINCE = {"Google Ads": "S09_ads_google", "Social · Facebook (4 fanpage)": "S18_social",
              "Social · TikTok": "S22_tiktok", "eVoucher đối tác": "S21_evoucher",
-             "Aggregator (Grab · Dining City)": "S19_aggregator",
              "Ngân sách Marketing": "S10_budget", "Pre-Analysis khuyến mãi": "S16_pre_analytics",
              "KPI CRM quý": "S14_crm_kpi"}
 
@@ -230,15 +229,20 @@ def audit(month):
 
     # ── 4 · ĐỐI TÁC ────────────────────────────────────────────────
     G = "4 · Đối tác"
-    ev = l0_month_files("S21_evoucher", month)
-    add(G, "eVoucher đối tác", OK if ev else MISS, f"{len(ev)} file" if ev else "không có file tháng này")
-    agg = T("aggregator")
-    f = l0_month_file("S19_aggregator", month)
-    no_comm = [f"{r.get('platform')} {r.get('store') or ''}".strip() for r in agg
-               if to_num(r.get("commission")) is None]
-    add(G, "Aggregator (Grab · Dining City)", MISS if not f else (OK if agg and not no_comm else PART),
-        (f"{len(agg)} dòng" + (f" · CHƯA KHAI hoa hồng: {', '.join(no_comm)}" if no_comm else ""))
-        if f else "không có file tháng này")
+    # Log eVoucher là log TOÀN chiến dịch (không theo tháng) · số aggregator tự thống kê nằm ở
+    # file 05_DOI_TAC/03_Aggregator (S19 · AGG_THANG) → đã xuất vào 01_master.partner_agg.
+    ev = l0_files("S21_evoucher")
+    add(G, "eVoucher đối tác", OK if ev else INFO, f"{len(ev)} file log chiến dịch" if ev else "chưa có log", 1 if ev else 0)
+    mst = read_workbook(os.path.join(os.path.dirname(MONTHLY_DIR), "01_master.xlsx"))
+    self_rep = {p.get("code"): p.get("name") for p in mst.get("partners") or []
+                if p.get("source") == "TU_THONG_KE" and (p.get("status") or "").lower().startswith("đang")
+                and (not p.get("start") or str(p["start"])[:7] <= month)
+                and (not p.get("end") or str(p["end"])[:7] >= month)}
+    have = {r.get("code") for r in mst.get("partner_agg") or [] if r.get("month") == month}
+    miss = [n for c, n in self_rep.items() if c not in have]
+    add(G, "Aggregator tự thống kê", OK if not miss else PART,
+        f"CHƯA NHẬP AGG_THANG: {', '.join(miss)}" if miss else
+        (f"{len(self_rep)} nền tảng đã nhập" if self_rep else "không có nền tảng tự thống kê đang chạy"))
     add(G, "Danh mục đối tác", OK if l0_latest("S15_partnership") else MISS,
         os.path.basename(l0_latest("S15_partnership") or "chưa có"))
 

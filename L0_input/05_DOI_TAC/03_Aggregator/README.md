@@ -1,18 +1,17 @@
-# Aggregator — báo cáo nền tảng trung gian (Grab Dine Out · GrabFood · Dining City)
+# Số Aggregator theo tháng (tự thống kê)
 
-**Mã nguồn:** `S19_aggregator` · **Bắt buộc:** không · **Nhịp:** một file mỗi tháng, tháng nằm trong TÊN FILE
+**Mã nguồn:** `S19_aggregator` · **Bắt buộc:** không · **Nhịp:** file cấu hình, sửa khi có thay đổi
 
 ## Thả file gì vào đây
 
-Báo cáo team về kênh Aggregator (doanh thu, đơn, giảm giá, hoa hồng). Tên có `T<tháng>-<năm>`. Grab đã đo thẳng trên POS (Nguồn/PTTT) nên số Grab ở đây chỉ để đối soát; Dining City không có dấu vết trên POS nên lấy số từ báo cáo này.
+MỘT file cho mọi tháng (tạo bằng python tools/partner_template.py), sheet AGG_THANG xếp sẵn THÁNG → BRAND → nền tảng. Nền tảng POS không ghi nhận (Dining City) điền đủ booking · khách · hoá đơn · doanh thu · phí; nền tảng đo trên POS (Grab) chỉ điền hoa hồng / phí thực trả theo sao kê.
 
-- Mẫu tên file: `*Promotion AGG*.xlsx`
-- Ví dụ: `NOIRE_Bao_Cao_Promotion AGG - MKT_T8-2026.xlsx`
+- Mẫu tên file: `NOIRE_Aggregator*.xlsx`
+- Ví dụ: `NOIRE_Aggregator_Theo_Thang.xlsx`
 
 ## Mẫu chuẩn — sai là hệ thống BÁO NGAY
 
-- Sheet bắt buộc: `Aggregator`
-- Có số từ tháng: `2026-08` — thiếu tháng nào sau mốc đó là hệ thống BÁO THIẾU.
+- Sheet bắt buộc: `AGG_THANG`
 
 ## Sau khi thả
 
@@ -21,8 +20,8 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 
 ## Dùng cho
 
-- Bảng dữ liệu: aggregator, budget_nonmedia
+- Bảng dữ liệu: partner_agg
 - Màn hình: M7, M9
-- Xử lý bởi: tools/build_month.py
+- Xử lý bởi: build_mkt.py
 
 _File này sinh tự động từ tools/l0_registry.py — sửa ở đó, đừng sửa tay._

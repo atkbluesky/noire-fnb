@@ -1,4 +1,4 @@
-# Zalo OA
+# Zalo OA export (legacy)
 
 **Mã nguồn:** `S12_zalo_oa` · **Bắt buộc:** không · **Nhịp:** một file mỗi tháng, tháng nằm trong TÊN FILE
 
@@ -18,7 +18,7 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 ## Dùng cho
 
 - Bảng dữ liệu: oa
-- Màn hình: M8
+- Màn hình: không dùng trực tiếp — M8.1 lấy số từ OpenAPI + Webhook
 - Xử lý bởi: tools/build_month.py
 
 _File này sinh tự động từ tools/l0_registry.py — sửa ở đó, đừng sửa tay._

@@ -62,12 +62,13 @@ Node và ETL Python cùng đọc. Bảng tra người đọc được:
 |---|---|---|
 | Doanh thu · Target · AOV · TC · TA | `09 Tracking Sales Tool/` | `store_month` · `daily` · `coverage` · `dim_target` |
 | POS chi tiết | `05 Data Raw/1. Sales Revenue/` | `channel` · `daypart` · `identify` · `nature` · `recon` |
-| CRM · Zalo OA · Member | `05 Data Raw/2. Data Khách Hàng CRM/` | `oa` · `member` |
+| CRM · Member | `05 Data Raw/2. Data Khách Hàng CRM/` | `member` |
+| Zalo OA Performance | OpenAPI + Webhook → PostgreSQL | M8.1 realtime + daily snapshot |
 | Digital Ads | `05 Data Raw/3. Digital Ads/` | `ads_*` · `gads_*` |
 | Social | `05 Data Raw/4. Social Media/Facebook/` | `social_month` |
 | Booking & Event | `05 Data Raw/10. Booking & Event/` | `booking` → `lead_*` |
-| Partnership | `05 Data Raw/Partnership/` | `partner_month` |
-| Promotion · Aggregator · POSM | `05 Data Raw/Promotion-AGG/` | `aggregator` · `budget_nonmedia` |
+| Đối tác (danh mục · eVoucher · aggregator) | `L0_input/05_DOI_TAC/` | `partners` · `partner_voucher` · `partner_agg` |
+| Báo cáo MKT tháng (chi phí ngoài media) | `L0_input/03_MARKETING/08_Bao_Cao_MKT_Thang/` | `budget_nonmedia` |
 
 Gốc dữ liệu: biến môi trường `NOIRE_ROOT` → không có thì suy lên ba cấp thư mục.
 Chỉ cần `pip install openpyxl` — không cần pandas, không cần lxml.

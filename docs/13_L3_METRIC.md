@@ -28,6 +28,24 @@ NCB đông khách chi ít, NJFB ít khách chi nhiều. Nhìn riêng một chỉ
 Party Size là chỉ số cảnh báo sớm: party size giảm mà TA giữ nguyên → khách đi ít người hơn,
 tín hiệu suy giảm nhóm/công ty.
 
+### Khách lẻ / khách tiệc (M1)
+
+**Doanh số = khách lẻ + khách tiệc.** Ranh giới đặt ở cấp HOÁ ĐƠN, khai duy nhất ở
+`data_contract.json → $guest_segment`:
+
+| Phân khúc | Luật | Nguồn |
+|---|---|---|
+| **Khách tiệc** | HĐ có `Số khách` ≥ `party_min_guests` (**10**) | sheet `daily_party` — ETL gộp từ bảng kê hoá đơn |
+| **Khách lẻ** | phần còn lại, kể cả HĐ 0 khách (giao hàng, corporate) | `daily − daily_party` |
+
+TC · Guest · Net cộng được nên lẻ + tiệc luôn bằng đúng tổng chính thức. TA · AOV là tỷ lệ —
+**không cộng, không lấy trung bình của hai phân khúc**. Tiệc chỉ ~0,5% TC nhưng 4–13% Net,
+AOV tiệc gấp ~12 lần khách lẻ, nên biến động TA/AOV **tổng** = biến động của khách lẻ +
+tác động tiệc (giá trị tiệc và tỷ trọng tiệc). Ví dụ T8/2026 (7 cửa hàng chính): AOV tổng −0,4%
+nhưng khách lẻ +3,7% — tiệc −26% che mất đà tăng của khách lẻ. Đọc sức khoẻ vận hành
+hằng ngày trên **khách lẻ**; đọc tiệc riêng, kèm cỡ mẫu (< `min_sample_bills` HĐ/kỳ = mẫu nhỏ,
+không tính biến động).
+
 **Thực thi trong code:** `FilterContext.aggByMonth` — điểm tổng hợp duy nhất.
 
 ```ts
