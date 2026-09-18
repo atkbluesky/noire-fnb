@@ -38,7 +38,7 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | └ **M7.1** | Pre-Analytics · Plan | `m71` | `PreAnalyticsView.tsx` | campaign | `CAMPAIGN.plan` *(pre_plan ← S16)* | P5.5 | ✅ |
 | └ **M7.2** | Promotion Tracking | `m72` | `CampaignTrackingView.tsx` | campaign | `CAMPAIGN.campaigns · daily · issues` | P5.5 | 🟡 chờ ô CAM |
 | **M8** | CRM · Voucher · Zalo OA | `m8` | `CRMView.tsx` | hub K + mkt §2·§3·§4 | `identify · repeat · repeat_stat` + `MKT.oa · voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
-| **M9** | Partnership | `m9` | `PartnershipView.tsx` | mkt §5·§2 | `MKT.partners · voucher_prog` | P7 | ⚠️ thiếu aggregator |
+| **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_recon` | P7 | ✅ chung số với M7 |
 | **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
 | **R1** | Insight & Cảnh báo | `r1` | `InsightsView.tsx` | tổng hợp | `store_month · nature · product_stat · identify · bom_stat · meta · stores` + `MKT.budget · gads_stat · voucher_join` | P9 | ✅ |
 
@@ -106,7 +106,7 @@ mỗi module ghi rõ ngay trên thanh lọc phần nào lọc được. Khai bá
 | M7.1 Pre-Analytics | danh sách kế hoạch | — | *kế hoạch Q3/2026; thực tế theo kỳ chạy* |
 | M7.2 Promotion Tracking | chương trình theo brand | chương trình `ALL` luôn hiện | |
 | M8 CRM | voucher *(theo Nhà hàng sử dụng)* | tỷ lệ nhận diện · Zalo OA | *số toàn chuỗi* |
-| M9 Partnership | danh mục đối tác · voucher đối tác | — | |
+| M9 Partnership | mọi khối — hoá đơn đối tác theo brand cửa hàng | Dining City (báo cáo team) gán brand ở danh mục | |
 | M10 Booking | — | toàn bộ | *lead hiện chủ yếu NDC* |
 
 Để bộ lọc brand hoạt động **thật** chứ không chỉ hiện nút, tầng ETL đã bổ sung chiều `brand`

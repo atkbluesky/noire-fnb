@@ -14,6 +14,9 @@
 | **Nhận cửa hàng từ chuỗi tự do** — tên chiến dịch ads | cùng sheet, cột **`alias_re`** *(regex)* | `monthly_lib.store_in_text()` | build_mkt · build_month |
 | **Bản chất CTKM** — nhãn · màu · thứ tự · có vào ROI không | `data_contract.json` → **`$promo_nature.labels`** | `monthly_lib.NATURE_META` · `HUB_DATA.nature_meta` | 2 lane Python + loader + 2 file .tsx |
 | **Luật phân loại CTKM** — regex, có thứ tự | `data_contract.json` → **`$promo_nature.rules`** | `monthly_lib.classify_nature()` · `classifyNature()` ở loader | build_hub · build_month · loader |
+| **Đối tác = Aggregator + Partner** — kênh · cách nhận hoá đơn (Nguồn/PTTT nền tảng) · bảng tên báo cáo → Mã ĐT | `data_contract.json` → **`$partner`** | `monthly_lib.partner_of_bill()` · `buildPartner()` ở loader | build_month · loader · M7 · M9 |
+| **Tên CTKM → đối tác** — Mã ĐT gắn trên luật PARTNER | `data_contract.json` → **`$promo_nature.rules[].partner`** | `monthly_lib.classify_partner()` · `classifyPartner()` ở loader | build_month · loader |
+| **Danh mục đối tác** — tên · kênh · kỳ · % NOIRE chịu · % hoa hồng · kế hoạch | L0 `05_DOI_TAC/01_Danh_Muc/00_Danh_Muc_Partnership.xlsx` | `build_mkt.py` → `partners` · `partner_plan` | loader · M7 · M9 |
 | **Phễu booking tiệc** — chốt là gì · đặt bàn nhỏ · chiến dịch ads nào là booking · loại kết quả ads · nhóm lý do mất · loại sự kiện | `data_contract.json` → **`$booking`** | `monthly_lib.booking_*()` · `ads_is_booking()` · `HUB_DATA.booking_meta` | build_month · loader · M10 |
 | **Cấu trúc sheet Excel** — cột · khoá · tier | `data_contract.json` → `sheets` | `monthly_lib.SHEETS` · `CONTRACT.sheets` | mọi lane |
 | **Nguồn L0** — thư mục · mẫu tên · nhịp · tháng bắt đầu | `tools/l0_registry.py` *(xuất ra `data_sources.json`)* | `monthly_lib.l0_files` · `l0_latest` · `l0_by_month` · `l0_scan` | mọi script + `update.py` |
@@ -91,6 +94,7 @@ thay đổi có ý nghĩa, không phải nhiễu.
 | POS đổi cách viết tên cửa hàng | cùng sheet, thêm vào cột `aliases` | — |
 | Thêm một bản chất CTKM | `data_contract.json` → `$promo_nature.labels` + `rules` | `.py` · `.mjs` · `.tsx` |
 | Sửa luật phân loại CTKM | `$promo_nature.rules` — **nhớ thứ tự, khớp đầu tiên thắng** | — |
+| Thêm đối tác mới | danh mục L0 S15 (dòng mới + cột `Kênh`) · `$promo_nature.rules` (luật có `partner`) · nền tảng không gắn CTKM → `$partner.pos` | `.tsx` |
 | Thêm màu / đổi nhãn hiển thị | `$promo_nature.labels[].color` · `.label` · `.short` | `PromotionView.tsx` |
 | Thêm nguồn L0 | `tools/l0_registry.py` → chạy lại + `tools/l0_setup.py` | `data_sources.json` *(sinh tự động)* |
 | Thư mục nguồn bị đánh lại số | **không phải làm gì** | — |

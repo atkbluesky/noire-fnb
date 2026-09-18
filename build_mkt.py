@@ -543,42 +543,71 @@ except Exception as e:
 # ══════════════════════════════════════════════════════════════
 log("\n[5/6] Partnership ...")
 try:
+    # Ô trống của Excel là NaN — str(NaN) = 'nan' từng lọt lên màn hình ("2026-01-01 → nan").
+    def cell(v):
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return None
+        t = str(v).strip()
+        return None if t in ("", "nan", "NaT", "None") else t
+
+    def fnum(v):
+        x = pd.to_numeric(v, errors="coerce")
+        return None if pd.isna(x) else float(x)
+
     PT = pd.read_excel(F_PART, sheet_name="1. Đối Tác")
     PT.columns = [str(c).strip() for c in PT.columns]
     PT = PT[PT[PT.columns[0]].notna()]
     parts = []
     for _, r in PT.iterrows():
-        parts.append(dict(code=str(r.get("Mã ĐT", "")).strip(),
-                          name=str(r.get("Tên đối tác", "")).strip(),
-                          kind=str(r.get("Loại đối tác", "")).strip(),
-                          brand=str(r.get("Brand áp dụng", "")).strip(),
-                          start=str(r.get("Ngày bắt đầu", ""))[:10],
-                          end=str(r.get("Ngày kết thúc", ""))[:10],
-                          status=str(r.get("Trạng thái", "")).strip(),
-                          media=float(pd.to_numeric(r.get("Giá trị media quy đổi"), errors="coerce") or 0),
-                          note=str(r.get("Ghi chú", ""))[:120]))
+        # Kết quả (hoá đơn · doanh thu · chi phí) KHÔNG gắn ở đây nữa: loader tính từ
+        # fact_partner theo tháng. Bản trước gắn qua Campaign ID của log voucher iPOS —
+        # đối tác nào không phát mã qua iPOS (mọi đối tác hiện có) đều ra 0 thay vì số thật.
+        parts.append(dict(code=cell(r.get("Mã ĐT")),
+                          name=cell(r.get("Tên đối tác")),
+                          channel=(cell(r.get("Kênh")) or "").upper() or None,
+                          kind=cell(r.get("Loại đối tác")),
+                          brand=cell(r.get("Brand áp dụng")),
+                          stores=cell(r.get("Cửa hàng áp dụng")),
+                          start=(cell(r.get("Ngày bắt đầu")) or "")[:10] or None,
+                          end=(cell(r.get("Ngày kết thúc")) or "")[:10] or None,
+                          status=cell(r.get("Trạng thái")),
+                          noire_share=fnum(r.get("% Noire chịu chiết khấu")),
+                          fee_month=fnum(r.get("Phí cố định / tháng")),
+                          commission_pct=fnum(r.get("% Hoa hồng đối tác")),
+                          media=fnum(r.get("Giá trị media quy đổi")),
+                          note=(cell(r.get("Ghi chú")) or "")[:160] or None))
     D["partners"] = parts
     CT = pd.read_excel(F_PART, sheet_name="2. Mã CTKM")
     CT.columns = [str(c).strip() for c in CT.columns]
     CT = CT[CT[CT.columns[0]].notna()]
-    D["partner_camp"] = [dict(code=str(r.get("Mã ĐT", "")).strip(),
-                              name=str(r.get("Tên CTKM trên bảng kê", ""))[:60],
-                              cid=str(r.get("Campaign ID iPOS", "")).replace(".0", "").strip(),
-                              mech=str(r.get("Cơ chế", "")).strip(),
-                              rate=float(pd.to_numeric(r.get("Mức giảm"), errors="coerce") or 0))
+    D["partner_camp"] = [dict(code=cell(r.get("Mã ĐT")),
+                              name=(cell(r.get("Tên CTKM trên bảng kê")) or "")[:60] or None,
+                              cid=(cell(r.get("Campaign ID iPOS")) or "").replace(".0", "") or None,
+                              mech=cell(r.get("Cơ chế")),
+                              rate=fnum(r.get("Mức giảm")))
                          for _, r in CT.iterrows()]
-    log("   %d đối tác · %d chương trình" % (len(parts), len(D["partner_camp"])))
-    # gắn kết quả voucher thật cho từng đối tác
-    if len(V):
-        for p in parts:
-            cids = [c["cid"] for c in D["partner_camp"] if c["code"] == p["code"] and c["cid"] and c["cid"] != "nan"]
-            sub = V[V["cid"].isin(cids)] if cids else V.iloc[0:0]
-            p["issued"] = int(len(sub)); p["used"] = int(sub["used"].sum())
-            p["rev"] = float(sub.loc[sub["used"], "bill_val"].sum())
-            p["disc"] = float(sub.loc[sub["used"], "disc"].sum())
-            p["use_rate"] = float(sub["used"].mean()) if len(sub) else None
+    # Kế hoạch theo tháng — sheet `3. Kế Hoạch`, cột Tháng là số 7..12 của `Năm phân tích`.
+    try:
+        PR = pd.read_excel(F_PART, sheet_name="4. Tham Số")
+        yr = int(fnum(PR.loc[PR[PR.columns[0]].astype(str).str.strip() == "Năm phân tích"].iloc[0, 1]) or 2026)
+    except Exception:
+        yr = 2026
+    try:
+        KH = pd.read_excel(F_PART, sheet_name="3. Kế Hoạch")
+        KH.columns = [str(c).strip() for c in KH.columns]
+        KH = KH[KH[KH.columns[0]].notna()]
+        D["partner_plan"] = [dict(month="%d-%02d" % (yr, int(fnum(r.get("Tháng")))), code=cell(r.get("Mã ĐT")),
+                                  scenario=cell(r.get("Kịch bản")),
+                                  issued=fnum(r.get("Mã phát hành KH")), use_rate=fnum(r.get("Tỷ lệ dùng KH")),
+                                  aov=fnum(r.get("AOV KH (đ)")), cost=fnum(r.get("Chi phí KH (đ)")),
+                                  rev=fnum(r.get("Doanh thu KH (đ)")), gp=fnum(r.get("LN gộp KH (đ)")))
+                             for _, r in KH.iterrows() if fnum(r.get("Tháng"))]
+    except Exception as e:
+        D["partner_plan"] = []; log("   kế hoạch đối tác: lỗi %s" % str(e)[:70])
+    log("   %d đối tác · %d chương trình · %d dòng kế hoạch"
+        % (len(parts), len(D["partner_camp"]), len(D["partner_plan"])))
 except Exception as e:
-    D["partners"] = []; D["partner_camp"] = []; log("   partnership: lỗi %s" % str(e)[:70])
+    D["partners"] = []; D["partner_camp"] = []; D["partner_plan"] = []; log("   partnership: lỗi %s" % str(e)[:70])
 
 # ══════════════════════════════════════════════════════════════
 # 6. PRE-ANALYTICS (kế hoạch khuyến mãi Q3)

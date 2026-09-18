@@ -4,7 +4,7 @@
 
 ## Thả file gì vào đây
 
-Thêm dòng khi có đối tác mới.
+Đối tác = Aggregator + Partner. Thêm dòng khi có đối tác mới, điền cột `Kênh` (AGGREGATOR/PARTNER). Luật nhận hoá đơn POS của đối tác khai ở data_contract.json ($promo_nature.rules[].partner = Mã ĐT).
 
 - Mẫu tên file: `00_Danh_Muc_Partnership*.xlsx`
 - Ví dụ: `00_Danh_Muc_Partnership.xlsx`
@@ -21,8 +21,8 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 
 ## Dùng cho
 
-- Bảng dữ liệu: partners, partner_camp
-- Màn hình: M9
+- Bảng dữ liệu: partners, partner_camp, partner_plan
+- Màn hình: M7, M9
 - Xử lý bởi: build_mkt.py
 
 _File này sinh tự động từ tools/l0_registry.py — sửa ở đó, đừng sửa tay._

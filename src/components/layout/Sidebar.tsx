@@ -152,8 +152,8 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         code: 'M9',
         title: 'Partnership',
         icon: <Handshake className="h-4 w-4" />,
-        status: 'warning',
-        statusText: 'Đối tác',
+        status: 'ok',
+        statusText: 'Aggregator + Partner',
       },
       {
         id: 'm10',

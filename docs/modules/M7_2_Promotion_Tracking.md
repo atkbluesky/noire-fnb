@@ -478,8 +478,8 @@ att_<metric> = actual / target        với metric ∈ {net, tc, aov, ta, incr_n
 | **Chip trạng thái** | Lọc nhanh theo 7 nhãn `$campaign.labels` |
 | **Scorecard** | Tên · kỳ · nhãn · 3 trục phân loại · **Lift + mức hoà vốn** · chi phí · lãi thực thêm/ROI · % đạt target cho Tăng thêm · Net · TC · AOV/TA |
 | **Chi tiết 1 CT** | Giả thuyết · kỳ nền · đối chứng + hệ số mùa vụ · cảnh báo (chồng kỳ, store mới, tăng nhờ đòn bẩy khác giả thuyết, target nộp muộn) · bảng Target/Kỳ vọng/Thực tế · bóc chi phí · biểu đồ trước/trong/sau (vùng tô = kỳ chạy) · **waterfall Kỳ vọng → ΔTC → Δnhóm → ΔTA → tương tác → Thực tế** |
-| **Timeline** | Gantt màu theo nhãn, viền đỏ = chồng kỳ; bấm để mở chi tiết |
-| **Chi phí × ROI** | Bubble: x chi phí · y ROI · size tăng thêm · màu bản chất |
+| **Timeline** | Gantt phân tách đợt chiến dịch (Bursts) và chương trình định kỳ (Recurring), toggle Trọng điểm / Tất cả mã POS, trục ngày co giãn theo kỳ lọc, viền đỏ = chồng kỳ; bấm thanh để mở chi tiết |
+| **Chi phí × ROI** | Ma trận 4 phần tư: x chi phí ưu đãi · y ROI (lần) · size DT tăng thêm · đường hoà vốn (ROI = 0) · nét liền = Pre-Analysis có đối chứng · nét đứt = Ước lượng · cảnh báo mẫu nhỏ (&lt; 5 bills) |
 | **Lịch cửa sổ marketing** | Tháng × brand, số CT thương mại; cảnh báo khoảng trống > 14 ngày |
 | **Chưa đo được · chưa đủ chín** | Lý do + việc cần làm cho từng CT |
 | **Lỗi khai báo** | Từ `campaign_issue` — sửa ở L0 rồi chạy lại `CAP_NHAT.bat` |

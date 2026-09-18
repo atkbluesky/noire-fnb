@@ -773,8 +773,13 @@ def program_eval(res, c, p, costs, last):
             promo_cost = (p.get("driver") or 0) * bills
             notes.append("giá vốn quà = đơn giá kế hoạch × %d hoá đơn thực" % bills)
         manual.pop("GIFT_COGS", None)
+        # Cộng chiết khấu trực tiếp trên POS nếu hoá đơn có cả giảm giá kèm quà
+        pos_disc = (res.get("promo_disc") or 0) * share
+        if pos_disc > 0:
+            promo_cost += pos_disc
+            notes.append("chiết khấu POS = %s đ" % f"{round(pos_disc):,}".replace(",", "."))
     else:
-        promo_cost = 0.0
+        promo_cost = (res.get("promo_disc") or 0) * share
     fixed = sum(manual.values()) + (res.get("cost_ads_auto") or 0)
     total = promo_cost + fixed
     cogs = p.get("cogs_pct")

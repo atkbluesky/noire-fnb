@@ -42,6 +42,7 @@ export const CampaignTrackingView: React.FC = () => {
   const COST = byCode(T.cost_types);
 
   const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  const [tlScope, setTlScope] = useState<'key' | 'all'>('key');
 
   // chương trình giao với kỳ lọc + brand
   const mFrom = selectedMonths[0] ?? '0000-00';
@@ -422,23 +423,69 @@ export const CampaignTrackingView: React.FC = () => {
     ],
   };
 
-  /* ── TIMELINE ───────────────────────────────────────────────── */
-  const tl = inScope.filter(c => c.period_from).sort((a, b) => String(a.period_from).localeCompare(String(b.period_from)));
+  /* ── PHÂN TẦNG STATUS COLORS & LABELS ───────────────────────── */
+  const STATUS_COLORS: Record<string, string> = {
+    DAT: '#22C55E',         // Xanh lá (Đạt mục tiêu và có lãi)
+    DAT_LO: '#F97316',      // Cam (Đạt target DT nhưng lỗ ròng vì chi phí cao)
+    GAN_DAT: '#EAB308',     // Vàng chanh (Gần đạt 80-99%)
+    KHONG_DAT: '#EF4444',   // Đỏ (Dưới 80% target)
+    CHUA_CHIN: '#3B82F6',   // Xanh dương (Đang chạy / số tạm)
+    CHUA_TARGET: '#8B5CF6', // Tím (Có lift thực nhưng chưa có target trước kỳ)
+    CHUA_DO: '#64748B',     // Xám (Chưa đủ điều kiện đo)
+    BRANDING: '#EC4899',    // Hồng (Nhận diện thương hiệu)
+    KE_HOACH: '#94A3B8',    // Xám nhạt (Chưa chạy)
+  };
+
+  /* ── TIMELINE: PHÂN TÁCH RECURRING & BURST ──────────────────── */
+  const isRecurring = (c: Campaign) =>
+    c.cadence === 'RECURRING' || c.cadence === 'ALWAYS_ON' || (c.days_run !== null && c.days_run > 90);
+
+  const rawTl = inScope.filter(c => c.period_from);
+  // Chiến dịch trọng điểm: có kế hoạch Pre-Analysis, hoặc đo lường được, hoặc có ≥ 3 hoá đơn trong kỳ lọc
+  const keyTl = rawTl.filter(c =>
+    c.pre_id ||
+    c.measurable ||
+    ['DAT', 'DAT_LO', 'GAN_DAT', 'KHONG_DAT', 'CHUA_TARGET', 'CHUA_CHIN'].includes(c.label) ||
+    sc(c).bills >= 3
+  );
+
+  const activeTlPool = tlScope === 'key' ? keyTl : rawTl;
+  // Gantt biểu diễn các đợt chiến dịch (Bursts)
+  const burstTl = activeTlPool.filter(c => !isRecurring(c)).sort((a, b) => String(a.period_from).localeCompare(String(b.period_from)));
+  // Các chương trình định kỳ / chạy dài hạn hiển thị thanh badge riêng
+  const recurringTl = activeTlPool.filter(isRecurring).sort((a, b) => sc(b).bills - sc(a).bills);
+
   const lastDay = CAMPAIGN.daily.reduce((m, d) => (d.date > m ? d.date : m), '2026-01-01');
-  const tlStart = tl.map(c => dayIndex(c.period_from ?? c.date_from ?? '2026-01-01'));
-  const tlLen = tl.map((c, i) => Math.max(1, dayIndex(c.period_to ?? c.date_to ?? lastDay) - tlStart[i] + 1));
+  const tlStart = burstTl.map(c => dayIndex(c.period_from ?? c.date_from ?? '2026-01-01'));
+  const tlLen = burstTl.map((c, i) => Math.max(1, dayIndex(c.period_to ?? c.date_to ?? lastDay) - tlStart[i] + 1));
+
+  // Tự động căn chỉnh dải ngày trục X tương thích với dải ngày đang hiển thị
+  const minXDay = burstTl.length ? Math.min(...tlStart) : 0;
+  const maxXDay = burstTl.length ? Math.max(...tlStart.map((s, i) => s + tlLen[i])) + 2 : 270;
+  const tlHeight = Math.min(480, Math.max(260, burstTl.length * 32 + 50));
+
   const tlOption: EChartsOption = {
     tooltip: {
       formatter: (p: any) => {
-        const c = tl[p.dataIndex];
-        return `<b>${c.name}</b><br/>${dmy(c.period_from)} → ${c.date_to ? dmy(c.period_to) : 'đang chạy'}<br/>${LABEL[c.label]?.label}`
-          + (c.overlap.length ? `<br/>⚠ chồng kỳ: ${c.overlap.join(', ')}` : '');
+        const c = burstTl[p.dataIndex];
+        if (!c) return '';
+        const x = sc(c);
+        return `
+          <div style="padding:4px; font-size:12px; line-height:1.5;">
+            <div style="font-weight:bold; color:#C5A059;">[${c.brand}] ${c.name}</div>
+            <div style="font-size:10px; color:#888; font-family:monospace;">${dmy(c.period_from)} → ${c.date_to ? dmy(c.period_to) : 'đang chạy'} (${c.days_run ?? 0} ngày)</div>
+            <div>Trạng thái: <b style="color:${STATUS_COLORS[c.label] ?? '#9E9B93'}">${LABEL[c.label]?.label ?? c.label}</b></div>
+            <div>Doanh thu CTKM: <b>${vnd(x.net)}</b> (${formatNumber(x.bills)} bill)</div>
+            ${c.overlap.length ? `<div style="color:#EF4444; font-weight:600;">⚠ Chạy chồng kỳ: ${c.overlap.join(', ')}</div>` : ''}
+          </div>
+        `;
       },
     },
-    grid: { top: 8, left: 140, right: 16, bottom: 28 },
+    grid: { top: 12, left: 180, right: 24, bottom: 28 },
     xAxis: {
       type: 'value',
-      min: Math.min(...tlStart, 0),
+      min: minXDay,
+      max: maxXDay,
       axisLabel: {
         fontSize: 10,
         formatter: (v: number) => {
@@ -446,42 +493,108 @@ export const CampaignTrackingView: React.FC = () => {
           return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
         },
       },
+      splitLine: { lineStyle: { type: 'dashed', opacity: 0.15 } },
     },
-    yAxis: { type: 'category', data: tl.map(c => c.name), axisLabel: { fontSize: 10, width: 130, overflow: 'truncate' }, inverse: true },
+    yAxis: {
+      type: 'category',
+      data: burstTl.map(c => `[${c.brand}] ${c.name}`),
+      axisLabel: {
+        fontSize: 10,
+        width: 165,
+        overflow: 'truncate',
+      },
+      inverse: true,
+    },
     series: [
       { type: 'bar', stack: 't', data: tlStart, itemStyle: { color: 'transparent' }, silent: true },
       {
         type: 'bar',
         stack: 't',
-        barMaxWidth: 14,
-        data: tl.map((c, i) => ({
+        barMaxWidth: 16,
+        data: burstTl.map((c, i) => ({
           value: tlLen[i],
-          itemStyle: { color: LABEL[c.label]?.color ?? '#9E9B93', borderColor: c.overlap.length ? '#EF4444' : undefined, borderWidth: c.overlap.length ? 1 : 0 },
+          itemStyle: {
+            color: STATUS_COLORS[c.label] ?? LABEL[c.label]?.color ?? '#9E9B93',
+            borderColor: c.overlap.length ? '#EF4444' : (sel?.id === c.id ? '#C5A059' : undefined),
+            borderWidth: c.overlap.length ? 2 : (sel?.id === c.id ? 2 : 0),
+            borderRadius: 3,
+          },
         })),
       },
     ],
   };
 
-  /* ── MA TRẬN: chi phí × ROI ─────────────────────────────────── */
+  /* ── MA TRẬN: CHI PHÍ × ROI (CHIẾN LƯỢC 4 PHẦN TƯ) ────────── */
+  // Mở rộng mẫu: Mọi chương trình đo lường được có chi phí và ROI hợp lệ
+  const matrixItems = inScope.filter(c =>
+    c.measurable &&
+    (c.cost.total ?? 0) > 0 &&
+    c.roi !== null &&
+    c.plan_primary !== 0 &&
+    (scope.share(c) > 0 || c.eval_scope === 'PROGRAM')
+  );
+
   const bubbleOption: EChartsOption = {
     tooltip: {
       formatter: (p: any) => {
-        const c = measured[p.dataIndex];
-        return `<b>${c.name}</b><br/>${LEVER[c.lever ?? '']?.label ?? ''}<br/>Chi phí ${formatVND(c.cost.total)}<br/>ROI ${formatNumber(c.roi ?? 0, 1)}× · tăng thêm ${formatVND(c.incr)}`;
+        const c = matrixItems[p.dataIndex];
+        if (!c) return '';
+        const isLowSample = (c.promo.bills ?? 0) < 5;
+        const isProg = c.eval_scope === 'PROGRAM';
+        return `
+          <div style="padding:4px; font-size:12px; line-height:1.5;">
+            <div style="font-weight:bold; color:#C5A059;">[${c.brand}] ${c.name}</div>
+            <div style="font-size:10px; color:#888; font-family:monospace;">${isProg ? 'Pre-Analysis có đối chứng' : 'Ước lượng lift cửa hàng'} ${c.pre_id ? `· Mã ${c.pre_id}` : ''}</div>
+            <div>Trạng thái: <b style="color:${STATUS_COLORS[c.label] ?? '#9E9B93'}">${LABEL[c.label]?.label ?? c.label}</b></div>
+            <div>Chi phí ưu đãi: <b>${formatVND(c.cost.total)}</b></div>
+            <div>DT tăng thêm: <b style="color:${(c.incr ?? 0) >= 0 ? '#22C55E' : '#EF4444'}">${(c.incr ?? 0) > 0 ? '+' : ''}${vnd(c.incr)}</b></div>
+            <div>Lãi thực (Flow-through): <b style="color:${(c.flow ?? 0) >= 0 ? '#22C55E' : '#EF4444'}">${vnd(c.flow)}</b></div>
+            <div>ROI: <b style="color:#C5A059;">${c.roi === null ? '—' : `${formatNumber(c.roi, 2)}×`}</b></div>
+            ${isLowSample ? `<div style="color:#F59E0B; font-weight:600; font-size:10px;">⚠ Mẫu nhỏ: ${c.promo.bills} HĐ (ROI dễ bị biến động)</div>` : ''}
+          </div>
+        `;
       },
     },
-    grid: { top: 16, left: 56, right: 24, bottom: 36 },
-    xAxis: { type: 'value', name: 'Chi phí', nameLocation: 'middle', nameGap: 24, axisLabel: { formatter: (v: number) => formatVND(v, 0), fontSize: 10 } },
-    yAxis: { type: 'value', name: 'ROI (×)', axisLabel: { fontSize: 10 } },
+    grid: { top: 32, left: 60, right: 32, bottom: 44 },
+    xAxis: {
+      type: 'value',
+      name: 'Chi phí ưu đãi',
+      nameLocation: 'middle',
+      nameGap: 28,
+      axisLabel: { formatter: (v: number) => formatVND(v, 0), fontSize: 10 },
+      splitLine: { lineStyle: { type: 'dashed', opacity: 0.15 } },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'ROI (Lần)',
+      nameLocation: 'end',
+      axisLabel: { formatter: (v: number) => `${v}×`, fontSize: 10 },
+      splitLine: { lineStyle: { type: 'dashed', opacity: 0.15 } },
+    },
     series: [
       {
         type: 'scatter',
-        data: measured.map(c => ({
-          value: [c.cost.total ?? 0, c.roi ?? 0],
-          symbolSize: Math.max(10, Math.min(48, Math.sqrt(Math.abs(c.incr ?? 0)) / 600)),
-          itemStyle: { color: NAT[c.nature ?? '']?.color ?? '#9E9B93', opacity: 0.8, borderColor: (c.incr ?? 0) < 0 ? '#EF4444' : undefined, borderWidth: (c.incr ?? 0) < 0 ? 2 : 0 },
-        })),
-        markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#9E9B93' }, data: [{ yAxis: 0 }] },
+        data: matrixItems.map(c => {
+          const isLowSample = (c.promo.bills ?? 0) < 5;
+          const isProg = c.eval_scope === 'PROGRAM';
+          return {
+            value: [c.cost.total ?? 0, c.roi ?? 0],
+            symbolSize: Math.max(12, Math.min(42, Math.sqrt(Math.abs(c.incr ?? 0)) / 500)),
+            itemStyle: {
+              color: STATUS_COLORS[c.label] ?? NAT[c.nature ?? '']?.color ?? '#9E9B93',
+              opacity: isProg ? 0.9 : 0.65,
+              borderColor: isLowSample ? '#F59E0B' : (c.flow ?? 0) < 0 ? '#EF4444' : '#22C55E',
+              borderWidth: isProg ? 2.5 : 1.5,
+              borderType: isProg ? 'solid' : 'dashed',
+            },
+          };
+        }),
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { type: 'dashed', color: '#EF4444', width: 1.5 },
+          data: [{ yAxis: 0, label: { formatter: 'Hoà vốn (ROI = 0)', position: 'end', fontSize: 10, color: '#EF4444' } }],
+        },
       },
     ],
   };
@@ -843,26 +956,172 @@ export const CampaignTrackingView: React.FC = () => {
         </Card>
       )}
 
-      {/* Timeline + bubble */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card title="Timeline Chương Trình" description="Màu = trạng thái · viền đỏ = chạy chồng kỳ trên cùng cửa hàng" chip="GANTT" className="lg:col-span-2">
-          <EChartWrapper option={tlOption} height={Math.max(220, tl.length * 28 + 40)} onEvents={{ click: (p: any) => setSelId(tl[p.dataIndex]?.id ?? null) }} />
-        </Card>
-        <Card title="Chi Phí × ROI" description="Số cả kỳ chạy · chỉ chương trình đã chốt số · màu = bản chất · kích thước = doanh thu tăng thêm · viền đỏ = tăng thêm âm" chip="MA TRẬN">
-          {measured.length ? <EChartWrapper option={bubbleOption} height={Math.max(220, tl.length * 28 + 40)} /> : <div className="text-xs text-brand-muted p-6">Chưa có chương trình đo được.</div>}
-        </Card>
-      </div>
-
-      {/* Marketing windows */}
-      <Card title="Lịch Cửa Sổ Marketing" description="Số chương trình THƯƠNG MẠI đang chạy mỗi tháng · nguyên tắc: không để quá 14 ngày không có chương trình" chip="MARKETING WINDOWS">
-        <EChartWrapper option={heatOption} height={60 + brands.length * 44} />
-        {gaps.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-            {gaps.map(g => <span key={g} className="rounded-full border border-status-warning/40 bg-status-warningBg px-2 py-0.5 text-status-warning">⚠ {g}</span>)}
+      {/* ── TIMELINE CHƯƠNG TRÌNH (FULL WIDTH) ── */}
+      <Card
+        title="Timeline Chương Trình"
+        description="Màu = trạng thái · viền đỏ = chạy chồng kỳ trên cùng cửa hàng · Click vào thanh để xem chi tiết"
+        chip={`GANTT · ${burstTl.length} ĐỢT CHIẾN DỊCH`}
+        headerAction={
+          <div className="flex items-center gap-1 rounded-lg border border-brand-border bg-brand-surface p-0.5 text-[11px]">
+            <button
+              onClick={() => setTlScope('key')}
+              className={`rounded px-2.5 py-1 font-semibold transition-all ${
+                tlScope === 'key'
+                  ? 'bg-brand-gold text-brand-dark shadow-sm'
+                  : 'text-brand-muted hover:text-brand-text'
+              }`}
+            >
+              Trọng điểm ({keyTl.filter(c => !isRecurring(c)).length})
+            </button>
+            <button
+              onClick={() => setTlScope('all')}
+              className={`rounded px-2.5 py-1 font-semibold transition-all ${
+                tlScope === 'all'
+                  ? 'bg-brand-gold text-brand-dark shadow-sm'
+                  : 'text-brand-muted hover:text-brand-text'
+              }`}
+            >
+              Tất cả mã POS ({rawTl.filter(c => !isRecurring(c)).length})
+            </button>
+          </div>
+        }
+      >
+        {/* Strip các chương trình định kỳ / chạy nền (RECURRING / ALWAYS_ON) */}
+        {recurringTl.length > 0 && (
+          <div className="mb-3 rounded-lg border border-brand-border/60 bg-brand-surface/40 p-2.5">
+            <div className="mb-1.5 flex items-center justify-between text-[11px]">
+              <span className="font-bold text-brand-gold uppercase tracking-wider flex items-center gap-1.5">
+                <span>🔄</span> Chương trình định kỳ / Chạy nền ({recurringTl.length})
+              </span>
+              <span className="text-[10px] text-brand-muted">Lặp định kỳ hàng tuần / dài hạn</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {recurringTl.map(c => {
+                const isSel = sel?.id === c.id;
+                const x = sc(c);
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelId(c.id)}
+                    className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-left transition-all ${
+                      isSel
+                        ? 'border-brand-gold bg-brand-gold/15 text-brand-gold shadow-sm'
+                        : 'border-brand-border bg-brand-surface hover:border-brand-muted text-brand-text'
+                    }`}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: STATUS_COLORS[c.label] ?? '#9E9B93' }}
+                    />
+                    <span className="font-semibold text-xs">{c.name}</span>
+                    <span className="text-[10px] text-brand-muted font-mono">[{c.brand} · {formatNumber(x.bills)} bills]</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
-        <div className="mt-2 text-[10px] text-brand-muted">Chỉ tính chương trình ĐÃ KHAI BÁO — độ phủ khai báo hiện {pct(CAMPAIGN.coverage.mapped_pct)}, khoảng trống có thể là do chưa khai chứ không phải không chạy.</div>
+
+        {/* Biểu đồ Gantt các đợt chiến dịch */}
+        {burstTl.length > 0 ? (
+          <EChartWrapper
+            option={tlOption}
+            height={tlHeight}
+            onEvents={{ click: (p: any) => setSelId(burstTl[p.dataIndex]?.id ?? null) }}
+          />
+        ) : (
+          <div className="p-8 text-center text-xs text-brand-muted">
+            Không có chiến dịch nào trong phạm vi thời gian đang lọc.
+          </div>
+        )}
+
+        {/* Chú giải trạng thái Timeline */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-brand-border/40 pt-2 text-[10px] text-brand-muted">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-sm bg-[#22C55E]" /> Đạt & Có lãi
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-sm bg-[#F97316]" /> Đạt nhưng Lỗ ròng
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-sm bg-[#EF4444]" /> Không đạt (&lt;80%)
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-sm bg-[#3B82F6]" /> Đang chạy / Số tạm
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-sm bg-[#8B5CF6]" /> Chưa target
+            </span>
+            <span className="flex items-center gap-1 font-semibold text-red-400">
+              <span className="inline-block h-2 w-2 rounded-sm border-2 border-red-500" /> ⚠ Viền đỏ = Chồng kỳ
+            </span>
+          </div>
+          <span>Click vào thanh chiến dịch để đồng bộ dữ liệu chi tiết bên dưới</span>
+        </div>
       </Card>
+
+      {/* ── 2 CỘT: MA TRẬN CHI PHÍ × ROI & LỊCH CỬA SỔ MARKETING ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card
+          title="Ma Trận: Chi Phí × ROI"
+          description="Đường đỏ = Hoà vốn (ROI = 0) · Nét liền = Pre-Analysis có đối chứng · Nét đứt = Ước lượng · Cỡ bóng = DT tăng thêm"
+          chip={`MA TRẬN · ${matrixItems.length} CHƯƠNG TRÌNH`}
+        >
+          {matrixItems.length ? (
+            <EChartWrapper
+              option={bubbleOption}
+              height={380}
+              onEvents={{ click: (p: any) => setSelId(matrixItems[p.dataIndex]?.id ?? null) }}
+            />
+          ) : (
+            <div className="p-12 text-center text-xs text-brand-muted">
+              Chưa có chương trình đo lường được trong kỳ lọc.
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-brand-border/40 pt-2 text-[10px] text-brand-muted">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-[#22C55E] bg-[#22C55E]/40" />
+                Lãi ròng (ROI &gt; 0)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-[#EF4444] bg-[#EF4444]/40" />
+                Lỗ ròng (ROI &lt; 0)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-dashed border-[#8B5CF6]" />
+                Nét đứt = Ước lượng
+              </span>
+            </div>
+            <span>Click vào bóng để xem chi tiết</span>
+          </div>
+        </Card>
+
+        {/* Marketing windows */}
+        <Card
+          title="Lịch Cửa Sổ Marketing"
+          description="Số chương trình THƯƠNG MẠI đang chạy mỗi tháng · nguyên tắc: không để quá 14 ngày không có chương trình"
+          chip="MARKETING WINDOWS"
+        >
+          <EChartWrapper option={heatOption} height={380} />
+          {gaps.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+              {gaps.map(g => (
+                <span
+                  key={g}
+                  className="rounded-full border border-status-warning/40 bg-status-warningBg px-2 py-0.5 text-status-warning"
+                >
+                  ⚠ {g}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 text-[10px] text-brand-muted">
+            Chỉ tính chương trình ĐÃ KHAI BÁO — độ phủ khai báo hiện {pct(CAMPAIGN.coverage.mapped_pct)}, khoảng trống có thể là do chưa khai chứ không phải không chạy.
+          </div>
+        </Card>
+      </div>
 
       {/* Chưa đo được + CTKM chưa khai + lỗi */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

@@ -19,7 +19,7 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | └ M7.1 | [`M7_1_Pre_Analytics.md`](M7_1_Pre_Analytics.md) | Pre-Analytics · Plan — kế hoạch Pre-Analysis + thực tế | P5.5 | ✅ nối 5/25 CT với POS |
 | └ M7.2 | [`M7_2_Promotion_Tracking.md`](M7_2_Promotion_Tracking.md) | Promotion Tracking — chấm từng chương trình | P5.5 | 🟡 chờ team brand điền ô CAM |
 | M8 | [`M8_CRM.md`](M8_CRM.md) | CRM · Voucher · Zalo OA | P6 | ⚠️ nhận diện 8,6% |
-| M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership | P7 | ⚠️ thiếu aggregator |
+| M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership — Aggregator + Partner | P7 | ✅ đo trên hoá đơn POS · chung số với M7 |
 | M10 | [`M10_Booking.md`](M10_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
 | R1 | [`R1_Insight.md`](R1_Insight.md) | Insight & Cảnh báo | P9 | ✅ |
 

@@ -1,10 +1,10 @@
-# Nền tảng trung gian (GrabFood · Dining City)
+# Aggregator — báo cáo nền tảng trung gian (Grab Dine Out · GrabFood · Dining City)
 
 **Mã nguồn:** `S19_aggregator` · **Bắt buộc:** không · **Nhịp:** một file mỗi tháng, tháng nằm trong TÊN FILE
 
 ## Thả file gì vào đây
 
-Báo cáo tổng hợp chương trình chạy trên GrabFood · Dining City (doanh thu, đơn, giảm giá, hoa hồng). Tên có `T<tháng>-<năm>`.
+Báo cáo team về kênh Aggregator (doanh thu, đơn, giảm giá, hoa hồng). Tên có `T<tháng>-<năm>`. Grab đã đo thẳng trên POS (Nguồn/PTTT) nên số Grab ở đây chỉ để đối soát; Dining City không có dấu vết trên POS nên lấy số từ báo cáo này.
 
 - Mẫu tên file: `*Promotion AGG*.xlsx`
 - Ví dụ: `NOIRE_Bao_Cao_Promotion AGG - MKT_T8-2026.xlsx`

@@ -30,7 +30,7 @@ from monthly_lib import (  # noqa: E402
     CONTRACT,
     BRAND_OF_STORE, ads_is_booking, ads_page, ads_result_kind, booking_lost_reason,
     booking_etype, booking_segment, booking_stage, L0_ROOT, L0_WHY, MONTHLY_DIR, ROOT, SOURCES, agg,
-    classify_nature, date_of, days_in_month, l0_by_month, l0_dir, l0_latest,
+    classify_nature, partner_of_bill, date_of, days_in_month, l0_by_month, l0_dir, l0_latest,
     l0_files, l0_month_file, l0_month_files, month_of, norm,
     read_html_table, read_utf16_csv, read_workbook, store_code, store_in_text,
     to_num, write_workbook,
@@ -1222,6 +1222,10 @@ def read_pos(month, built=None):
             "disc_pct": ["Chiết khấu"],
             "disc_gg": ["Phiếu GG"],
             "net_novat": ["Tổng tiền (không bao gồm VAT)"],
+            # Nhận hoá đơn ĐỐI TÁC không gắn CTKM (Grab Dine Out trả qua ví Grab) và
+            # hoa hồng nền tảng ghi ngay trên hoá đơn (GrabFood giao hàng).
+            "pttt": ["PTTT", "Phương thức thanh toán"],
+            "commission": ["Hoa hồng"],
         }
         rows, sheets = read_pos_sheets(bill_f, want)
         bills, seen, unknown = [], set(), set()
@@ -1273,6 +1277,8 @@ def read_pos(month, built=None):
                 "disc": (to_num(r.get("disc_amt"), 0) or 0)
                         + (to_num(r.get("disc_pct"), 0) or 0),
                 "voucher": to_num(r.get("disc_gg"), 0) or 0,
+                "pttt": _clean(r.get("pttt")),
+                "commission": to_num(r.get("commission"), 0) or 0,
             })
         if unknown:
             warn("bảng kê %s: cửa hàng chưa khai — %s" % (month, ", ".join(sorted(unknown))))
@@ -1312,6 +1318,29 @@ def read_pos(month, built=None):
                 log("      CTKM cấp hoá đơn: %s bill · chiết khấu %s"
                     % (format(len(ck), ",").replace(",", "."),
                        format(round(sum(b["disc"] for b in ck)), ",").replace(",", ".")))
+
+            # ---------- fact_partner — Đối tác = Aggregator + Partner (M7 · M9) ----------
+            # Mỗi hoá đơn thuộc MỘT đối tác: tên CTKM (luật PARTNER) → Nguồn → PTTT.
+            # Luật ở data_contract.json ($promo_nature.rules[].partner · $partner.pos).
+            pt = []
+            for b in bills:
+                code, basis = partner_of_bill(b["camp"], b["channel"], b["pttt"],
+                                              b["guest"], b["commission"])
+                if code:
+                    pt.append({**b, "partner": code, "basis": basis, "bills": 1, "guests": b["guest"],
+                               "brand": BRAND_OF_STORE.get(b["store"], "OTHER")})
+            if pt:
+                out["fact_partner"] = [
+                    {"month": month, "store": r["store"], "brand": r["brand"], "partner": r["partner"],
+                     "basis": r["basis"], "camp": r["camp"] or None,
+                     **{k: round(r[k]) for k in ("bills", "guests", "gross", "disc",
+                                                 "voucher", "commission", "net")}}
+                    for r in sorted(agg(pt, ["store", "partner", "basis", "camp"],
+                                        sums=["bills", "guests", "gross", "disc", "voucher",
+                                              "commission", "net"], first=["brand"]),
+                                    key=lambda x: (x["partner"], x["store"], x["basis"], x["camp"] or ""))]
+                log("      Đối tác (Aggregator + Partner): %d hoá đơn · %s đ"
+                    % (len(pt), format(round(sum(b["net"] for b in pt)), ",").replace(",", ".")))
     else:
         warn("không thấy bảng kê hoá đơn của %s" % month)
 
@@ -1501,7 +1530,8 @@ PART_SOURCES = {k: srcs for k, _, _, srcs in BUILDERS}
 # thì số cũ vẫn nằm đó mãi — đúng kiểu "số đóng băng" đã làm 5 nguồn chết âm thầm.
 PART_SHEETS = {
     "tracking": ["store_month", "daily", "coverage", "dim_target"],
-    "pos": ["channel", "daypart", "identify", "nature", "fact_promo_day", "fact_lto_line", "recon"],
+    "pos": ["channel", "daypart", "identify", "nature", "fact_promo_day", "fact_lto_line",
+            "fact_partner", "recon"],
     "meta": ["ads_month", "ads_brand", "ads_objective", "ads_campaign_detail"],
     "google": ["ads_google", "gads_channel", "gads_kw"],
     "social": ["social_month"],
