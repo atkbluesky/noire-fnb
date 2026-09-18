@@ -55,7 +55,7 @@ Trước đây bước này làm tay nên hai bản dễ lệch — đó là m�
 | `cogs_cov` | array | G | độ phủ COGS theo tháng | D1 · M2 |
 | `cogs_flags` | array (top 12) | G | món có `% GIÁ VỐN` cao nhất | M2 |
 | `bom_stat` | object | G | rows · codes · over45 · **loss** · nocost | M2 · R1 |
-| `nature` | array | H | month × nature × **brand**: rev · disc · bills | M8 · R1 |
+| `nature` | array | H | month × nature × **brand**: rev · disc · bills | M7 · R1 |
 | `campaigns` | array (top 80) | H | name × nature × brand: rev · bills | M7 |
 | `staff` | array (top 40) | I | store × nhân viên: net · tc · guest · aov | M3 |
 | `zone` | array (top 40) | I | store × khu vực: net · tc | M3 |
@@ -100,7 +100,7 @@ Trước đây bước này làm tay nên hai bản dễ lệch — đó là m�
 | `crm_target` | §4 | month × kpi × target | *(chưa dùng)* |
 | `partners` | §5 | đối tác + kết quả voucher thật gắn vào | M10 |
 | `partner_camp` | §5 | mã CTKM ↔ Campaign ID iPOS | *(chưa dùng)* |
-| `pre_q3` | §6 | chương trình đề xuất: name · brand · kind · roi · nc | M7 |
+| `pre_q3` | §6 | chương trình đề xuất: name · brand · kind · roi · nc *(từ `pre_plan`)* | M7.1 |
 | `pre_stat` | §6 | n · **neg** · neg_nc · pos_nc | *(chưa dùng)* |
 | `system` | §7 | kiểm toán phân mảnh: total_py · total_loc · cache_mb · tools · dashboards · caches · dup_json | D2 |
 | `social.month` | §5b | month × platform × brand × page: followers · reach/views · engage · posts · **audience** · **unit** · **net_follow** · **er** · reach_rate · per_post · cpm | M6 |

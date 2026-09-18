@@ -309,7 +309,7 @@ export const CRMView: React.FC = () => {
           BÁN CHO AI, HỌ CÓ QUAY LẠI
         </span>
         <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
-          M9 · CRM · Tần Suất Khách &amp; Zalo OA
+          M8 · CRM · Tần Suất Khách &amp; Zalo OA
         </h2>
         <p className="text-xs text-brand-muted mt-1">
           Chỉ số sống còn của F&amp;B không chỉ nằm ở doanh thu một lần mà là tỷ lệ khách hàng trung thành quay lại.

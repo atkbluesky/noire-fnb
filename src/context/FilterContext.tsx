@@ -93,7 +93,30 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     perday: false,
   });
 
-  const [activeView, setActiveView] = useState<string>('m0');
+  const [activeView, setActiveViewState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '').trim();
+      if (hash) return hash;
+    }
+    return 'm0';
+  });
+
+  const setActiveView = (view: string) => {
+    setActiveViewState(view);
+    if (typeof window !== 'undefined' && window.location.hash !== `#${view}`) {
+      window.location.hash = view;
+    }
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').trim();
+      if (hash) setActiveViewState(hash);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isSidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const toggleSidebar = () => setSidebarOpen(prev => !prev);

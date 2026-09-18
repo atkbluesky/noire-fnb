@@ -8,13 +8,21 @@ import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
 import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../utils/formatters';
 import type { EChartsOption } from 'echarts';
+import { PromotionTabs } from '../components/common/PromotionTabs';
+import { CAMPAIGN } from '../data/campaign';
 
 export const PromotionView: React.FC = () => {
-  const { filters, brandMatches, selectedMonths, aggByMonth, theme } = useFilters();
+  const { filters, brandMatches, selectedMonths, aggByMonth, theme, setActiveView } = useFilters();
   const isDark = theme === 'dark';
 
   const ms = selectedMonths;
-  const NAT = ['COMMERCIAL', 'INTERNAL', 'PARTNER', 'LOYALTY'] as const;
+
+  /* Danh sách bản chất, nhãn, màu và THỨ TỰ đều đến từ data_contract.json →
+     $promo_nature, loader chuyển xuống thành HUB_DATA.nature_meta. Trước đây ba
+     thứ này được gõ cứng ngay tại đây và ở bốn file khác — thêm nhãn CARE phải
+     sửa năm chỗ, quên một chỗ là màn hình nuốt mất cả một nhóm chi phí. */
+  const NATURE_META = HUB_DATA.nature_meta ?? [];
+  const NAT = NATURE_META.map(n => n.code);
 
   /* ── Nền tảng trung gian: GrabFood · Dining City… ─────────────────────
      `sales` là doanh thu ghi nhận TRÊN NỀN TẢNG, không phải tiền về túi.
@@ -28,12 +36,15 @@ export const PromotionView: React.FC = () => {
     ? AGG.reduce((a, b) => a + (b.discount || 0) + (b.commission || 0) + (b.ads_spend || 0), 0)
     : null;
 
-  const natureColors: Record<string, string> = {
-    COMMERCIAL: '#22C55E',
-    INTERNAL: '#EF4444',
-    PARTNER: '#F59E0B',
-    LOYALTY: '#82846C',
-  };
+  const natureColors: Record<string, string> = Object.fromEntries(
+    NATURE_META.map(n => [n.code, n.color]),
+  );
+  const natureLabel: Record<string, string> = Object.fromEntries(
+    NATURE_META.map(n => [n.code, n.short]),
+  );
+  const natureBadge: Record<string, BadgeVariant> = Object.fromEntries(
+    NATURE_META.map(n => [n.code, n.badge as BadgeVariant]),
+  );
 
   const keepRow = (r: any) => ms.includes(r.month) && brandMatches(r.brand);
 
@@ -104,7 +115,7 @@ export const PromotionView: React.FC = () => {
       splitLine: { lineStyle: { color: '#1F1F26', type: 'dashed' } },
     },
     series: NAT.map(n => ({
-      name: n,
+      name: natureLabel[n] ?? n,
       type: 'bar' as const,
       stack: 'nature',
       data: ms.map(m => byMonthNat[m][n] || 0),
@@ -136,7 +147,7 @@ export const PromotionView: React.FC = () => {
         itemStyle: { borderRadius: 4, borderColor: isDark ? '#141417' : '#FFFFFF', borderWidth: 2 },
         label: { show: false },
         data: NAT.map(n => ({
-          name: n,
+          name: natureLabel[n] ?? n,
           value: natTotals[n].rev,
           itemStyle: { color: natureColors[n] },
         })),
@@ -144,27 +155,39 @@ export const PromotionView: React.FC = () => {
     ],
   };
 
-  // Top 25 Campaigns Table
-  const filteredCamp = (HUB_DATA.campaigns || []).filter(c => brandMatches(c.brand));
-  const aggregatedCamp: Record<string, { name: string; nature: string; rev: number; bills: number; brands: Set<string> }> = {};
-
-  filteredCamp.forEach(c => {
-    const k = `${c.name}|${c.nature}`;
-    aggregatedCamp[k] = aggregatedCamp[k] || {
-      name: c.name,
-      nature: c.nature,
-      rev: 0,
-      bills: 0,
-      brands: new Set(),
-    };
-    aggregatedCamp[k].rev += c.rev;
-    aggregatedCamp[k].bills += c.bills;
-    aggregatedCamp[k].brands.add(c.brand);
+  // Top 25 chương trình — CÙNG ĐỊNH NGHĨA với M7.2, theo tháng + brand đang lọc
+  const PM = (HUB_DATA.promo_month || []).filter(r => ms.includes(r.month) && brandMatches(r.brand));
+  const aggregatedCamp: Record<string, { name: string; nature: string; net: number; bills: number; cost: number; brands: Set<string> }> = {};
+  PM.forEach(r => {
+    const k = `${r.name}|${r.nature}`;
+    const x = (aggregatedCamp[k] ||= { name: r.name, nature: r.nature, net: 0, bills: 0, cost: 0, brands: new Set() });
+    x.net += r.net;
+    x.bills += r.bills;
+    x.cost += r.disc + r.voucher;
+    x.brands.add(r.brand);
   });
-
+  // nền so sánh: cả cửa hàng của đúng brand + tháng đang lọc
+  const storeBase = (brands: Set<string>) => {
+    let net = 0, tc = 0;
+    (HUB_DATA.store_month || []).forEach((r: any) => {
+      if (ms.includes(r.month) && brands.has(HUB_DATA.stores[r.store]?.brand)) { net += r.net; tc += r.tc; }
+    });
+    return { net, tc };
+  };
   const topCampaignList = Object.values(aggregatedCamp)
-    .sort((a, b) => b.rev - a.rev)
-    .slice(0, 25);
+    .sort((a, b) => b.net - a.net)
+    .slice(0, 25)
+    .map(x => ({ ...x, base: storeBase(x.brands) }));
+
+  /* Danh mục chương trình chung của cụm M7 (Campaign_Tracking · L0_input): tên CTKM trên POS
+     tra ngược ra chương trình, mã kế hoạch Pre-Analysis và trạng thái chấm ở M7.2. */
+  const CAMP_BY_ID = Object.fromEntries(CAMPAIGN.campaigns.map(c => [c.id, c]));
+  const LABEL_META = Object.fromEntries(CAMPAIGN.taxonomy.labels.map(l => [l.code, l]));
+  const campOf = (posName: string) => CAMP_BY_ID[CAMPAIGN.pos_map[posName.trim().toLowerCase()] ?? ''];
+  const cat = CAMPAIGN.campaigns.filter(c => !c.brand || c.brand === 'ALL' || brandMatches(c.brand));
+  const catPlan = (CAMPAIGN.plan || []).filter(p => !p.brand || brandMatches(p.brand));
+  const catLinked = cat.filter(c => c.source === 'PRE_POS').length;
+  const catPosOnly = cat.filter(c => c.source === 'POS' || c.source === 'REPORT').length;
 
   const topCampColumns: Column<typeof topCampaignList[0]>[] = [
     {
@@ -178,45 +201,83 @@ export const PromotionView: React.FC = () => {
       ),
     },
     {
-      key: 'nature',
-      header: 'Bản chất',
+      key: 'program',
+      header: 'Chương trình (M7.2)',
       render: row => {
-        const vMap: Record<string, BadgeVariant> = {
-          COMMERCIAL: 'nature-comm',
-          INTERNAL: 'nature-int',
-          PARTNER: 'nature-part',
-          LOYALTY: 'nature-loy',
-        };
-        return <StatusBadge label={row.nature} variant={vMap[row.nature] || 'neutral'} />;
+        const c = campOf(row.name);
+        if (!c) {
+          return (
+            <span className="text-[10px] text-brand-muted">
+              {row.nature === 'INTERNAL' ? 'ưu đãi nội bộ · không phải CT marketing' : 'chưa khai trong danh mục'}
+            </span>
+          );
+        }
+        const L = LABEL_META[c.label];
+        return (
+          <button className="text-left leading-tight" onClick={() => setActiveView('m72')} title="Mở M7.2">
+            <div className="text-[11px] font-semibold text-brand-text">
+              {c.pre_id && <span className="mr-1 font-mono text-brand-gold">{c.pre_id}</span>}{c.name}
+            </div>
+            <StatusBadge label={L?.label ?? c.label} variant={(L?.badge as BadgeVariant) ?? 'neutral'} />
+          </button>
+        );
       },
     },
     {
-      key: 'brands',
-      header: 'Brand áp dụng',
+      key: 'nature',
+      header: 'Bản chất',
+      render: row => {
+        return (
+          <StatusBadge
+            label={natureLabel[row.nature] ?? row.nature}
+            variant={natureBadge[row.nature] ?? 'neutral'}
+          />
+        );
+      },
+    },
+    {
+      key: 'net', header: 'Doanh thu CTKM', align: 'right',
       render: row => (
-        <span className="text-brand-muted text-[11px]">{Array.from(row.brands).join(', ')}</span>
+        <div className="text-right font-mono leading-tight">
+          <div className="font-bold text-brand-goldLight">{formatVND(row.net)}</div>
+          <div className="text-[10px] text-brand-muted">
+            {row.base.net ? formatPercent(row.net / row.base.net, 1) : '—'} DT {Array.from(row.brands).join('·')}
+          </div>
+        </div>
       ),
     },
     {
-      key: 'rev',
-      header: 'Doanh thu gắn CTKM',
-      align: 'right',
-      render: row => <span className="font-mono font-bold text-brand-goldLight">{formatVND(row.rev)}</span>,
-    },
-    {
-      key: 'bills',
-      header: 'Hoá đơn',
-      align: 'right',
-      render: row => <span className="font-mono">{formatNumber(row.bills)}</span>,
-    },
-    {
-      key: 'aov',
-      header: 'DT / Hoá đơn',
-      align: 'right',
+      key: 'bills', header: 'Hoá đơn', align: 'right',
       render: row => (
-        <span className="font-mono">
-          {row.bills > 0 ? formatNumber(Math.round(row.rev / row.bills)) + ' đ' : '—'}
-        </span>
+        <div className="text-right font-mono leading-tight">
+          <div>{formatNumber(row.bills)}</div>
+          <div className="text-[10px] text-brand-muted">{row.base.tc ? formatPercent(row.bills / row.base.tc, 1) : '—'} HĐ cửa hàng</div>
+        </div>
+      ),
+    },
+    {
+      key: 'aov', header: 'AOV', align: 'right',
+      render: row => {
+        const aov = row.bills ? row.net / row.bills : 0;
+        const sa = row.base.tc ? row.base.net / row.base.tc : 0;
+        const d = sa ? aov / sa - 1 : null;
+        return (
+          <div className="text-right font-mono leading-tight">
+            <div>{row.bills ? formatVND(aov) : '—'}</div>
+            <div className={`text-[10px] ${d === null ? 'text-brand-muted' : d >= 0 ? 'text-status-ok' : 'text-status-bad'}`}>
+              {d === null ? '—' : `${d >= 0 ? '+' : ''}${formatPercent(d, 0)} so AOV CH`}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'cost', header: 'Chi phí ưu đãi', align: 'right',
+      render: row => (
+        <div className="text-right font-mono leading-tight">
+          <div>{formatVND(row.cost)}</div>
+          <div className="text-[10px] text-brand-muted">{row.net ? formatPercent(row.cost / row.net, 1) : '—'} DT CTKM</div>
+        </div>
       ),
     },
   ];
@@ -252,38 +313,68 @@ export const PromotionView: React.FC = () => {
 
   return (
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
+      <PromotionTabs />
+
       {/* Header */}
       <div>
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
           CHI PHÍ ƯU ĐÃI THẬT SỰ ĐI ĐÂU
         </span>
         <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
-          M8 · Khuyến Mãi &amp; 4 Bản Chất Chi Phí
+          M7 · Promotion — Tổng Quan &amp; {NAT.length} Bản Chất Chi Phí
         </h2>
         <p className="text-xs text-brand-muted mt-1">
-          Phân định rõ ràng giữa Marketing thương mại, Ưu đãi nội bộ ban lãnh đạo, Đối tác và Khách hàng thân thiết.
+          Phân định theo AI TRẢ TIỀN: {NATURE_META.map(n => n.label).join(' · ')}.
         </p>
+      </div>
+
+      {/* Danh mục chương trình — master chung M7 · M7.1 · M7.2 */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <MetricCard label="Danh mục chương trình" subLabel="Campaign_Tracking · L0_input" value={cat.length} unit="CT"
+          customDeltaText="một danh mục cho M7 · M7.1 · M7.2" />
+        <MetricCard label="Kế hoạch Pre-Analysis" subLabel="M7.1" value={catPlan.length} unit="CT"
+          customDeltaText={`${catPlan.filter(p => p.label && p.label !== 'KE_HOACH').length} đã chạy trên POS`} />
+        <MetricCard label="Khớp kế hoạch ↔ POS" subLabel="chấm theo kế hoạch ở M7.2" value={catLinked} unit="CT"
+          customDeltaText="đã soát brand · kỳ · ưu đãi" />
+        <MetricCard label="Chỉ có trên POS" subLabel="chưa có kế hoạch" value={catPosOnly} unit="CT"
+          variant={catPosOnly ? 'warning' : 'default'}
+          customDeltaText={`${formatPercent(CAMPAIGN.coverage.mapped_pct ?? 0)} doanh thu CTKM đã gắn chương trình`} />
       </div>
 
       {/* Nature Rule Banner */}
       <div className="rounded-xl border border-brand-border bg-brand-surface p-4 text-xs text-brand-muted space-y-1">
-        <p>
-          <b>Bốn bản chất — Tuyệt đối không gộp chung:</b> Chỉ có nhóm <b>COMMERCIAL</b> mới là Marketing thật sự.
-          Nhóm <b>INTERNAL</b> (ưu đãi cổ đông/quản lý) là khoản mục P&amp;L nội bộ. Nhóm <b>PARTNER</b> ràng buộc hợp
-          đồng đối tác và <b>LOYALTY</b> thuộc về retention. Gộp chung sẽ làm sai lệch nghiêm trọng đánh giá ROI.
+        <p className="mb-2">
+          <b>{NAT.length} bản chất — tuyệt đối không gộp chung.</b> Gộp lại là mọi con số ROI marketing đều sai,
+          và sai theo hướng làm marketing trông tệ hơn thực tế.
         </p>
+        <ul className="space-y-1">
+          {NATURE_META.map(n => (
+            <li key={n.code} className="flex gap-2">
+              <span
+                className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: n.color }}
+              />
+              <span>
+                <b style={{ color: n.color }}>{n.label}</b>
+                <span className="text-brand-muted"> — {n.desc}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* 4 Natures KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {NAT.map(n => (
+      {/* Thẻ KPI — một thẻ mỗi bản chất, số cột theo số bản chất đang khai */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        {NATURE_META.map(n => (
           <MetricCard
-            key={n}
-            label={n}
-            subLabel="Doanh thu HĐ có gắn CTKM"
-            value={formatVND(natTotals[n].rev)}
-            customDeltaText={`${formatPercent(natTotals[n].rev / totalNatRev)} · ${formatNumber(natTotals[n].bills)} HĐ`}
-            variant={n === 'INTERNAL' ? 'warning' : 'default'}
+            key={n.code}
+            label={n.short}
+            subLabel="Tổng tiền cả hoá đơn gắn CTKM"
+            value={formatVND(natTotals[n.code].rev)}
+            customDeltaText={`${totalPeriodNet ? formatPercent(natTotals[n.code].rev / totalPeriodNet) : '—'} DT brand · ${formatNumber(natTotals[n.code].bills)} HĐ · ${formatPercent(natTotals[n.code].rev / totalNatRev)} tổng CTKM`}
+            /* Cảnh báo cam cho nhóm KHÔNG vào ROI marketing — `roi` khai ở hợp đồng,
+               không đoán theo tên nhãn. */
+            variant={n.roi === 'none' ? 'warning' : 'default'}
           />
         ))}
       </div>
@@ -301,8 +392,8 @@ export const PromotionView: React.FC = () => {
         </Card>
 
         <Card
-          title="Tỷ Trọng 4 Bản Chất"
-          description={`Luỹ kế kỳ chọn (Tổng chạm: ${formatPercent(totalNatRev / totalPeriodNet)} Net Sales)`}
+          title={`Tỷ Trọng ${NAT.length} Bản Chất`}
+          description={`Luỹ kế kỳ chọn · tổng doanh thu CTKM ${formatVND(totalNatRev)} = ${formatPercent(totalNatRev / totalPeriodNet)} DT brand ${formatVND(totalPeriodNet)}`}
           chip="TỶ TRỌNG"
         >
           <EChartWrapper option={donutOption} height={280} />
@@ -311,15 +402,15 @@ export const PromotionView: React.FC = () => {
 
       {/* Top 25 Campaigns Table */}
       <Card
-        title="Top 25 Chương Trình Khuyến Mãi Theo Doanh Thu Chạm"
-        description="Sắp xếp theo quy mô doanh thu hoá đơn có áp dụng chương trình"
+        title="Top 25 Chương Trình Theo Doanh Thu CTKM"
+        description="Doanh thu CTKM = Tổng tiền CẢ hoá đơn gắn tên CTKM (cùng định nghĩa M7.2) · dòng dưới = % so với cả cửa hàng của brand trong tháng đang lọc · chi phí ưu đãi = giảm giá + phiếu GG"
         chip="TOP CAMPAIGNS"
       >
         <DataTable
           columns={topCampColumns}
           data={topCampaignList}
           searchPlaceholder="Tìm chương trình khuyến mãi..."
-          searchKeys={['name', 'nature']}
+          searchKeys={['name', 'nature'] as any}
           pageSize={10}
           exportFilename="Noire_Top_25_Promotions"
         />

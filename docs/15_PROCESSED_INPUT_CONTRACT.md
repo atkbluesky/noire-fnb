@@ -91,7 +91,7 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 
 | Sheet | Cột | Khoá tự nhiên | Loader tự tính |
 |---|---|---|---|
-| `dim_store` | **code** · **brand** · **tier** · **name** · open | code | — |
+| `dim_store` | **code** · **brand** · **tier** · **name** · open · aliases · alias_re | code | — |
 | `dim_target` | **month** · **store** · **target** | month + store | — |
 | `dim_cogs` | _brand_ · **ma** · name · cogs · pct | brand + ma | — |
 | `budget_brand` | _brand_ · budget · plan | brand | — |
@@ -105,8 +105,13 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 | `system_tools` | _root_ · files · loc · dirs | root | — |
 | `system_dashboards` | _path_ · _name_ · kb | path + name | — |
 | `system_caches` | _path_ · files · mb | path | — |
+| `dim_campaign` | **campaign_id** · **name** · content · hypothesis · objective · lever_primary · lever_secondary · **name_pos** · **brand** · store_scope · nature · mechanic · window · cadence · recur_dow · **date_from** · date_to · discount_rule · cost_owner · noire_share · ads_match · owner · status · pre_id · source · match_note | campaign_id | — |
+| `campaign_target` | **campaign_id** · base_method · tgt_net · tgt_tc · tgt_aov · tgt_ta · tgt_incr_net · exp_redeem_rate · exp_disc_per_bill · cm_pct · submitted · note | campaign_id | — |
+| `campaign_cost` | **campaign_id** · **cost_type** · planned · actual · note | campaign_id + cost_type | — |
+| `campaign_control` | **campaign_id** · **control_store** | campaign_id + control_store | — |
+| `campaign_item` | **campaign_id** · _item_code_ · item_name · note | campaign_id + item_code | — |
 
-- **`dim_store`** — Danh mục cửa hàng. tier ∈ flagship|core|satellite|popup · brand ∈ NCB|NDC|NJFB|OTHER
+- **`dim_store`** — Danh mục cửa hàng. tier ∈ flagship|core|satellite|popup · brand ∈ NCB|NDC|NJFB|OTHER. `aliases` = MỌI cách viết tên cửa hàng trong ô 'tên cửa hàng' của file export, ngăn bằng `|` — khớp CHÍNH XÁC hoặc chuỗi con, dùng cho store_code(). `alias_re` = regex nhận cửa hàng từ CHUỖI TỰ DO (tên chiến dịch ads), dùng cho store_in_text(). Cả hai là nguồn DUY NHẤT — không hard-code bản đồ cửa hàng ở bất kỳ file .py nào.
 - **`dim_target`** — Target doanh thu theo cửa hàng × tháng. Được phép khai cả tháng tương lai.
 - **`dim_cogs`** — Bảng giá vốn theo mã món — nuôi cảnh báo món có giá vốn bất thường.
 - **`budget_brand`** — Ngân sách marketing theo brand. Các cột tên YYYY-MM là ngân sách từng tháng.
@@ -115,11 +120,16 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 - **`budget_store`** — Phân bổ ngân sách quảng cáo theo cửa hàng.
 - **`partners`** — Danh mục đối tác. issued/used/rev/disc là luỹ kế toàn chương trình.
 - **`partner_camp`** — Cầu nối đối tác ↔ Campaign ID iPOS — để truy vết doanh thu về đúng đối tác.
-- **`pre_analytics`** — Chương trình đề xuất cho kỳ tới (M7 Pre-Analytics).
+- **`pre_analytics`** — CŨ — không còn dùng. Thay bằng `pre_plan` (03_campaign.xlsx) đọc thẳng file Pre-Analysis S16 qua tools/pre_analysis.py.
 - **`crm_target`** — KPI CRM cam kết theo tháng. kpi ∈ member|oa
 - **`system_tools`** — Kiểm toán phân mảnh hệ thống — nuôi tab D2.
 - **`system_dashboards`** — Danh sách dashboard HTML rời rạc — nuôi tab D2.
 - **`system_caches`** — Cache trùng lặp — nuôi tab D2.
+- **`dim_campaign`** — M7.2 · danh mục chương trình (MASTER chung của M7 · M7.1 · M7.2). Sinh từ L0_input/03_MARKETING/07_Campaign_Tracking bởi tools/campaign.py — KHÔNG sửa tay ở data_input. `pre_id` nối sang kế hoạch Pre-Analysis (S16).
+- **`campaign_target`** — M7.2 · target nộp TRƯỚC khi chạy. `submitted` = ngày nộp; nộp sau date_from thì target bị đánh dấu không kiểm chứng.
+- **`campaign_cost`** — M7.2 · chi phí theo loại. DISCOUNT/VOUCHER tự lấy từ POS.
+- **`campaign_control`** — M7.2 · cửa hàng đối chứng. Bỏ trống = cửa hàng chính cùng brand không chạy chương trình.
+- **`campaign_item`** — M7.2 · chương trình chạy theo MÓN (LTO) ↔ mã món trên POS. Có dòng ở đây thì doanh thu CTKM = Tổng tiền các hoá đơn chứa món đó (gồm món khác), không theo tên CTKM.
 
 ### TẦNG B · `monthly/YYYY-MM.xlsx` — SỰ THẬT THEO THÁNG
 
@@ -136,6 +146,8 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `channel` | _month_ · _channel_ · net · tc | month + channel | — |
 | `identify` | **month** · **bills** · **id_bills** · items | month | rate |
 | `nature` | **month** · **nature** · **brand** · **rev** · disc · bills | month + nature + brand | — |
+| `fact_promo_day` | **date** · **store** · brand · **name_pos** · nature · bills · guests · gross · disc · voucher · net · rev · items | date + store + name_pos | — |
+| `fact_lto_line` | **date** · **store** · brand · **bill** · **item_code** · item_base · item_name · group · qty · line_rev · bill_net · bill_gross · bill_disc · bill_voucher · bill_guests · bill_camp | date + store + bill + item_code | — |
 | `recon` | **month** · **store** · **net** · net_item · net_bill · tc · tc_bill · guest · guest_bill | month + store | d_bill |
 | `cogs_cov` | _month_ · rev · rev_cov · sku · sku_cov | month | pct |
 | `ads_month` | _month_ · spend · reach · impr · n | month | — |
@@ -166,7 +178,9 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 - **`daypart`** — Doanh thu theo khung giờ trong ngày.
 - **`channel`** — Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…).
 - **`identify`** — Tỷ lệ hoá đơn nhận diện được khách — trần trên của mọi phép quy doanh thu về khách. `items` = số dòng món đã xử lý trong tháng, nuôi thẻ đếm ở tab D1.
-- **`nature`** — Bản chất chương trình khuyến mãi. nature ∈ COMMERCIAL|INTERNAL|PARTNER|LOYALTY
+- **`nature`** — Bản chất chương trình khuyến mãi. nature ∈ COMMERCIAL|INTERNAL|PARTNER|LOYALTY. `rev` = doanh thu chạm (cấp dòng món, THÀNH TIỀN) · `disc` = chiết khấu thật (cấp HOÁ ĐƠN) — hai base khác nhau, xem fact_promo_day.
+- **`fact_promo_day`** — CTKM theo NGÀY × cửa hàng — nền của M7.2. `disc` = Giảm giá + Chiết khấu ở cấp HOÁ ĐƠN · `voucher` = Phiếu GG, để riêng vì voucher là phương thức thanh toán chứ không phải giảm giá. `net` = Tổng tiền (cùng base với daily/store_month — kỳ nền của M7.2 lấy từ đó). `rev`/`items` từ lane dòng món theo THÀNH TIỀN — base khác `net`, đừng cộng chung. `name_pos` giữ nguyên văn, chuẩn hoá ở dim_campaign.
+- **`fact_lto_line`** — Dòng món thuộc nhóm LTO (Nhóm món chứa $campaign.lto_group_rx) gắn TỔNG hoá đơn chứa nó — nền doanh thu CTKM của chương trình LTO chạy theo món. `bill_net` = Tổng tiền cả hoá đơn (gồm món khác) · `line_rev` = Thành tiền riêng dòng LTO. Một hoá đơn có nhiều dòng LTO → cộng bill_net theo hoá đơn DUY NHẤT.
 - **`recon`** — Đối soát ba tầng: bảng tháng ↔ bảng món ↔ bảng hoá đơn.
 - **`cogs_cov`** — Độ phủ giá vốn theo tháng.
 - **`ads_month`** — Meta Ads tổng theo tháng. CHỈ cộng dòng cấp campaign — cộng cả adset là nhân đôi.
@@ -207,6 +221,15 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 | `campaigns` | _name_ · _nature_ · _brand_ · rev · bills | name + nature + brand | — |
 | `voucher_prog` | _prog_ · _brand_ · issued · used · rev · disc | prog + brand | rate |
 | `social_format` | _platform_ · _format_ · posts · reach · views · engage | platform + format | er |
+| `campaign_result` | **campaign_id** · demo · label · measurable · reason · days_run · period_from · period_to · stores · overlap · ramp_warning · base_to · base_from · control_stores · control_factor · act_net · act_tc · act_guest · exp_net · exp_tc · exp_guest · incr_net · lift_pct · d_tc · d_aov · d_party · d_ta · d_mix · driver · lever_note · promo_bills · promo_guests · promo_net · cost_discount · cost_voucher · cost_manual · cost_ads_auto · cost_total · cost_planned_used · cm_pct · flow_through · roi · breakeven_lift · target_verified · att_net · att_tc · att_aov · att_ta · att_incr · eval_scope · eval_note · promo_disc · promo_voucher · noire_share · plan_sales · base_sales · plan_tc · act_sales · promo_share · store_incr_net · store_lift_pct · store_flow_through · cost_promo_actual · cost_fixed_actual · breakeven_sales · objective · cadence · recur_dow · plan_group · plan_primary · promo_gross · promo_sales · store_net · revenue_basis · lto_qty · lto_rev · lto_items · store_tc | campaign_id | — |
+| `campaign_daily` | **campaign_id** · **date** · in_period · act_net · exp_net · promo_bills | campaign_id + date | — |
+| `campaign_unmapped` | **name_pos** · nature · _brand_ · first · last · days · bills · net · disc | name_pos + brand | — |
+| `campaign_issue` | **campaign_id** · **field** · level · **msg** | campaign_id + field | — |
+| `pre_plan` | **pre_id** · campaign_id · **name** · brand · kind · plan_status · est_tc · base_gross · growth · target_gross · incr_gross · target_aov · cogs_pct · cm_pct · promo_cost · fixed_cost · total_cost · net_contrib · roi · breakeven_incr · assessment · driver · source_file · label · period_from · period_to · act_net · act_tc · incr_net · cost_total · flow_through · roi_actual · act_promo_net · act_promo_bills | pre_id | — |
+| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id | program_id + scenario | — |
+| `pre_eval_scheme` | **program_id** · _scheme_id_ · scheme_name · condition · benefit · bills · bill_value · discount · rev_after_disc · ta · cogs · cogs_pct · margin_pct · merch_cost · promo_cost · basis_note | program_id + scheme_id | — |
+| `pre_eval_fin` | **program_id** · _scenario_ · _row_ · label · base · without · with_promo · total · cannib_pct · incr · incr_pct | program_id + scenario + row | — |
+| `pre_eval_base` | **program_id** · _store_ · base_from · base_to · base_days · net_incl · tc · guests · aov_incl · ta_incl · tc_day · net_day · tax_factor · disc_share · note | program_id + store | — |
 
 - **`product`** — Bảng món LUỸ KẾ toàn kỳ. Nếu cắt top-N thì bắt buộc khai tổng thật ở _stats.
 - **`category`** — Cơ cấu theo Loại món — tính trên TOÀN BỘ SKU, không chỉ phần đã cắt.
@@ -220,6 +243,15 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 - **`campaigns`** — Chương trình khuyến mãi luỹ kế toàn kỳ.
 - **`voucher_prog`** — Chương trình voucher luỹ kế toàn kỳ.
 - **`social_format`** — Hiệu quả theo định dạng bài đăng — chỉ cần khi social_post đã cắt top-N.
+- **`campaign_result`** — M7.2 · kết quả đo mỗi chương trình (tools/campaign.py tính).
+- **`campaign_daily`** — M7.2 · chuỗi ngày thực tế vs kỳ vọng để vẽ pre/during/post.
+- **`campaign_unmapped`** — M7.2 · tên CTKM trên POS (COMMERCIAL/LOYALTY/PARTNER) chưa gắn vào chương trình nào.
+- **`campaign_issue`** — M7.2 · lỗi khai báo trong file Campaign Tracking.
+- **`pre_plan`** — M7.1 · kế hoạch từng chương trình đọc thẳng file Pre-Analysis (S16) + kết quả thực tế nối qua campaign_id (M7.2). Sinh bởi tools/campaign.py.
+- **`pre_eval`** — M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py.
+- **`pre_eval_scheme`** — M7.1 · Program's details — kinh tế học 1 hoá đơn theo từng scheme (Cơ sở).
+- **`pre_eval_fin`** — M7.1 · Financial evaluation (khung PP672): hàng Gross/Discount/Net/COGS/GP × cột Base · Không KM · Có KM · Tổng · %Cannib · Tăng thêm.
+- **`pre_eval_base`** — M7.1 · dữ liệu nền tự lấy từ POS cho từng chương trình × cửa hàng.
 
 ### TẦNG D · `_stats` — đặt ở file nào cũng được
 

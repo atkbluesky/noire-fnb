@@ -9,7 +9,7 @@ interface MetricCardProps {
   unit?: string;
   prevValue?: number | null;
   curRawValue?: number | null;
-  customDeltaText?: string;
+  customDeltaText?: React.ReactNode;
   isFlagged?: boolean;
   flagMessage?: string;
   icon?: React.ReactNode;
@@ -59,8 +59,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         {icon && <div className="text-brand-muted/70">{icon}</div>}
       </div>
 
-      <div className="my-2.5 flex items-baseline gap-1.5">
-        <span className="text-2xl font-extrabold tracking-tight text-brand-text font-display">
+      <div className="my-2.5 flex items-baseline gap-1.5 flex-wrap">
+        <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-brand-text font-display break-words">
           {value}
         </span>
         {unit && (
@@ -70,9 +70,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         )}
       </div>
 
-      <div className="flex items-center justify-between text-[11px]">
+      <div className="flex flex-wrap items-center justify-between gap-1 text-[11px]">
         {customDeltaText ? (
-          <div className="flex items-center gap-1 font-medium text-brand-muted">
+          <div className="flex flex-wrap items-center gap-1 font-medium text-brand-muted">
             <span>{customDeltaText}</span>
           </div>
         ) : delta && delta.val != null ? (

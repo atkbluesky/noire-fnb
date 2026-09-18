@@ -1,4 +1,4 @@
-# DANH SÁCH MODULE — 15 TAB
+# DANH SÁCH MODULE — 16 TAB
 
 Mỗi file mô tả một tab theo cùng một cấu trúc:
 **chuỗi trace (nguồn → tầng → khoá) · màn hình hiển thị gì · chỉ số & công thức · bộ lọc ·
@@ -15,11 +15,12 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | M4 | [`M4_Ngan_sach.md`](M4_Ngan_sach.md) | Ngân sách Marketing Q3 | P4 | ✅ |
 | M5 | [`M5_Digital_Ads.md`](M5_Digital_Ads.md) | Digital Ads (Meta + Google) | P7 | ⚠️ thiếu Zalo |
 | M6 | [`M6_Social_Media.md`](M6_Social_Media.md) | Social Media (Fanpage + TikTok) | P7.5 | 🟡 chờ `social_month` |
-| M7 | [`M7_Pre_Analytics.md`](M7_Pre_Analytics.md) | Pre-Analytics — Plan | P5.5 | ⚠️ Growth% gõ tay |
-| M8 | [`M8_Khuyen_mai.md`](M8_Khuyen_mai.md) | Khuyến mãi & 4 Bản chất | P4 | ✅ *(chưa có Lift)* |
-| M9 | [`M9_CRM.md`](M9_CRM.md) | CRM · Voucher · Zalo OA | P6 | ⚠️ nhận diện 8,6% |
-| M10 | [`M10_Partnership.md`](M10_Partnership.md) | Partnership | P7 | ⚠️ thiếu aggregator |
-| M11 | [`M11_Booking.md`](M11_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
+| **M7** | [`M7_Promotion.md`](M7_Promotion.md) | **Promotion** — mục mẹ · tổng quan 5 bản chất chi phí ưu đãi | P4 | ✅ |
+| └ M7.1 | [`M7_1_Pre_Analytics.md`](M7_1_Pre_Analytics.md) | Pre-Analytics · Plan — kế hoạch Pre-Analysis + thực tế | P5.5 | ✅ nối 5/25 CT với POS |
+| └ M7.2 | [`M7_2_Promotion_Tracking.md`](M7_2_Promotion_Tracking.md) | Promotion Tracking — chấm từng chương trình | P5.5 | 🟡 chờ team brand điền ô CAM |
+| M8 | [`M8_CRM.md`](M8_CRM.md) | CRM · Voucher · Zalo OA | P6 | ⚠️ nhận diện 8,6% |
+| M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership | P7 | ⚠️ thiếu aggregator |
+| M10 | [`M10_Booking.md`](M10_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
 | R1 | [`R1_Insight.md`](R1_Insight.md) | Insight & Cảnh báo | P9 | ✅ |
 
 ---

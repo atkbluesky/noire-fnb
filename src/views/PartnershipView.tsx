@@ -228,7 +228,7 @@ export const PartnershipView: React.FC = () => {
           ĐỐI TÁC MANG LẠI GÌ
         </span>
         <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
-          M10 · Hợp Tác Đối Tác &amp; Kênh Voucher
+          M9 · Hợp Tác Đối Tác &amp; Kênh Voucher
         </h2>
         <p className="text-xs text-brand-muted mt-1">
           Theo dõi {PT.length} đối tác chiến lược và tỷ lệ quy đổi doanh thu từ các chương trình phát mã ưu đãi.

@@ -34,11 +34,12 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | **M4** | Ngân sách Marketing Q3 | `m4` | `BudgetView.tsx` | mkt §1c | `MKT.budget` | P4 | ✅ chỉ Q3 |
 | **M5** | Digital Ads (Meta + Google) | `m5` | `DigitalAdsView.tsx` | mkt §1·§1b | `MKT.ads_* · gads · gads_stat · budget` + `store_month · stores` | P7 | ⚠️ **thiếu Zalo** |
 | **M6** | Social Media (Fanpage + TikTok) | `m6` | `SocialView.tsx` | loader §5b | `MKT.social.*` + `store_month · identify` | P7.5 | 🟡 chờ `social_month` |
-| **M7** | Pre-Analytics — Plan | `m7` | `PreAnalyticsView.tsx` | mkt §6 | `MKT.pre_q3` | P5.5 | ⚠️ Growth% gõ tay |
-| **M8** | Khuyến mãi & 4 Bản chất | `m8` | `PromotionView.tsx` | hub H | `nature · campaigns` | P4 | ✅ *(chưa có Lift)* |
-| **M9** | CRM · Voucher · Zalo OA | `m9` | `CRMView.tsx` | hub K + mkt §2·§3·§4 | `identify · repeat · repeat_stat` + `MKT.oa · voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
-| **M10** | Partnership | `m10` | `PartnershipView.tsx` | mkt §5·§2 | `MKT.partners · voucher_prog` | P7 | ⚠️ thiếu aggregator |
-| **M11** | Booking & Sự kiện | `m11` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
+| **M7** | **Promotion** *(mục mẹ)* | `m7` | `PromotionView.tsx` | hub H + campaign | `nature · campaigns` + `CAMPAIGN.pos_map · plan` | P4 | ✅ |
+| └ **M7.1** | Pre-Analytics · Plan | `m71` | `PreAnalyticsView.tsx` | campaign | `CAMPAIGN.plan` *(pre_plan ← S16)* | P5.5 | ✅ |
+| └ **M7.2** | Promotion Tracking | `m72` | `CampaignTrackingView.tsx` | campaign | `CAMPAIGN.campaigns · daily · issues` | P5.5 | 🟡 chờ ô CAM |
+| **M8** | CRM · Voucher · Zalo OA | `m8` | `CRMView.tsx` | hub K + mkt §2·§3·§4 | `identify · repeat · repeat_stat` + `MKT.oa · voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
+| **M9** | Partnership | `m9` | `PartnershipView.tsx` | mkt §5·§2 | `MKT.partners · voucher_prog` | P7 | ⚠️ thiếu aggregator |
+| **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
 | **R1** | Insight & Cảnh báo | `r1` | `InsightsView.tsx` | tổng hợp | `store_month · nature · product_stat · identify · bom_stat · meta · stores` + `MKT.budget · gads_stat · voucher_join` | P9 | ✅ |
 
 ---
@@ -47,7 +48,7 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 
 Đọc theo cột để biết *“nếu tháng này thiếu file X thì tab nào rỗng”*.
 
-| Nguồn L0 | D1 | D2 | M0 | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 | M9 | M10 | M11 | R1 |
+| Nguồn L0 | D1 | D2 | M0 | M1 | M2 | M3 | M4 | M5 | M6 | M7.1 | M7·M7.2 | M8 | M9 | M10 | R1 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | S01 POS item | ● | | | ● | ● | | | | | | ● | | | | ● |
 | S02 POS bill | ● | | ● | ● | | ● | | ● | | | | ● | | | ● |
@@ -65,7 +66,8 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | S14 KPI CRM | | | | | | | | | | | | ○ | | | |
 | S15 partnership | | | | | | | | | | | | | ● | | |
 | S16 pre-analytics | | | | | | | | | | ● | | | | | ● |
-| S17 LTO actual | | | | | | | | | | | ○ | | | | |
+| S17 LTO actual | | | | | | | | | | | ● | | | | |
+| S23 Campaign Tracking *(danh mục chương trình — master cụm M7)* | | | | | | | | | | ● | ● | | | | |
 | S18 social *(Meta Business Suite + TikTok Analytics)* | | | | | | | | | ● | | | | | | ● |
 
 ● đang dùng · ○ đã nạp nhưng chưa có màn hình
@@ -100,8 +102,9 @@ mỗi module ghi rõ ngay trên thanh lọc phần nào lọc được. Khai bá
 |---|---|---|---|
 | M4 Ngân sách | tầng Brand MKT · bảng cửa hàng | ngân sách Extra · bảng kênh ads | *chỉ Q3/2026 (T7·8·9)* |
 | M5 Digital Ads | chi tiêu Meta · bảng chiến dịch | — | |
-| M6 Pre-Analytics | toàn bộ danh sách | — | *chỉ Q3/2026* |
-| M7 Khuyến mãi | cả bốn bản chất chi phí | — | |
+| M7 Promotion | cả năm bản chất chi phí · danh mục chương trình | — | |
+| M7.1 Pre-Analytics | danh sách kế hoạch | — | *kế hoạch Q3/2026; thực tế theo kỳ chạy* |
+| M7.2 Promotion Tracking | chương trình theo brand | chương trình `ALL` luôn hiện | |
 | M8 CRM | voucher *(theo Nhà hàng sử dụng)* | tỷ lệ nhận diện · Zalo OA | *số toàn chuỗi* |
 | M9 Partnership | danh mục đối tác · voucher đối tác | — | |
 | M10 Booking | — | toàn bộ | *lead hiện chủ yếu NDC* |

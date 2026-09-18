@@ -9,6 +9,7 @@ import {
   Share2,
   LineChart,
   Tag,
+  Target,
   Users,
   Handshake,
   CalendarCheck,
@@ -27,6 +28,8 @@ export interface NavItem {
   icon: React.ReactNode;
   status: 'ok' | 'warning' | 'bad';
   statusText: string;
+  /** Mục con: id của mục mẹ — hiển thị thụt vào dưới mục mẹ (vd M7.1 · M7.2 dưới M7). */
+  parent?: string;
 }
 
 export interface NavGroup {
@@ -108,41 +111,53 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         status: SOCIAL_READY ? 'ok' : 'warning',
         statusText: SOCIAL_READY ? 'Kênh sở hữu' : 'Chờ số',
       },
+      /* M7 PROMOTION — mục mẹ + 2 mục con, cùng MỘT danh mục chương trình
+         (L0_input/03_MARKETING/07_Campaign_Tracking) nối kế hoạch Pre-Analysis ↔ POS. */
       {
         id: 'm7',
         code: 'M7',
-        title: 'Pre-Analytics — Plan',
+        title: 'Promotion',
+        icon: <Tag className="h-4 w-4" />,
+        status: 'ok',
+        statusText: 'Tổng quan',
+      },
+      {
+        id: 'm71',
+        code: 'M7.1',
+        title: 'Pre-Analytics · Plan',
         icon: <LineChart className="h-4 w-4" />,
         status: 'warning',
-        statusText: 'Dự báo',
+        statusText: 'Kế hoạch',
+        parent: 'm7',
+      },
+      {
+        id: 'm72',
+        code: 'M7.2',
+        title: 'Promotion Tracking',
+        icon: <Target className="h-4 w-4" />,
+        status: 'warning',
+        statusText: 'Thực tế',
+        parent: 'm7',
       },
       {
         id: 'm8',
         code: 'M8',
-        title: 'Promotion',
-        icon: <Tag className="h-4 w-4" />,
-        status: 'ok',
-        statusText: 'Gắn món',
-      },
-      {
-        id: 'm9',
-        code: 'M9',
         title: 'CRM · Voucher · Zalo OA',
         icon: <Users className="h-4 w-4" />,
         status: 'ok',
         statusText: 'iPOS Log',
       },
       {
-        id: 'm10',
-        code: 'M10',
+        id: 'm9',
+        code: 'M9',
         title: 'Partnership',
         icon: <Handshake className="h-4 w-4" />,
         status: 'warning',
         statusText: 'Đối tác',
       },
       {
-        id: 'm11',
-        code: 'M11',
+        id: 'm10',
+        code: 'M10',
         title: 'Booking & Sự kiện',
         icon: <CalendarCheck className="h-4 w-4" />,
         status: 'ok',
@@ -247,8 +262,13 @@ export const Sidebar: React.FC = () => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveView(item.id)}
-                    className={`group flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-all duration-150 ${isActive
+                    onClick={() => {
+                      setActiveView(item.id);
+                      setSidebarOpen(false);
+                    }}
+                    className={`group flex w-full items-center justify-between rounded-lg py-2 text-left text-xs transition-all duration-150 ${item.parent
+                      ? 'pl-7 pr-2.5 relative before:absolute before:left-4 before:top-0 before:bottom-0 before:w-px before:bg-brand-border'
+                      : 'px-2.5'} ${isActive
                       ? 'bg-brand-card text-brand-goldLight font-semibold border-l-2 border-brand-gold shadow-sm'
                       : 'text-brand-muted hover:bg-brand-card/60 hover:text-brand-text'
                       }`}

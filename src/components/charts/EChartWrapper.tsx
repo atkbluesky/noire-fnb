@@ -9,6 +9,7 @@ import {
   LegendComponent,
   VisualMapComponent,
   MarkLineComponent,
+  MarkAreaComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts';
@@ -21,7 +22,7 @@ import { useFilters } from '../../context/FilterContext';
 echarts.use([
   BarChart, LineChart, PieChart, ScatterChart, HeatmapChart,
   GridComponent, TooltipComponent, AxisPointerComponent,
-  LegendComponent, VisualMapComponent, MarkLineComponent,
+  LegendComponent, VisualMapComponent, MarkLineComponent, MarkAreaComponent,
   CanvasRenderer,
 ]);
 
@@ -159,10 +160,12 @@ export const EChartWrapper: React.FC<EChartWrapperProps> = ({
 
   // Apply default luxury theme configurations based on active mode
   const mergedOption: EChartsOption = {
+    ...option,
     backgroundColor: 'transparent',
     textStyle: {
       fontFamily: "'Plus Jakarta Sans', 'Montserrat', sans-serif",
       color: labelColor,
+      ...(option.textStyle || {}),
     },
     tooltip: {
       trigger: 'axis',
@@ -177,11 +180,11 @@ export const EChartWrapper: React.FC<EChartWrapperProps> = ({
         fontSize: 12,
       },
       padding: [8, 12],
-      ...option.tooltip,
+      ...(Array.isArray(option.tooltip) ? {} : option.tooltip || {}),
     },
     legend: option.legend ? {
       textStyle: { color: labelColor, fontSize: 11 },
-      ...option.legend,
+      ...(Array.isArray(option.legend) ? {} : option.legend || {}),
     } : option.legend,
     grid: {
       top: 35,
@@ -189,25 +192,40 @@ export const EChartWrapper: React.FC<EChartWrapperProps> = ({
       bottom: 30,
       left: 55,
       containLabel: true,
-      ...option.grid,
+      ...(Array.isArray(option.grid) ? {} : option.grid || {}),
     },
-    ...option,
     xAxis: formatAxisTheme(option.xAxis),
     yAxis: formatAxisTheme(option.yAxis),
     series: formatSeriesTheme(option.series),
     visualMap: option.visualMap ? formatVisualMapTheme(option.visualMap) : undefined,
   };
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleResize = () => {
-      chartRef.current?.getEchartsInstance().resize();
+      try {
+        chartRef.current?.getEchartsInstance()?.resize();
+      } catch {}
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    let ro: ResizeObserver | null = null;
+    if (containerRef.current && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        handleResize();
+      });
+      ro.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      ro?.disconnect();
+    };
   }, []);
 
   return (
-    <div className={`relative w-full ${className}`} style={{ height }}>
+    <div ref={containerRef} className={`relative w-full ${className}`} style={{ height }}>
       <ReactEChartsCore
         ref={chartRef}
         echarts={echarts}

@@ -129,14 +129,14 @@ export const InsightsView: React.FC = () => {
       id: 'ins-2',
       title: `Chỉ ${formatPercent(idRate)} hoá đơn nhận diện được khách hàng`,
       desc: `Mọi chỉ số CRM, tỷ lệ quay lại và attribution quảng cáo đều bị chặn ở đây. Đây là lý do chính đáng để hệ thống không sử dụng chỉ số ROAS.`,
-      module: 'M9 · CRM',
+      module: 'M8 · CRM',
       level: 'bad',
     },
     {
       id: 'ins-3',
       title: `Chiết khấu INTERNAL chiếm ${formatPercent(internalShare)} doanh thu gắn chương trình`,
       desc: `Ưu đãi nội bộ không phải là hoạt động marketing. Nếu gộp chung khi báo cáo, hiệu quả marketing sẽ bị bóp méo nghiêm trọng theo hướng bất lợi.`,
-      module: 'M8 · Khuyến mãi',
+      module: 'M7 · Promotion',
       level: 'warning',
     },
     {
@@ -198,7 +198,7 @@ export const InsightsView: React.FC = () => {
       id: 'ins-9',
       title: `Tỷ lệ khớp Voucher ↔ Hoá đơn đạt ${formatPercent(MKT_DATA.voucher_join?.rate || 0.998)}`,
       desc: `Trong khi attribution ads bị chặn ở 8,6% nhận diện thì voucher lại khớp gần như tuyệt đối với hoá đơn POS. Mọi chương trình phát mã đều đo được doanh thu thật đáng tin cậy.`,
-      module: 'M9 · Voucher',
+      module: 'M8 · Voucher',
       level: 'ok',
     },
   ];
