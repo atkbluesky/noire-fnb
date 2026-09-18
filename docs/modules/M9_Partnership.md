@@ -1,90 +1,120 @@
-# M9 · PARTNERSHIP
+# M9 · PARTNERSHIP — ĐỐI TÁC = AGGREGATOR + PARTNER
 
 | | |
 |---|---|
-| **Câu hỏi** | Hợp tác đối tác mang lại gì? |
+| **Câu hỏi** | Đối tác mang lại bao nhiêu khách, bao nhiêu doanh thu, tốn bao nhiêu? |
 | **`activeView`** | `m9` |
-| **View** | `src/views/PartnershipView.tsx` |
-| **ETL** | `tools/build_month.py` — `read_partnership()` |
-| **Nguồn** | `01_master.xlsx`: `partners` · `partner_camp`<br>`monthly/YYYY-MM.xlsx`: `partner_month` |
-| **Giai đoạn** | P7 |
-| **Trạng thái** | ⚠️ **Danh mục đủ · số dùng voucher chưa đo được** |
+| **View** | `src/views/PartnershipView.tsx` · phép gộp dùng chung `src/utils/partner.ts` |
+| **ETL** | `tools/build_month.py` — `read_pos()` → **`fact_partner`** · `read_promotion()` → `aggregator` · `read_partnership()` → `partner_month`<br>`build_mkt.py` → `partners` · `partner_camp` · `partner_plan` |
+| **Loader** | `scripts/build-data.mjs` — `buildPartner()` → `partner_fact` · `partners` · `partner_recon` · `partner_month` · `partner_plan` |
+| **Định nghĩa** | `data_contract.json` → **`$partner`** (kênh · cách nhận) · **`$promo_nature.rules[].partner`** (tên CTKM → Mã ĐT) |
+| **Nguồn** | L0 S02 bảng kê hoá đơn POS · S15 danh mục đối tác · S19 báo cáo Promotion-AGG · S21 eVoucher đối tác |
+| **Trạng thái** | ✅ đo trên hoá đơn thật từ 18/09/2026 · M7 và M9 cùng một bảng số (QA #17) |
 
 ---
 
-## 1. Chuỗi trace
+## 0. Thống nhất định nghĩa *(18/09/2026)*
+
+**Đối tác = hai kênh.** Dùng chung cho thẻ bản chất “Đối tác” ở M7 và toàn bộ M9.
+
+| Kênh | Là gì | Đối tác trong danh mục |
+|---|---|---|
+| **AGGREGATOR** | Nền tảng trung gian bán hộ / đặt bàn hộ, thu hoa hồng hoặc phí | P03 Grab Dine Out · P11 GrabFood (giao hàng) · P02 Dining City |
+| **PARTNER** | Đối tác mang khách tới bằng ưu đãi riêng | Ngân hàng: P01 Techcombank × OneU · P05 Shinhan · P04 HDBank — Ví & e-voucher: P06 Urbox · P07 Betakee — Tổ chức thẻ: P08 Visa |
+
+Kênh của từng đối tác khai ở **cột `Kênh`** của danh mục (L0 `05_DOI_TAC/01_Danh_Muc/00_Danh_Muc_Partnership.xlsx`).
+Tên CTKM nào thuộc đối tác nào khai ở **`data_contract.json → $promo_nature.rules[].partner`** — cùng bảng luật phân
+loại bản chất, nên một tên không thể là “Đối tác” ở M7 mà lại không có chủ ở M9.
+
+> ⚠️ **SonKim Group và Cư dân & toà nhà KHÔNG phải partnership** *(xác nhận 18/09/2026)* — hai chương trình này
+> không có hợp đồng đối tác thật (không tách phần NOIRE/đối tác trả), mà là khuyến mãi NOIRE chủ động chạy nhắm
+> vào hệ sinh thái SonKim/cư dân. Đã chuyển từ bản chất **PARTNER** sang **COMMERCIAL** — không còn hiện ở M9,
+> đọc ở **M7 · Top chương trình** như mọi campaign thương mại khác. Guard `nhân viên sonkim` / `tòa nhà` vẫn giữ
+> trong luật để không rơi nhầm vào INTERNAL.
+
+## 1. Mỗi hoá đơn thuộc MỘT đối tác — nhận theo thứ tự
 
 ```
-S15 Partnership
-   ├─ sheet "1. Đối Tác"  → partners[]     (code · name · kind · brand · start · end · status · media)
-   └─ sheet "2. Mã CTKM"  → partner_camp[] (code ↔ Campaign ID iPOS ↔ cơ chế ↔ mức giảm)  ← CHƯA DÙNG
-S11 voucher → lọc theo Campaign ID iPOS của từng đối tác
-   → gắn ngược vào partners[]: issued · used · use_rate · rev · disc
-      → PartnershipView
+bảng kê hoá đơn POS (S02) ─┬─ ① Tên CTKM khớp luật PARTNER      → Mã ĐT theo luật              basis = CTKM
+                           ├─ ② Nguồn đơn là nền tảng (GRAB*)   → P03 Grab Dine Out / P11      basis = NGUON
+                           └─ ③ PTTT trả qua ví nền tảng        → P03 / P11                    basis = PTTT
+                                (GRAB DEBIT, thu ngân chưa chọn Nguồn)
+báo cáo Promotion-AGG (S19) ── ④ nền tảng KHÔNG có dấu vết POS → P02 Dining City              basis = REPORT
+                                (chỉ dùng khi POS không có hoá đơn của đối tác trong tháng)
+        │
+        ▼  fact_partner (tháng × cửa hàng × đối tác × basis × tên CTKM)
+        ▼  loader buildPartner() → partner_fact
+        ├─► M7  thẻ “Đối tác” + khối “Đối tác = Aggregator + Partner”
+        └─► M9  toàn bộ màn hình
 ```
 
-**Cơ chế gắn kết quả:** mỗi đối tác có một hoặc nhiều `Campaign ID iPOS` khai trong sheet “2. Mã CTKM”.
-ETL lọc `fact_voucher` theo các ID đó rồi gắn ngược kết quả thật vào dòng đối tác.
-Đây là lý do voucher là kênh đo được — xem [`M8_CRM.md`](M8_CRM.md) §4.
+**Grab Dine Out ≠ GrabFood giao hàng.** Hoá đơn Grab có **Hoa hồng ghi trên POS** (≈25%) hoặc **không có khách ngồi**
+là đơn giao hàng (P11, chủ yếu NCB). Grab Dine Out (P03) là khách ăn tại quán NDC · NJFB, trả qua Grab, POS không ghi
+hoa hồng — phí 13,8% (CMS theo báo cáo team) được **ước tính** từ `% Hoa hồng đối tác` của danh mục, đánh dấu `*`.
 
-## 2. Màn hình hiển thị gì
+**Hoá đơn Grab có gắn CTKM khác** (vd. quà sinh nhật) vẫn tính cho Grab. Loader rút hoá đơn đó khỏi bản chất của CTKM
+kia để tổng các bản chất ở M7 không đếm đôi (`$partner.overlap`).
 
-| Khối | Nội dung |
+## 2. Cột số — cùng base với M7 · M7.2
+
+| Cột | Định nghĩa |
 |---|---|
-| Thẻ KPI | Đối Tác Danh Mục · Tổng Mã Voucher Phát · Tỷ Lệ Sử Dụng Mã · Giá Trị Media Quy Đổi |
-| **Danh mục hợp tác đối tác chiến lược** | |
-| **Tỷ lệ sử dụng kho mã theo từng chương trình** | |
+| **Doanh thu** | Σ `Tổng tiền` cả hoá đơn (gồm VAT/phí, cùng base Net Sales của `store_month`) · dòng dưới = % DT chuỗi kỳ lọc |
+| **Hoá đơn · khách** | số hoá đơn · Σ Số khách |
+| **AOV** | Doanh thu ÷ hoá đơn · ± % so AOV chuỗi |
+| **Ưu đãi NOIRE chịu** | (`Giảm giá` + `Chiết khấu` + `Phiếu GG`) × `% Noire chịu chiết khấu` của danh mục |
+| **Phí nền tảng** | cột `Hoa hồng` trên POS; POS không ghi → `% Hoa hồng đối tác` × (trước giảm giá − giảm giá), có `*`; Dining City lấy phí ở báo cáo |
+| **Chi phí** | Ưu đãi NOIRE chịu + phí nền tảng · % trên doanh thu đối tác |
+| **Kế hoạch DT · % đạt** | sheet `3. Kế Hoạch` của danh mục (tháng × đối tác) |
+| **Nguồn số** | CTKM · Nguồn · PTTT · Báo cáo team (ước tính) |
+| **Cần xử lý** | cờ tự sinh khi danh mục lệch hoá đơn thật (xem §4) |
 
-## 3. Phát hiện đáng chú ý
+## 3. Số liệu T1–T8/2026 *(dựng 18/09/2026, sau khi bỏ SonKim/Cư dân khỏi M9)*
 
-**5 đối tác trong danh mục. TCB × OneU phát 3.000 mã, mới dùng 5 = 0,2%.**
+| Kênh | Doanh thu | Hoá đơn |
+|---|---:|---:|
+| Aggregator | 197,3 tr | 249 |
+| Partner | 84,9 tr | 353 |
+| **Đối tác** | **282,2 tr = 0,8% DT chuỗi** | **602** |
 
-Con số này là ví dụ điển hình cho việc *phát mã không đồng nghĩa với có khách*.
-Tỷ lệ sử dụng kho mã nên là chỉ số chính khi đàm phán gia hạn hợp tác,
-chứ không phải số mã đã phát.
+Chi phí đối tác 37,6 tr = **13,3% doanh thu đối tác** (ưu đãi 10,4 tr + phí nền tảng 27,2 tr, phần lớn ước tính).
+Kiểm tra chéo: thẻ “Đối tác” M7 = tổng M9 tới từng đồng ở cả 9 tháng (QA #17).
 
-## 4. Bộ lọc
+**Đối soát báo cáo team T8/2026 — Grab Dine Out:** báo cáo ghi 81.118.000 đ · 70 đơn = POS theo Nguồn **khớp tới đồng**
+(NJFB The Crest 49.942.000 · NDC 31.176.000 sau giảm 1.570.000). Nhưng POS còn **45 hoá đơn · 63,8 tr** trả qua
+`GRAB DEBIT` mà thu ngân không chọn Nguồn (NJFB SSV 24 · NJFB Crest 9 · NDC 12) — báo cáo team đang **bỏ sót**.
+Grab Dine Out T8 thật: 115 đơn · 144,9 tr (trước VAT/phí) · 164,4 tr Tổng tiền.
 
-Brand · Từ · Đến. Lọc brand áp cho danh mục đối tác và voucher đối tác.
+**Kho mã Techcombank × OneU T8:** phát 4.500 mã, dùng 9 hoá đơn = **0,2%**. Tên CTKM có 3 biến thể theo brand
+(`Noire -` · `Dining -` · `JFB -`) — luật nhận cả ba.
 
-## 5. ⛔ Đang thiếu gì
+## 4. Cờ “Cần xử lý” — danh mục lệch thực tế
+
+| Đối tác | Cờ | Việc cần làm |
+|---|---|---|
+| Grab Dine Out · Dining City | Khai “Chuẩn bị” nhưng đã phát sinh từ 2026-07 / 2026-08 | sửa `Trạng thái` → Đang chạy |
+| Techcombank × OneU | Phát sinh ở brand chưa khai: NDC, NJFB | sửa `Brand áp dụng` |
+| Shinhan | Không phát sinh từ 2026-05 | xác nhận còn hiệu lực không, hoặc thu ngân đã bỏ chọn CTKM |
+| HDBank · Urbox · Betakee · Visa | Chưa phát sinh hoá đơn · (Urbox/Betakee/Visa) chưa khai kỳ hợp đồng | bổ sung kỳ, cơ chế; khi chạy nhớ tạo CTKM trên iPOS có tên đối tác |
+
+**Visa:** chỉ tính CTKM mang tên Visa. PTTT `VISA` (~1,5 tỷ/tháng) là cách khách trả tiền, không phải chương trình đối tác.
+
+## 5. Bộ lọc
+
+Brand · Từ · Đến — áp cho mọi khối. Danh mục hiện đối tác áp dụng cho brand đang lọc hoặc đã phát sinh ở brand đó.
+
+## 6. Thêm một đối tác mới
+
+1. Danh mục L0 S15: thêm dòng `Mã ĐT` mới, điền `Kênh`, `Loại`, kỳ, `% Noire chịu`, `% Hoa hồng`.
+2. `data_contract.json → $promo_nature.rules`: thêm một luật `{"nature": "PARTNER", "partner": "<Mã ĐT>", "re": [...]}`
+   **trước** luật `P00` chung. Nền tảng mới không gắn CTKM (ShopeeFood…) → thêm vào `$partner.pos`.
+3. `python update.py --force` (luật đổi thì phải dựng lại lane POS) → QA #16 · #17 phải xanh.
+
+## 7. Còn thiếu
 
 | Thiếu | Hệ quả |
 |---|---|
-| **Export Grab Dine Out · Dining City** | Phần aggregator hiện chỉ có số team điền tay, không đối soát được |
-| `partner_camp` chưa lên màn hình | Người đọc không thấy được cách kết quả được gắn cho đối tác |
-| Chưa tách phần NOIRE trả vs phần nền tảng trả | Quy ước `PARTNER` yêu cầu ghi rõ hai phần này |
-
-**Ngưỡng độ sâu cho aggregator:** kênh chiếm dưới 1% doanh thu chuỗi chỉ báo cáo 3 dòng,
-không dựng slide riêng. Grab hiện 0,2% — nên M8 tập trung vào đối tác voucher, không vào aggregator.
-
-## 6. Checklist nâng cấp
-
-- [x] ~~Dùng `partner_camp`~~ ✅ bảng mã CTKM ↔ Campaign ID iPOS
-- [ ] **Tách phần NOIRE trả vs phần nền tảng trả** cho mỗi chương trình `PARTNER`
-- [ ] **Xin cổng đối tác hoặc file đối soát** của Grab Dine Out / Dining City
-- [ ] Thêm chỉ số **giá trị media quy đổi ÷ chi phí ưu đãi** — đo hiệu quả trao đổi
-- [ ] Cảnh báo đối tác sắp hết hạn *(đã có `end` trong `partners`)*
-- [ ] Cảnh báo kho mã tỷ lệ dùng < 5% — như TCB × OneU
-
----
-
-## `partner_month` — lát cắt theo tháng
-
-Sheet `partners` giữ con số **luỹ kế cả chương trình**, nên thanh lọc Từ–Đến không có tác
-dụng với nó. `partner_month` là lát cắt từng tháng để bộ lọc hoạt động thật.
-
-Nguồn hiện tại: `05 Data Raw/Partnership/eVoucher … _TN.YYYY.xlsx`. **Những file này chỉ là
-DANH SÁCH MÃ ĐÃ PHÁT** — một cột `Mã khuyến mãi`, không có lượt dùng, không có doanh thu.
-Vì vậy ETL chỉ điền `issued`; `used` · `rev` · `disc` để **trống**.
-
-T8/2026: Techcombank Reward × OneU phát 4.500 mã (3.000 NCB + 1.500 JFB).
-
-**Cột "Tỷ lệ dùng" hiện `—`, không phải `0,0%`.** Bản trước hiện `0,0%` vì `n0(null) = 0`, và
-`0,0%` đọc ra là "chương trình thất bại hoàn toàn" — một kết luận sai khi chưa hề đo.
-
-Để đo được lượt dùng, cần export log voucher iPOS của đúng Campaign ID khai ở `partner_camp`
-(Techcombank = `337795`).
-
-**Lưu ý đọc file:** hai file eVoucher này không khai `dimension` trong XML, nên `openpyxl` ở
-chế độ `read_only` báo 1 dòng. ETL gọi `ws.reset_dimensions()` trước khi đọc.
+| Hoa hồng Grab Dine Out thật (hoá đơn Grab gửi) | phí đang ước tính 13,8% |
+| Dining City không có dấu vết trên POS | số lấy từ báo cáo team, không đối soát được — nên tạo CTKM `DINING CITY` trên iPOS |
+| % NOIRE chịu của từng đối tác ngân hàng | đang khai 100% cho mọi đối tác |
+| Kế hoạch cho Shinhan | cột “Kế hoạch DT” hiện `—` |

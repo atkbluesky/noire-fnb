@@ -247,6 +247,14 @@ NATURE_META: list = _NAT["labels"]
 NATURES = [n["code"] for n in NATURE_META]
 NATURE_DEFAULT = _NAT["default"]
 _NATURE_RULES = [(r["nature"], [re.compile(p) for p in r["re"]]) for r in _NAT["rules"]]
+# Luật PARTNER mang thêm Mã ĐT (danh mục đối tác L0 S15) — cùng bảng luật, cùng thứ tự.
+_PARTNER_RULES = [(r["nature"], r.get("partner"), [re.compile(p) for p in r["re"]])
+                  for r in _NAT["rules"]]
+PARTNER = CONTRACT["$partner"]
+PARTNER_OTHER = PARTNER["other"]["code"]
+_PARTNER_POS = [(p["partner"], p.get("delivery_partner"),
+                 [re.compile(x) for x in p.get("source_re", [])],
+                 [re.compile(x) for x in p.get("pttt_re", [])]) for p in PARTNER["pos"]]
 
 
 def classify_nature(name):
@@ -261,6 +269,38 @@ def classify_nature(name):
         if any(p.search(n) for p in pats):
             return nat
     return NATURE_DEFAULT
+
+
+def classify_partner(name):
+    """Tên CTKM → Mã ĐT nếu CTKM thuộc bản chất PARTNER, ngược lại None.
+
+    Đi đúng bảng luật của classify_nature (khớp đầu tiên thắng), nên một tên
+    không bao giờ là PARTNER ở M7 mà lại không có đối tác ở M9."""
+    n = norm(name)
+    if not n:
+        return None
+    for nat, code, pats in _PARTNER_RULES:
+        if any(p.search(n) for p in pats):
+            return (code or PARTNER_OTHER) if nat == "PARTNER" else None
+    return None
+
+
+def partner_of_bill(camp, source, pttt, guests, commission):
+    """Một hoá đơn POS → (Mã ĐT, basis) hoặc (None, None). Thứ tự: CTKM → Nguồn → PTTT.
+
+    Hoá đơn nền tảng có Hoa hồng trên POS hoặc không có khách ngồi là đơn GIAO HÀNG
+    (GrabFood) — tách khỏi Grab Dine Out theo `delivery_partner` của hợp đồng."""
+    code = classify_partner(camp)
+    if code:
+        return code, "CTKM"
+    s, p = norm(source), norm(pttt)
+    for part, deliv, src_re, pay_re in _PARTNER_POS:
+        basis = ("NGUON" if s and any(x.search(s) for x in src_re)
+                 else "PTTT" if p and any(x.search(p) for x in pay_re) else None)
+        if basis:
+            delivery = (commission or 0) > 0 or not guests
+            return (deliv if delivery and deliv else part), basis
+    return None, None
 
 
 # ══════════════════════════════════════════════════════════════════════

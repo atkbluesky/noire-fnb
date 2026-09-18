@@ -168,10 +168,10 @@ SOURCES = [
     ),
     dict(
         id="S19_aggregator", group="05_DOI_TAC", dir="05_DOI_TAC/03_Aggregator",
-        name="Nền tảng trung gian (GrabFood · Dining City)", cadence="monthly", since="2026-08", required=False,
+        name="Aggregator — báo cáo nền tảng trung gian (Grab Dine Out · GrabFood · Dining City)", cadence="monthly", since="2026-08", required=False,
         pattern="*Promotion AGG*.xlsx", month_regex=r"T(\d{1,2})-(\d{4})",
         example="NOIRE_Bao_Cao_Promotion AGG - MKT_T8-2026.xlsx",
-        how="Báo cáo tổng hợp chương trình chạy trên GrabFood · Dining City (doanh thu, đơn, giảm giá, hoa hồng). Tên có `T<tháng>-<năm>`.",
+        how="Báo cáo team về kênh Aggregator (doanh thu, đơn, giảm giá, hoa hồng). Tên có `T<tháng>-<năm>`. Grab đã đo thẳng trên POS (Nguồn/PTTT) nên số Grab ở đây chỉ để đối soát; Dining City không có dấu vết trên POS nên lấy số từ báo cáo này.",
         produces=["aggregator", "budget_nonmedia"], via="tools/build_month.py", modules=["M7", "M9"],
     ),
     dict(
@@ -222,8 +222,8 @@ SOURCES = [
         id="S15_partnership", group="05_DOI_TAC", dir="05_DOI_TAC/01_Danh_Muc",
         name="Danh mục đối tác", cadence="config", required=False,
         pattern="00_Danh_Muc_Partnership*.xlsx", example="00_Danh_Muc_Partnership.xlsx",
-        how="Thêm dòng khi có đối tác mới.",
-        produces=["partners", "partner_camp"], via="build_mkt.py", modules=["M9"],
+        how="Đối tác = Aggregator + Partner. Thêm dòng khi có đối tác mới, điền cột `Kênh` (AGGREGATOR/PARTNER). Luật nhận hoá đơn POS của đối tác khai ở data_contract.json ($promo_nature.rules[].partner = Mã ĐT).",
+        produces=["partners", "partner_camp", "partner_plan"], via="build_mkt.py", modules=["M7", "M9"],
     ),
     dict(
         id="S21_evoucher", group="05_DOI_TAC", dir="05_DOI_TAC/02_eVoucher_Doi_Tac",

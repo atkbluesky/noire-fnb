@@ -214,8 +214,10 @@ const NATURE_META = CONTRACT.$promo_nature.labels;
 const NATURES = new Set(NATURE_META.map((n) => n.code));
 const NATURE_RULES = CONTRACT.$promo_nature.rules.map((r) => ({
   nature: r.nature,
+  partner: r.partner ?? null,
   re: r.re.map((x) => new RegExp(x)),
 }));
+const PARTNER = CONTRACT.$partner;
 
 /** Chuan hoa ten de so khop — phai TRUNG KHOP monthly_lib.norm() ben Python. */
 function normName(v) {
@@ -238,6 +240,16 @@ function classifyNature(name) {
   if (!n) return null;
   for (const r of NATURE_RULES) if (r.re.some((x) => x.test(n))) return r.nature;
   return CONTRACT.$promo_nature.default;
+}
+
+/** Ten CTKM -> Ma DT neu CTKM thuoc ban chat PARTNER. Cung bang luat voi monthly_lib.classify_partner(). */
+function classifyPartner(name) {
+  const n = normName(name);
+  if (!n) return null;
+  for (const r of NATURE_RULES) {
+    if (r.re.some((x) => x.test(n))) return r.nature === 'PARTNER' ? (r.partner ?? PARTNER.other.code) : null;
+  }
+  return null;
 }
 const TIERS = new Set(['flagship', 'core', 'satellite', 'popup']);
 
@@ -383,6 +395,27 @@ function validate(tables, stores, over, scan = {}) {
   add(16, 'Phân loại CTKM: lane Python ≡ lane JS', mismatch.length === 0,
       mismatch.length ? mismatch.slice(0, 4).join(' · ')
                       : `${seenName.size} tên CTKM cho cùng kết quả`);
+
+  /* ⓱ Đối tác: phần nhận qua tên CTKM của fact_partner PHẢI bằng đúng bản chất PARTNER
+     của fact_promo_day, từng tháng. Hai bảng dựng cùng lúc từ cùng bảng kê, cùng luật —
+     lệch là có hoá đơn đối tác bị rơi (hoặc bị tính hai lần) giữa M7 và M9. */
+  const fpt = T(tables, 'fact_partner');
+  if (fpt.length) {
+    const a = {}, b = {};
+    for (const r of fpt) if (r.basis === 'CTKM') a[r.month] = n0(a[r.month]) + n0(r.net);
+    for (const r of fpd) if (classifyNature(r.name_pos) === 'PARTNER' && n0(r.bills)) {
+      const m = String(r.date).slice(0, 7);
+      b[m] = n0(b[m]) + n0(r.net);
+    }
+    const ms = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
+    const bad = ms.filter((m) => Math.abs(n0(a[m]) - n0(b[m])) > 1);
+    const badName = [...new Set(fpt.filter((r) => r.basis === 'CTKM' && r.camp && classifyPartner(r.camp) !== r.partner)
+      .map((r) => `${r.camp}: py=${r.partner} js=${classifyPartner(r.camp)}`))];
+    add(17, 'Đối tác: fact_partner (CTKM) ≡ bản chất PARTNER · Python ≡ JS', !bad.length && !badName.length,
+        bad.length ? bad.slice(0, 3).map((m) => `${m}: ${Math.round(n0(a[m]))} ≠ ${Math.round(n0(b[m]))}`).join(' · ')
+          : badName.length ? badName.slice(0, 3).join(' · ')
+          : `${ms.length} tháng khớp từng đồng · ${new Set(fpt.map((r) => r.partner)).size} đối tác`);
+  }
 
   return { qa, covPct };
 }
@@ -586,6 +619,20 @@ function buildHub(tables, over, scan) {
         const k = `${month}|${nature}|${r.brand}`;
         const x = (m[k] ||= { month, nature, brand: r.brand, rev: 0, disc: 0, bills: 0, basis: 'BILL' });
         x.rev += n0(r.net); x.disc += n0(r.disc) + n0(r.voucher); x.bills += n0(r.bills);
+      }
+      /* Đối tác = Aggregator + Partner: hoá đơn nền tảng KHÔNG gắn CTKM đối tác (Nguồn/PTTT Grab ·
+         báo cáo Dining City) cộng vào PARTNER để thẻ M7 bằng đúng tổng M9. Hoá đơn Grab có gắn CTKM
+         khác (quà sinh nhật…) được RÚT khỏi bản chất của CTKM đó — một hoá đơn chỉ nằm ở một ô. */
+      for (const r of buildPartner(tables).rows) {
+        if (r.basis === 'CTKM') continue;
+        const move = (nat, sign) => {
+          const k = `${r.month}|${nat}|${r.brand}`;
+          const x = (m[k] ||= { month: r.month, nature: nat, brand: r.brand, rev: 0, disc: 0, bills: 0, basis: 'BILL' });
+          x.rev += sign * r.net; x.disc += sign * (r.disc + r.voucher); x.bills += sign * r.bills;
+        };
+        move('PARTNER', 1);
+        const from = r.camp ? classifyNature(r.camp) : null;
+        if (from && from !== 'PARTNER') move(from, -1);
       }
       const legacy = T(tables, 'nature').filter((r) => !billMonths.has(r.month)).map((r) => ({
         month: r.month, nature: r.nature, brand: r.brand, rev: n0(r.rev), disc: n0(r.disc), bills: n0(r.bills), basis: 'ITEM',
@@ -819,19 +866,7 @@ function buildMkt(tables, over) {
   budget.gap = budget.total !== null && budget.plan !== null ? n0(budget.plan) - n0(budget.total) : null;
 
   const partnerCamp = T(tables, 'partner_camp');
-  const partner_month = T(tables, 'partner_month').map((r) => ({
-    month: r.month, code: r.code,
-    issued: num(r.issued), used: num(r.used), rev: num(r.rev), disc: num(r.disc),
-    // Chưa đo lượt dùng ≠ dùng 0 lượt. File eVoucher của đối tác chỉ là danh sách
-    // mã ĐÃ PHÁT; hiện '0,0%' là kết luận chương trình thất bại khi chưa có số.
-    use_rate: num(r.used) === null ? null : div(n0(r.used), n0(r.issued)),
-  })).sort((a, b) => String(a.month).localeCompare(String(b.month)));
-  const partners = T(tables, 'partners').map((r) => ({
-    ...r,
-    media: n0(r.media), issued: n0(r.issued), used: n0(r.used),
-    rev: n0(r.rev), disc: n0(r.disc),
-    use_rate: div(n0(r.used), n0(r.issued)),
-  }));
+  const PTN = buildPartner(tables);
 
   // Kế hoạch khuyến mãi đọc từ `pre_plan` (tools/campaign.py đọc thẳng file Pre-Analysis S16).
   // Sheet `pre_analytics` trong 01_master chép tay — không dùng nữa, tránh hai nguồn lệch nhau.
@@ -931,9 +966,13 @@ function buildMkt(tables, over) {
     crm_target: T(tables, 'crm_target').map((r) => ({
       month: r.month, kpi: r.kpi, target: n0(r.target),
     })),
-    partners,
+    partner_meta: PTN.meta,
+    partners: PTN.partners,
+    partner_fact: PTN.rows,
+    partner_recon: PTN.recon,
     partner_camp: partnerCamp,
-    partner_month,
+    partner_month: PTN.month,
+    partner_plan: PTN.plan,
     aggregator: AGG.rows,
     aggregator_stat: AGG.stat,
     pre_q3,
@@ -944,6 +983,136 @@ function buildMkt(tables, over) {
     }, over.pre_stat),
     system,
     social,
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   5b. ĐỐI TÁC = AGGREGATOR + PARTNER  (nuôi M7 thẻ "Đối tác" và M9)
+   ════════════════════════════════════════════════════════════════════
+
+   Một bảng duy nhất `partner_fact` cho cả hai màn hình → số M7 và M9 luôn bằng nhau.
+   Nguồn: fact_partner (bảng kê hoá đơn POS — mỗi hoá đơn thuộc MỘT đối tác, nhận theo
+   tên CTKM → Nguồn → PTTT) + báo cáo Promotion-AGG cho nền tảng KHÔNG để dấu vết trên
+   POS (Dining City). Số báo cáo chỉ dùng khi POS không có hoá đơn của đối tác trong tháng.
+
+   `net`  = Tổng tiền cả hoá đơn (cùng base Net Sales của store_month)
+   `cost` = (giảm giá + phiếu GG) × % NOIRE chịu — chi phí ưu đãi NOIRE gánh
+   `fee`  = phí nền tảng: cột Hoa hồng trên POS; POS không ghi thì ƯỚC TÍNH bằng
+            % hoa hồng ở danh mục × (trước giảm giá − giảm giá) và gắn cờ fee_est.
+*/
+function buildPartner(tables) {
+  const cat = T(tables, 'partners').filter((r) => r.code);
+  const CAT = Object.fromEntries(cat.map((p) => [p.code, p]));
+  const other = PARTNER.other;
+  const chanOf = (code) =>
+    String(CAT[code]?.channel || (code === other.code ? other.channel : PARTNER.default_channel)).toUpperCase();
+  const share = (code) => num(CAT[code]?.noire_share) ?? 1;
+  const brandOfCat = (code) => {
+    const b = String(CAT[code]?.brand ?? '').trim();
+    return /^[A-Z]{2,5}$/.test(b) ? b : null;
+  };
+
+  const pos = T(tables, 'fact_partner').map((r) => {
+    const gross = n0(r.gross), disc = n0(r.disc), voucher = n0(r.voucher), comm = n0(r.commission);
+    const pct = num(CAT[r.partner]?.commission_pct);
+    const est = !comm && pct ? pct * Math.max(gross - disc, 0) : null;
+    return {
+      month: r.month, partner: r.partner, channel: chanOf(r.partner), brand: r.brand ?? null, store: r.store ?? null,
+      basis: r.basis, camp: r.camp ?? null, bills: n0(r.bills), guests: n0(r.guests),
+      gross, disc, voucher, net: n0(r.net),
+      cost: (disc + voucher) * share(r.partner), fee: comm || est || 0, fee_est: !comm && !!est,
+    };
+  });
+  const posKey = new Set(pos.map((r) => `${r.month}|${r.partner}`));
+
+  // Báo cáo team (S19): dùng cho nền tảng không có trên POS · và để đối soát số team khai.
+  const rmap = Object.fromEntries(Object.entries(PARTNER.report_map ?? {})
+    .filter(([k]) => !k.startsWith('$')).map(([k, v]) => [normName(k), v]));
+  const repRows = T(tables, 'aggregator').map((r) => ({ ...r, code: rmap[normName(r.platform)] ?? null }))
+    .filter((r) => r.code);
+  const report = repRows.filter((r) => !posKey.has(`${r.month}|${r.code}`)).map((r) => ({
+    month: r.month, partner: r.code, channel: chanOf(r.code), brand: r.brand ?? brandOfCat(r.code),
+    store: r.store ?? null, basis: 'REPORT', camp: null, bills: n0(r.orders), guests: n0(r.guests),
+    gross: n0(r.sales), disc: n0(r.discount), voucher: 0, net: n0(r.sales),
+    cost: n0(r.discount) * share(r.code), fee: n0(r.commission) + n0(r.ads_spend), fee_est: false,
+  }));
+  const rows = [...pos, ...report].sort((a, b) =>
+    String(a.month).localeCompare(String(b.month)) || a.channel.localeCompare(b.channel) || b.net - a.net);
+
+  // Đối soát: team khai "Sales" = trước giảm giá − giảm giá của đơn có Nguồn nền tảng
+  // (T8/2026: NJFB The Crest 49.942.000 · NDC 31.176.000 — khớp POS tới đồng).
+  const recon = [];
+  for (const k of new Set(repRows.map((r) => `${r.month}|${r.code}`))) {
+    if (!posKey.has(k)) continue;
+    const [month, code] = k.split('|');
+    const rr = repRows.filter((r) => r.month === month && r.code === code);
+    const pp = pos.filter((r) => r.month === month && r.partner === code);
+    const src = pp.filter((r) => r.basis === 'NGUON');
+    recon.push({
+      month, partner: code,
+      report_sales: sum(rr, (r) => r.sales), report_orders: sum(rr, (r) => r.orders),
+      pos_sales_src: sum(src, (r) => r.gross - r.disc), pos_orders_src: sum(src, (r) => r.bills),
+      pos_sales_all: sum(pp, (r) => r.gross - r.disc), pos_orders_all: sum(pp, (r) => r.bills),
+    });
+  }
+
+  const lastMonth = [...new Set(T(tables, 'store_month').map((r) => r.month))].sort().at(-1) ?? null;
+  const nextM = (m) => {
+    const [y, mm] = m.split('-').map(Number);
+    return mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`;
+  };
+  const codes = [...cat.map((p) => p.code), ...[...new Set(rows.map((r) => r.partner))].filter((c) => !CAT[c])];
+  const partners = codes.map((code) => {
+    const p = CAT[code] ?? { code, name: code === other.code ? other.name : code, status: null };
+    const rs = rows.filter((r) => r.partner === code);
+    const ms = [...new Set(rs.map((r) => r.month))].sort();
+    const brands = [...new Set(rs.map((r) => r.brand).filter(Boolean))].sort();
+    const status = p.status ?? null;
+    // Cờ đối chiếu danh mục ↔ thực tế POS — để danh mục không nói một đằng, hoá đơn một nẻo.
+    const flags = [];
+    if (!rs.length) flags.push(/đang chạy/i.test(status ?? '') ? 'Khai "Đang chạy" nhưng chưa có hoá đơn nào' : 'Chưa phát sinh hoá đơn');
+    if (rs.length && /chuẩn bị/i.test(status ?? '')) flags.push(`Khai "Chuẩn bị" nhưng đã phát sinh từ ${ms[0]}`);
+    if (rs.length && /đang chạy/i.test(status ?? '') && lastMonth && ms.at(-1) < lastMonth)
+      flags.push(`Không phát sinh từ ${nextM(ms.at(-1))}`);
+    if (rs.length && p.end && ms.at(-1) > String(p.end).slice(0, 7)) flags.push(`Hết hạn ${p.end} nhưng vẫn phát sinh`);
+    const decl = String(p.brand ?? '');
+    if (rs.length && decl && !/tất cả/i.test(decl)) {
+      const out = brands.filter((b) => !decl.includes(b));
+      if (out.length) flags.push(`Phát sinh ở brand chưa khai: ${out.join(', ')}`);
+    }
+    if (!status && code !== other.code) flags.push('Chưa khai trạng thái · kỳ hợp đồng');
+    if (code === other.code && rs.length) flags.push('CTKM có chữ "đối tác" nhưng chưa khai danh mục');
+    return {
+      code, name: p.name ?? code, channel: chanOf(code), kind: p.kind ?? null, brand: p.brand ?? null,
+      stores: p.stores ?? null, start: p.start ?? null, end: p.end ?? null, status,
+      noire_share: share(code), fee_month: num(p.fee_month), commission_pct: num(p.commission_pct),
+      media: num(p.media), note: p.note ?? null,
+      first: ms[0] ?? null, last: ms.at(-1) ?? null, active_brands: brands,
+      names: [...new Set(rs.map((r) => r.camp).filter((c) => c && classifyPartner(c) === code))].sort(),
+      bases: [...new Set(rs.map((r) => r.basis))],
+      flags,
+    };
+  });
+
+  // Mã đối tác PHÁT (file eVoucher) ↔ mã đã DÙNG (hoá đơn gắn CTKM của đối tác, cùng tháng).
+  const month = T(tables, 'partner_month').map((r) => {
+    const used = rows.filter((x) => x.month === r.month && x.partner === r.code && x.basis === 'CTKM');
+    const u = sum(used, (x) => x.bills);
+    return {
+      month: r.month, code: r.code, issued: num(r.issued), used: u,
+      rev: sum(used, (x) => x.net), disc: sum(used, (x) => x.cost),
+      use_rate: num(r.issued) ? div(u, n0(r.issued)) : null,
+    };
+  }).sort((a, b) => String(a.month).localeCompare(String(b.month)));
+
+  const plan = T(tables, 'partner_plan').map((r) => ({
+    month: r.month, code: r.code, scenario: r.scenario ?? null, issued: num(r.issued), use_rate: num(r.use_rate),
+    aov: num(r.aov), cost: num(r.cost), rev: num(r.rev), gp: num(r.gp),
+  }));
+
+  return {
+    rows, partners, recon, month, plan,
+    meta: { channels: PARTNER.channels, bases: PARTNER.bases, other: PARTNER.other, last_month: lastMonth },
   };
 }
 

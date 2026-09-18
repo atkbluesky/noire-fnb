@@ -174,9 +174,9 @@ def main():
     print(f"  02_snapshot.xlsx   thay {k} sheet: {', '.join(x for x, v in snap.items() if v)}")
     n += k
 
-    # ── 01_master.xlsx ── chỉ ba bảng máy tính được; ngân sách · dim_store · pre_analytics GIỮ tay
+    # ── 01_master.xlsx ── chỉ bốn bảng máy tính được; ngân sách · dim_store · pre_analytics GIỮ tay
     mast = {"crm_target": M.get("crm_target"), "partners": M.get("partners"),
-            "partner_camp": M.get("partner_camp")}
+            "partner_camp": M.get("partner_camp"), "partner_plan": M.get("partner_plan")}
     k = replace_sheets(MASTER, mast)
     print(f"  01_master.xlsx     thay {k} sheet: {', '.join(x for x, v in mast.items() if v) or '—'}")
     n += k

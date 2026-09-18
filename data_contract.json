@@ -47,12 +47,12 @@
       },
       {
         "code": "PARTNER",
-        "label": "Đối tác · toà nhà",
+        "label": "Đối tác · Aggregator + Partner",
         "short": "Đối tác",
         "color": "#F59E0B",
         "badge": "nature-part",
         "roi": "partial",
-        "desc": "Ràng buộc hợp đồng đối tác. Chỉ phần NOIRE gánh mới vào ROI — khai ở dim_campaign.noire_share."
+        "desc": "Hai kênh — AGGREGATOR: nền tảng trung gian bán hộ và thu hoa hồng (Grab Dine Out · GrabFood · Dining City); PARTNER: ngân hàng · ví & e-voucher · tổ chức thẻ (Techcombank × OneU · Shinhan · HDBank · Urbox · Betakee · Visa). Ràng buộc hợp đồng đối tác — chỉ phần NOIRE chịu mới vào ROI (khai % NOIRE chịu ở danh mục đối tác). Chi tiết: M9."
       },
       {
         "code": "CARE",
@@ -75,14 +75,22 @@
     ],
     "rules": [
       {
-        "nature": "PARTNER",
-        "why": "Nhân viên của ĐỐI TÁC, không phải nhân viên NOIRE. Phải xét TRƯỚC luật INTERNAL vì INTERNAL bắt chữ `nhân viên`. Sai chỗ này là 88,8tr của `Giảm 50% cho Nhân Viên SonKim Group (JFB)` nằm nhầm ô.",
+        "nature": "COMMERCIAL",
+        "why": "SonKim Group và Cư dân & toà nhà — xác nhận 18/09/2026 KHÔNG phải partnership (không có hợp đồng đối tác thật, không tách phần NOIRE/đối tác trả), mà là chương trình khuyến mãi NOIRE chủ động chạy để mở rộng khách trong hệ sinh thái SonKim/toà nhà — chấm THƯƠNG MẠI như mọi campaign khác, KHÔNG hiện ở M9. Đặt rule này ĐẦU TIÊN vì hai lý do va chạm: `nhân viên sonkim`/`tòa nhà` chứa chữ `nhân viên` (khớp luật INTERNAL nếu xét sau); `SKG Members` chứa chữ `member` (khớp luật LOYALTY nếu xét sau) — cả hai đều sai, phải chặn ở đây.",
         "re": [
           "nhân viên sonkim",
           "nhân viên son kim",
           "nhân viên skg",
           "nv sonkim",
-          "nhân viên đối tác"
+          "nhân viên đối tác",
+          "tòa nhà",
+          "toà nhà",
+          "toa nha",
+          "\\bskg\\b",
+          "sonkim",
+          "son kim",
+          "resident",
+          "cư dân"
         ]
       },
       {
@@ -118,19 +126,76 @@
       },
       {
         "nature": "PARTNER",
-        "why": "Đối tác, toà nhà, ngân hàng, nền tảng trung gian.",
+        "partner": "P01",
+        "why": "Kênh PARTNER · ngân hàng — Techcombank Reward × OneU (mọi biến thể tên theo brand: Noire- · Dining- · JFB-).",
         "re": [
-          "\\bskg\\b",
-          "sonkim",
-          "son kim",
-          "resident",
           "techcombank",
           "\\btcb\\b",
-          "oneu",
-          "hdbank",
-          "shinhan",
-          "grab",
-          "dining ?city",
+          "oneu"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P05",
+        "why": "Kênh PARTNER · ngân hàng — Shinhan Bank / Shinhan Finance.",
+        "re": [
+          "shinhan"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P04",
+        "why": "Kênh PARTNER · ngân hàng — HDBank.",
+        "re": [
+          "hd ?bank"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P06",
+        "why": "Kênh PARTNER · ví & e-voucher — Urbox.",
+        "re": [
+          "urbox"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P07",
+        "why": "Kênh PARTNER · ví & e-voucher — Betakee.",
+        "re": [
+          "betakee",
+          "beta kee"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P08",
+        "why": "Kênh PARTNER · tổ chức thẻ — Visa. CHỈ xét tên CTKM: PTTT `VISA` là cách khách trả tiền, không phải chương trình đối tác.",
+        "re": [
+          "\\bvisa\\b"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P03",
+        "why": "Kênh AGGREGATOR — Grab Dine Out gắn tên CTKM. Hoá đơn Grab KHÔNG gắn CTKM được nhận qua Nguồn/PTTT — xem $partner.pos.",
+        "re": [
+          "grab"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P02",
+        "why": "Kênh AGGREGATOR — Dining City. Chú ý: `Dining - …` là tiền tố cửa hàng NOIRE Dining, KHÔNG phải Dining City.",
+        "re": [
+          "dining ?city"
+        ]
+      },
+      {
+        "nature": "PARTNER",
+        "partner": "P00",
+        "why": "Có chữ đối tác nhưng chưa khai danh mục — hiện ở M9 dòng `Đối tác khác` để bổ sung.",
+        "re": [
           "đối tác",
           "partner",
           "onelife"
@@ -152,7 +217,76 @@
           "tích điểm"
         ]
       }
-    ]
+    ],
+    "$partner_code": "Luật PARTNER mang thêm `partner` = Mã ĐT ở danh mục đối tác (L0 S15 · 00_Danh_Muc_Partnership.xlsx). Kênh (AGGREGATOR/PARTNER), tên, kỳ hợp đồng, % NOIRE chịu khai ở danh mục — KHÔNG khai lại ở đây."
+  },
+  "$partner": {
+    "$doc": "ĐỐI TÁC = hai kênh AGGREGATOR + PARTNER — nguồn DUY NHẤT cho kênh và cách nhận hoá đơn đối tác trên POS. M7 (thẻ bản chất Đối tác) và M9 cùng đọc bảng fact_partner nên số khớp nhau. Đặc tả: docs/modules/M9_Partnership.md",
+    "channels": [
+      {
+        "code": "AGGREGATOR",
+        "label": "Aggregator · nền tảng trung gian",
+        "short": "Aggregator",
+        "color": "#F59E0B",
+        "desc": "Nền tảng bán hộ / đặt bàn hộ và thu hoa hồng hoặc phí: Grab Dine Out · GrabFood · Dining City. Theo dõi phần nền tảng giữ lại (hoa hồng · phí · discount)."
+      },
+      {
+        "code": "PARTNER",
+        "label": "Partner · ngân hàng · ví · doanh nghiệp",
+        "short": "Partner",
+        "color": "#A855F7",
+        "desc": "Đối tác mang khách tới bằng ưu đãi riêng: ngân hàng (Techcombank × OneU · Shinhan · HDBank) · ví & e-voucher (Urbox · Betakee) · tổ chức thẻ (Visa)."
+      }
+    ],
+    "default_channel": "PARTNER",
+    "other": {
+      "code": "P00",
+      "name": "Đối tác khác — chưa khai danh mục",
+      "channel": "PARTNER"
+    },
+    "bases": [
+      {
+        "code": "CTKM",
+        "label": "POS · tên CTKM",
+        "desc": "Hoá đơn gắn tên CTKM khớp luật PARTNER của $promo_nature."
+      },
+      {
+        "code": "NGUON",
+        "label": "POS · Nguồn đơn",
+        "desc": "Hoá đơn có cột Nguồn là nền tảng (GRAB · GRABFOOD) — không gắn CTKM đối tác."
+      },
+      {
+        "code": "PTTT",
+        "label": "POS · thanh toán qua nền tảng",
+        "desc": "Hoá đơn trả qua ví nền tảng (GRAB DEBIT) nhưng thu ngân chưa chọn Nguồn — vẫn là đơn nền tảng."
+      },
+      {
+        "code": "REPORT",
+        "label": "Báo cáo team (ước tính)",
+        "desc": "Nền tảng không để lại dấu vết trên POS (Dining City) — lấy số team khai ở báo cáo Promotion-AGG (S19). Không đối soát được hoá đơn."
+      }
+    ],
+    "pos": [
+      {
+        "partner": "P03",
+        "delivery_partner": "P11",
+        "source_re": [
+          "grab"
+        ],
+        "pttt_re": [
+          "grab"
+        ],
+        "why": "Hoá đơn Grab không gắn CTKM. Grab Dine Out (khách ăn tại quán, trả qua Grab) có Số khách > 0 và KHÔNG có Hoa hồng trên POS. GrabFood giao hàng có Hoa hồng trên POS (≈25%) hoặc Số khách = 0 → tách sang delivery_partner."
+      }
+    ],
+    "overlap": "Một hoá đơn chỉ thuộc MỘT đối tác. Thứ tự nhận: tên CTKM (luật PARTNER) → Nguồn → PTTT. Hoá đơn Grab có gắn CTKM không phải đối tác (vd. quà sinh nhật) vẫn tính cho Grab ở M7 · M9 — loader rút nó khỏi bản chất của CTKM để tổng không bị đếm đôi.",
+    "report_map": {
+      "$doc": "Tên nền tảng ở báo cáo Promotion-AGG (S19, sheet aggregator) → Mã ĐT. Team ghi `GrabFood` cho số Grab Dine Out tại NDC · NJFB (đối soát T8: 29 HĐ · 49.942.000 đ NJFB The Crest khớp POS Nguồn GRABFOOD). Số báo cáo CHỈ được dùng khi POS không có hoá đơn của đối tác đó trong tháng — tránh đếm đôi.",
+      "GrabFood": "P03",
+      "Grab Dine Out": "P03",
+      "Dining City": "P02"
+    },
+    "$note_skg": "SonKim Group và Cư dân & toà nhà KHÔNG phải partnership (xác nhận 18/09/2026) — đây là chương trình khuyến mãi NOIRE tự chạy nhắm vào hệ sinh thái SonKim/cư dân, chấm COMMERCIAL ở M7/M7.2 như mọi campaign khác. Guard 'nhân viên sonkim'/'tòa nhà' ở $promo_nature.rules chỉ để tránh rơi nhầm vào INTERNAL, không đưa vào M9."
   },
   "$booking": {
     "$doc": "PHỄU BOOKING TIỆC — nguồn sự thật DUY NHẤT cho: trạng thái nào là chốt, dòng nào là đặt bàn chứ không phải tiệc, chiến dịch Meta nào là quảng cáo booking, loại kết quả ads nào là liên hệ, nhóm lý do mất lead. Đọc bởi tools/monthly_lib.py (ETL), scripts/build-data.mjs (loader) và HUB_DATA.booking_meta (màn hình M10). Trước 17/09/2026 quy ước `chỉ Confirmed là chốt` nằm cùng lúc ở build-data.mjs và BookingView.tsx.",
@@ -227,15 +361,15 @@
         "booking",
         "party",
         "banquet",
-        "\byep\b",
+        "\\byep\\b",
         "s[uự] ki[eệ]n",
-        "\bevent\b"
+        "\\bevent\\b"
       ],
       "pages": [
         "nec"
       ],
       "exclude_re": [
-        "\bhr\b",
+        "\\bhr\\b",
         "tuyển dụng",
         "tuyen dung",
         "recruit"
@@ -258,7 +392,7 @@
         "contact": true,
         "re": [
           "khách hàng tiềm năng",
-          "\bleads?\b"
+          "\\bleads?\\b"
         ]
       },
       {
@@ -502,22 +636,21 @@
       "cols": [
         "code",
         "name",
+        "channel",
         "kind",
         "brand",
+        "stores",
         "start",
         "end",
         "status",
+        "noire_share",
+        "fee_month",
+        "commission_pct",
         "media",
-        "note",
-        "issued",
-        "used",
-        "rev",
-        "disc"
+        "note"
       ],
-      "derived": [
-        "use_rate"
-      ],
-      "desc": "Danh mục đối tác. issued/used/rev/disc là luỹ kế toàn chương trình."
+      "derived": [],
+      "desc": "Danh mục đối tác — chép từ L0 S15 (00_Danh_Muc_Partnership.xlsx · sheet `1. Đối Tác`). `channel` = AGGREGATOR | PARTNER. `noire_share` = phần chiết khấu NOIRE chịu (1 = chịu hết). `commission_pct` = % hoa hồng nền tảng — dùng ước tính phí khi POS không ghi Hoa hồng. Kết quả (hoá đơn · doanh thu · chi phí) KHÔNG nằm ở đây — loader tính từ fact_partner theo tháng."
     },
     "partner_camp": {
       "tier": "master",
@@ -533,6 +666,29 @@
         "rate"
       ],
       "desc": "Cầu nối đối tác ↔ Campaign ID iPOS — để truy vết doanh thu về đúng đối tác."
+    },
+    "partner_plan": {
+      "tier": "master",
+      "key": [
+        "month",
+        "code"
+      ],
+      "req": [
+        "month",
+        "code"
+      ],
+      "cols": [
+        "month",
+        "code",
+        "scenario",
+        "issued",
+        "use_rate",
+        "aov",
+        "cost",
+        "rev",
+        "gp"
+      ],
+      "desc": "Kế hoạch đối tác theo tháng — chép từ L0 S15 sheet `3. Kế Hoạch`. Ô trống = chưa đặt kế hoạch (hiện '—'), không phải 0."
     },
     "partner_month": {
       "tier": "monthly",
@@ -798,6 +954,38 @@
         "items"
       ],
       "desc": "CTKM theo NGÀY × cửa hàng — nền của M7.2. `disc` = Giảm giá + Chiết khấu ở cấp HOÁ ĐƠN · `voucher` = Phiếu GG, để riêng vì voucher là phương thức thanh toán chứ không phải giảm giá. `net` = Tổng tiền (cùng base với daily/store_month — kỳ nền của M7.2 lấy từ đó). `rev`/`items` từ lane dòng món theo THÀNH TIỀN — base khác `net`, đừng cộng chung. `name_pos` giữ nguyên văn, chuẩn hoá ở dim_campaign."
+    },
+    "fact_partner": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month",
+        "store",
+        "partner",
+        "basis",
+        "camp"
+      ],
+      "req": [
+        "store",
+        "partner",
+        "basis"
+      ],
+      "cols": [
+        "month",
+        "store",
+        "brand",
+        "partner",
+        "basis",
+        "camp",
+        "bills",
+        "guests",
+        "gross",
+        "disc",
+        "voucher",
+        "commission",
+        "net"
+      ],
+      "desc": "Hoá đơn ĐỐI TÁC theo tháng × cửa hàng × đối tác — nền chung của M7 (thẻ Đối tác) và M9. Mỗi hoá đơn thuộc MỘT đối tác, nhận theo thứ tự `basis`: CTKM (tên CTKM khớp luật PARTNER, mã ở $promo_nature.rules[].partner) → NGUON (cột Nguồn là nền tảng) → PTTT (trả qua ví nền tảng). `camp` = tên CTKM nguyên văn (có thể rỗng). `net` = Tổng tiền (cùng base store_month) · `gross` = trước giảm giá · `disc` = Giảm giá + Chiết khấu · `voucher` = Phiếu GG · `commission` = cột Hoa hồng của POS."
     },
     "fact_lto_line": {
       "tier": "monthly",

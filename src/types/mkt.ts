@@ -193,19 +193,86 @@ export interface MemberMonth {
   days: number;
 }
 
+/* ── Đối tác = Aggregator + Partner (M7 · M9) — hợp đồng: data_contract.json → $partner ── */
+export type PartnerChannel = 'AGGREGATOR' | 'PARTNER';
+export type PartnerBasis = 'CTKM' | 'NGUON' | 'PTTT' | 'REPORT';
+
+/** Danh mục đối tác (L0 S15) + cờ đối chiếu với hoá đơn thật. Kết quả nằm ở partner_fact. */
 export interface PartnerItem {
   code: string;
   name: string;
-  kind: string;
-  brand: string;
-  start: string;
-  end: string;
-  status: string;
-  media: number;
-  issued: number;
-  used: number;
-  use_rate?: number;
-  rev?: number;
+  channel: PartnerChannel;
+  kind: string | null;
+  brand: string | null;
+  stores: string | null;
+  start: string | null;
+  end: string | null;
+  status: string | null;
+  noire_share: number;
+  fee_month: number | null;
+  commission_pct: number | null;
+  media: number | null;
+  note: string | null;
+  first: string | null;
+  last: string | null;
+  active_brands: string[];
+  /** Tên CTKM thật trên POS đã gắn cho đối tác này. */
+  names: string[];
+  bases: PartnerBasis[];
+  flags: string[];
+}
+
+/** Hoá đơn đối tác theo tháng × cửa hàng × đối tác × cách nhận — nền chung M7 · M9. */
+export interface PartnerFact {
+  month: string;
+  partner: string;
+  channel: PartnerChannel;
+  brand: string | null;
+  store: string | null;
+  basis: PartnerBasis;
+  camp: string | null;
+  bills: number;
+  guests: number;
+  gross: number;
+  disc: number;
+  voucher: number;
+  /** Tổng tiền cả hoá đơn — cùng base Net Sales. */
+  net: number;
+  /** (giảm giá + phiếu GG) × % NOIRE chịu. */
+  cost: number;
+  /** Phí nền tảng (Hoa hồng POS, hoặc ước tính theo % danh mục khi fee_est). */
+  fee: number;
+  fee_est: boolean;
+}
+
+export interface PartnerMeta {
+  channels: { code: PartnerChannel; label: string; short: string; color: string; desc: string }[];
+  bases: { code: PartnerBasis; label: string; desc: string }[];
+  other: { code: string; name: string; channel: PartnerChannel };
+  last_month: string | null;
+}
+
+export interface PartnerRecon {
+  month: string;
+  partner: string;
+  report_sales: number;
+  report_orders: number;
+  pos_sales_src: number;
+  pos_orders_src: number;
+  pos_sales_all: number;
+  pos_orders_all: number;
+}
+
+export interface PartnerPlan {
+  month: string;
+  code: string;
+  scenario: string | null;
+  issued: number | null;
+  use_rate: number | null;
+  aov: number | null;
+  cost: number | null;
+  rev: number | null;
+  gp: number | null;
 }
 
 export interface PreAnalyticsQ3 {
@@ -255,6 +322,10 @@ export interface MktData {
   aggregator: AggregatorRow[];
   aggregator_stat: AggregatorStat;
   partner_month: PartnerMonth[];
+  partner_meta: PartnerMeta;
+  partner_fact: PartnerFact[];
+  partner_recon: PartnerRecon[];
+  partner_plan: PartnerPlan[];
   oa: ZaloOAItem[];
   member_month: MemberMonth[];
   member_stat: { total: number; months_filled: number; months_template: number };
@@ -313,14 +384,14 @@ export interface AggregatorStat {
   empty: boolean;
 }
 
-/* ── Kết quả đối tác theo tháng (M9) ─────────────────────────────────── */
+/* ── Mã đối tác phát (eVoucher) ↔ đã dùng (hoá đơn gắn CTKM đối tác) theo tháng (M9) ── */
 export interface PartnerMonth {
   month: string;
   code: string;
   issued: number | null;
-  used: number | null;
-  rev: number | null;
-  disc: number | null;
+  used: number;
+  rev: number;
+  disc: number;
   use_rate: number | null;
 }
 

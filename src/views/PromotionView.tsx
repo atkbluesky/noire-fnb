@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFilters } from '../context/FilterContext';
-import { HUB_DATA, MKT_DATA } from '../data';
+import { HUB_DATA } from '../data';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { StatusBadge, BadgeVariant } from '../components/common/StatusBadge';
@@ -10,6 +10,8 @@ import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../uti
 import type { EChartsOption } from 'echarts';
 import { PromotionTabs } from '../components/common/PromotionTabs';
 import { CAMPAIGN } from '../data/campaign';
+import { CHANNELS, CHANNEL_META, PARTNER_BY_CODE, BASIS_META, partnerRows, totals, totalsBy, PartnerTotals } from '../utils/partner';
+import type { PartnerChannel } from '../types/mkt';
 
 export const PromotionView: React.FC = () => {
   const { filters, brandMatches, selectedMonths, aggByMonth, theme, setActiveView } = useFilters();
@@ -24,17 +26,18 @@ export const PromotionView: React.FC = () => {
   const NATURE_META = HUB_DATA.nature_meta ?? [];
   const NAT = NATURE_META.map(n => n.code);
 
-  /* ── Nền tảng trung gian: GrabFood · Dining City… ─────────────────────
-     `sales` là doanh thu ghi nhận TRÊN NỀN TẢNG, không phải tiền về túi.
-     Phải trừ discount + commission + ads mới ra net_after, và `take_rate`
-     (phần nền tảng giữ lại) mới là con số quyết định kênh này lãi hay lỗ. */
-  const AGG = (MKT_DATA.aggregator || []).filter(r => ms.includes(r.month));
-  const aggSales = AGG.reduce((a, b) => a + b.sales, 0);
-  const aggOrders = AGG.reduce((a, b) => a + b.orders, 0);
-  const aggMeasured = AGG.some(r => r.take_rate !== null);
-  const aggCut = aggMeasured
-    ? AGG.reduce((a, b) => a + (b.discount || 0) + (b.commission || 0) + (b.ads_spend || 0), 0)
-    : null;
+  /* ── Đối tác = Aggregator + Partner ───────────────────────────────────
+     Thẻ bản chất "Đối tác" (HUB_DATA.nature · PARTNER) đã gồm cả hoá đơn nền tảng không gắn
+     CTKM (Grab Dine Out · GrabFood · Dining City). Tách kênh đọc từ partner_fact qua CÙNG hàm
+     với M9 — tổng hai kênh bằng đúng thẻ Đối tác. */
+  const PR = partnerRows(ms, brandMatches);
+  const PT = totals(PR);
+  const PCH = totalsBy(PR, r => r.channel);
+  const PBY = totalsBy(PR, r => r.partner);
+  const pCost = (t: PartnerTotals) => t.cost + t.fee;
+  const partnerTop = Object.entries(PBY)
+    .map(([code, t]) => ({ code, t, p: PARTNER_BY_CODE[code] }))
+    .sort((a, b) => (a.p?.channel ?? '').localeCompare(b.p?.channel ?? '') || b.t.net - a.t.net);
 
   const natureColors: Record<string, string> = Object.fromEntries(
     NATURE_META.map(n => [n.code, n.color]),
@@ -283,31 +286,54 @@ export const PromotionView: React.FC = () => {
   ];
 
 
-  const aggColumns: Column<(typeof AGG)[0]>[] = [
+  type PRow = (typeof partnerTop)[0];
+  const partnerColumns: Column<PRow>[] = [
     {
-      key: 'platform',
-      header: 'Nền tảng',
-      render: row => (
-        <div>
-          <div className="font-bold text-brand-text">{row.platform}</div>
-          {row.store && <div className="text-[10px] text-brand-muted">{HUB_DATA.stores[row.store]?.name ?? row.store}</div>}
+      key: 'channel', header: 'Kênh',
+      render: r => {
+        const c = CHANNEL_META[(r.p?.channel ?? 'PARTNER') as PartnerChannel];
+        return <span className="rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase"
+          style={{ color: c?.color, borderColor: `${c?.color}66`, backgroundColor: `${c?.color}1A` }}>{c?.short}</span>;
+      },
+    },
+    {
+      key: 'name', header: 'Đối tác',
+      render: r => (
+        <div className="leading-tight">
+          <div className="font-bold text-brand-text">{r.p?.name ?? r.code}</div>
+          <div className="text-[10px] text-brand-faint">{r.p?.kind ?? '—'}</div>
         </div>
       ),
     },
-    { key: 'month', header: 'Tháng', render: row => <span className="font-mono text-xs">{formatMonthLabel(row.month)}</span> },
-    { key: 'sales', header: 'Doanh thu', align: 'right', render: row => <span className="font-mono font-bold text-brand-goldLight">{formatVND(row.sales)}</span> },
-    { key: 'orders', header: 'Đơn', align: 'right', render: row => <span className="font-mono">{formatNumber(row.orders)}</span> },
-    { key: 'aov', header: 'AOV', align: 'right', render: row => <span className="font-mono">{row.aov === null ? '—' : formatVND(row.aov)}</span> },
-    { key: 'discount', header: 'Discount', align: 'right', render: row => <span className="font-mono">{row.discount === null ? '—' : formatVND(row.discount)}</span> },
-    { key: 'commission', header: 'Hoa hồng', align: 'right', render: row => <span className="font-mono">{row.commission === null ? '—' : formatVND(row.commission)}</span> },
+    { key: 'bills', header: 'Hoá đơn', align: 'right', render: r => <span className="font-mono">{formatNumber(r.t.bills)}</span> },
     {
-      key: 'take_rate',
-      header: 'Nền tảng giữ',
-      align: 'right',
-      render: row =>
-        row.take_rate === null
-          ? <span className="font-mono text-brand-muted">—</span>
-          : <StatusBadge variant={row.take_rate > 0.2 ? 'warning' : 'ok'} label={formatPercent(row.take_rate)} />,
+      key: 'net', header: 'Doanh thu', align: 'right',
+      render: r => (
+        <div className="text-right font-mono leading-tight">
+          <div className="font-bold text-brand-goldLight">{formatVND(r.t.net)}</div>
+          <div className="text-[10px] text-brand-muted">{totalPeriodNet ? formatPercent(r.t.net / totalPeriodNet, 2) : '—'} DT brand</div>
+        </div>
+      ),
+    },
+    { key: 'aov', header: 'AOV', align: 'right', render: r => <span className="font-mono">{r.t.bills ? formatVND(r.t.net / r.t.bills) : '—'}</span> },
+    {
+      key: 'cost', header: 'Chi phí', align: 'right',
+      render: r => (
+        <div className="text-right font-mono leading-tight">
+          <div>{pCost(r.t) ? formatVND(pCost(r.t)) : '—'}</div>
+          <div className="text-[10px] text-brand-muted">
+            {r.t.cost ? `ưu đãi ${formatVND(r.t.cost)}` : ''}{r.t.cost && r.t.fee ? ' · ' : ''}{r.t.fee ? `phí ${formatVND(r.t.fee)}${r.t.fee_est ? '*' : ''}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'basis', header: 'Nguồn số',
+      render: r => (
+        <span className="text-[10px] text-brand-muted">
+          {[...new Set(PR.filter(x => x.partner === r.code).map(x => BASIS_META[x.basis]?.label ?? x.basis))].join(' · ')}
+        </span>
+      ),
     },
   ];
 
@@ -324,7 +350,7 @@ export const PromotionView: React.FC = () => {
           M7 · Promotion — Tổng Quan &amp; {NAT.length} Bản Chất Chi Phí
         </h2>
         <p className="text-xs text-brand-muted mt-1">
-          Phân định theo AI TRẢ TIỀN: {NATURE_META.map(n => n.label).join(' · ')}.
+          Phân định theo AI TRẢ TIỀN: {NATURE_META.map(n => n.label).join(' | ')}.
         </p>
       </div>
 
@@ -369,9 +395,11 @@ export const PromotionView: React.FC = () => {
           <MetricCard
             key={n.code}
             label={n.short}
-            subLabel="Tổng tiền cả hoá đơn gắn CTKM"
+            subLabel={n.code === 'PARTNER' ? 'Tổng tiền hoá đơn đối tác (CTKM + đơn nền tảng)' : 'Tổng tiền cả hoá đơn gắn CTKM'}
             value={formatVND(natTotals[n.code].rev)}
-            customDeltaText={`${totalPeriodNet ? formatPercent(natTotals[n.code].rev / totalPeriodNet) : '—'} DT brand · ${formatNumber(natTotals[n.code].bills)} HĐ · ${formatPercent(natTotals[n.code].rev / totalNatRev)} tổng CTKM`}
+            customDeltaText={n.code === 'PARTNER'
+              ? `${totalPeriodNet ? formatPercent(natTotals[n.code].rev / totalPeriodNet) : '—'} DT brand · ${CHANNELS.map(c => `${c.short} ${formatVND(PCH[c.code]?.net ?? 0)}`).join(' · ')}`
+              : `${totalPeriodNet ? formatPercent(natTotals[n.code].rev / totalPeriodNet) : '—'} DT brand · ${formatNumber(natTotals[n.code].bills)} HĐ · ${formatPercent(natTotals[n.code].rev / totalNatRev)} tổng CTKM`}
             /* Cảnh báo cam cho nhóm KHÔNG vào ROI marketing — `roi` khai ở hợp đồng,
                không đoán theo tên nhãn. */
             variant={n.roi === 'none' ? 'warning' : 'default'}
@@ -393,7 +421,7 @@ export const PromotionView: React.FC = () => {
 
         <Card
           title={`Tỷ Trọng ${NAT.length} Bản Chất`}
-          description={`Luỹ kế kỳ chọn · tổng doanh thu CTKM ${formatVND(totalNatRev)} = ${formatPercent(totalNatRev / totalPeriodNet)} DT brand ${formatVND(totalPeriodNet)}`}
+          description={`Luỹ kế kỳ chọn · tổng doanh thu CTKM & đối tác ${formatVND(totalNatRev)} = ${formatPercent(totalNatRev / totalPeriodNet)} DT brand ${formatVND(totalPeriodNet)}`}
           chip="TỶ TRỌNG"
         >
           <EChartWrapper option={donutOption} height={280} />
@@ -416,51 +444,49 @@ export const PromotionView: React.FC = () => {
         />
       </Card>
 
-      {/* Nền tảng trung gian */}
-      {AGG.length > 0 && (
+      {/* Đối tác = Aggregator + Partner — cùng bảng số với M9 */}
+      {PR.length > 0 && (
         <Card
-          title="Nền Tảng Trung Gian (Aggregator)"
-          description="GrabFood · Dining City… — sales là doanh thu trên nền tảng, chưa trừ chiết khấu và hoa hồng"
-          chip="AGGREGATOR"
+          title="Đối Tác = Aggregator + Partner"
+          description="Thẻ “Đối tác” ở trên tách theo hai kênh · Doanh thu = Tổng tiền cả hoá đơn · Chi phí = ưu đãi NOIRE chịu + phí nền tảng (* = ước tính theo % hoa hồng danh mục) · chi tiết, kế hoạch, cờ danh mục ở M9"
+          chip="ĐỐI TÁC"
+          headerAction={
+            <button onClick={() => setActiveView('m9')}
+              className="rounded-lg border border-brand-border px-2.5 py-1 text-[11px] font-semibold text-brand-goldLight hover:bg-brand-card">
+              Mở M9 →
+            </button>
+          }
         >
           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard
-              label="Doanh Thu Nền Tảng"
-              subLabel="Σ sales trong kỳ"
-              value={formatVND(aggSales)}
-              customDeltaText={`${formatPercent(totalPeriodNet ? aggSales / totalPeriodNet : 0)} Net Sales chuỗi`}
+              label="Tổng Đối Tác"
+              subLabel="Aggregator + Partner"
+              value={formatVND(PT.net)}
+              customDeltaText={`${formatNumber(PT.bills)} HĐ · ${totalPeriodNet ? formatPercent(PT.net / totalPeriodNet) : '—'} DT brand`}
             />
+            {CHANNELS.map(c => (
+              <MetricCard
+                key={c.code}
+                label={c.short}
+                subLabel={c.label}
+                value={formatVND(PCH[c.code]?.net ?? 0)}
+                customDeltaText={`${formatNumber(PCH[c.code]?.bills ?? 0)} HĐ · ${PT.net ? formatPercent((PCH[c.code]?.net ?? 0) / PT.net, 0) : '—'} đối tác`}
+              />
+            ))}
             <MetricCard
-              label="Số Đơn"
-              subLabel="Σ orders"
-              value={formatNumber(aggOrders)}
-              unit="đơn"
-              customDeltaText={aggOrders > 0 ? `AOV ${formatVND(aggSales / aggOrders)}` : '—'}
-            />
-            <MetricCard
-              label="Nền Tảng Giữ Lại"
-              subLabel="discount + hoa hồng + ads"
-              value={aggCut === null ? '—' : formatVND(aggCut)}
-              variant={aggCut !== null && aggSales > 0 && aggCut / aggSales > 0.2 ? 'warning' : 'default'}
-              customDeltaText={
-                aggCut === null
-                  ? 'Chưa khai discount / hoa hồng'
-                  : aggSales > 0 ? `${formatPercent(aggCut / aggSales)} doanh thu nền tảng` : '—'
-              }
-            />
-            <MetricCard
-              label="Còn Lại Sau Chiết Khấu"
-              subLabel="sales − phần giữ lại"
-              value={aggCut === null ? '—' : formatVND(aggSales - aggCut)}
-              customDeltaText="Chưa trừ giá vốn món"
+              label="Chi Phí Đối Tác"
+              subLabel="ưu đãi NOIRE chịu + phí nền tảng"
+              value={formatVND(pCost(PT))}
+              variant={PT.net && pCost(PT) / PT.net > 0.3 ? 'warning' : 'default'}
+              customDeltaText={`${PT.net ? formatPercent(pCost(PT) / PT.net) : '—'} DT đối tác · phí ${formatVND(PT.fee)}${PT.fee_est ? ` (ước tính ${formatVND(PT.fee_est)})` : ''}`}
             />
           </div>
           <DataTable
-            columns={aggColumns}
-            data={AGG}
+            columns={partnerColumns}
+            data={partnerTop}
             searchable={false}
             pageSize={8}
-            exportFilename="Noire_Aggregator"
+            exportFilename="Noire_M7_Doi_Tac"
           />
         </Card>
       )}

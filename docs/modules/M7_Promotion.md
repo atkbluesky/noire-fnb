@@ -5,10 +5,10 @@
 | **Câu hỏi** | Bán bằng cách nào, tốn bao nhiêu? |
 | **`activeView`** | `m7` *(mục mẹ — con: `m71` Pre-Analytics · `m72` Promotion Tracking)* |
 | **View** | `src/views/PromotionView.tsx` |
-| **ETL** | `tools/build_month.py` — `read_pos()` *(nature · fact_promo_day)* · `read_promotion()` *(aggregator)* |
-| **Nguồn** | `monthly/YYYY-MM.xlsx`: `nature` · `fact_promo_day` · `aggregator` · `02_snapshot.xlsx`: `campaigns` |
+| **ETL** | `tools/build_month.py` — `read_pos()` *(nature · fact_promo_day · fact_partner)* · `read_promotion()` *(aggregator — chỉ Dining City + đối soát)* |
+| **Nguồn** | `monthly/YYYY-MM.xlsx`: `nature` · `fact_promo_day` · `fact_partner` · `aggregator` · `02_snapshot.xlsx`: `campaigns` |
 | **Giai đoạn** | P4 — ✅ xong phần phân loại |
-| **Trạng thái** | ✅ đủ số · ✅ aggregator từ T8/2026 · ✅ **chi phí ưu đãi đã sửa** · ⛔ chưa đo được Lift → **M7.2** |
+| **Trạng thái** | ✅ đủ số · ✅ **Đối tác = Aggregator + Partner** (18/09/2026, chung số với M9) · ✅ **chi phí ưu đãi đã sửa** · ⛔ chưa đo được Lift → **M7.2** |
 
 > **Đo Lift, ROI, target-vs-actual nằm ở [M7.2 · Promotion Tracking](M7_2_Promotion_Tracking.md).**
 > M7 trả lời *“tiền ưu đãi chảy vào đâu”* — kế toán. M7.2 trả lời *“chương trình tạo thêm
@@ -175,7 +175,7 @@ Chiều `brand` được thêm vào cả hai bảng ở tầng ETL để **bộ 
 | Bản chất | Ví dụ thật trong data | Doanh thu T1 | Vào ROI marketing? |
 |---|---|---|---|
 | **INTERNAL** — nội bộ | CHAIRMAN AND FAMILY 30% · DIRECTORS AND MANAGERS 25% | **483,9tr** | ❌ **không** — đây là khoản mục P&L |
-| **PARTNER** — đối tác/toà nhà | SKG Members 20% · GIẢM GIÁ 50% SKG-NOIRE SSV · RESIDENTS S OFFERS | ~320tr | tách riêng, ghi rõ phần NOIRE trả |
+| **PARTNER** — đối tác = Aggregator + Partner | Shinhan · Techcombank × OneU · Grab Dine Out *(KHÔNG gồm SKG Members / RESIDENTS OFFERS — xem ghi chú dưới)* | ~25tr | tách riêng, ghi rõ phần NOIRE trả — xem M9 |
 | **LOYALTY** — hạng thành viên | Hạng Black Diamond · Hạng Silver · Giảm 15% Thẻ VIP | ~82tr | ✅ nhưng tính ở M7 |
 | **COMMERCIAL** — marketing thật | HAPPY TUESDAY · NOIRE THURSDAY DELIGHT | ~195tr | ✅ **chỉ nhóm này** |
 
@@ -288,30 +288,33 @@ Cả năm 2026: `disc` **2,73 tỷ** + `voucher` **857 tr** = **3,58 tỷ** chi 
 
 ---
 
-## Khối Aggregator (từ T8/2026)
+## Đối tác = Aggregator + Partner *(thống nhất 18/09/2026)*
 
-Nền tảng trung gian bán hộ và giữ lại một phần: GrabFood · Dining City · (sau này ShopeeFood).
+Bản chất **PARTNER** giờ là **“Đối tác · Aggregator + Partner”** — cùng định nghĩa với M9
+([`M9_Partnership.md`](M9_Partnership.md)), cùng một bảng số `partner_fact`:
 
-**`sales` là doanh thu ghi nhận TRÊN NỀN TẢNG, không phải tiền về túi.** Phải trừ discount,
-hoa hồng và ads của nền tảng mới ra `net_after`. Tỷ lệ nền tảng giữ lại (`take_rate`) là con
-số đáng theo dõi nhất — nó quyết định kênh này lãi hay lỗ, và nó không nằm trong bất kỳ báo
-cáo POS nào.
+| Kênh | Đối tác |
+|---|---|
+| **AGGREGATOR** | Grab Dine Out · GrabFood (giao hàng) · Dining City |
+| **PARTNER** | Techcombank × OneU · Shinhan · HDBank · Urbox · Betakee · Visa |
 
-T8/2026 — tháng đầu vận hành:
+> ⚠️ **SonKim Group và Cư dân & toà nhà KHÔNG phải partnership** *(xác nhận 18/09/2026)* — không có hợp đồng đối
+> tác thật, là khuyến mãi NOIRE chủ động chạy. Đã chuyển từ PARTNER sang **COMMERCIAL**, nằm trong nhóm Thương
+> mại ở bảng Top chương trình, không còn hiện ở M9.
 
-| Nền tảng | Cửa hàng | Doanh thu | Đơn | AOV | Nền tảng giữ |
-|---|---|---|---|---|---|
-| GrabFood | NJFB · The Crest | 49,9 tr | 29 | 1,72 tr | — |
-| GrabFood | NDC · 39 NTMK | 31,2 tr | 41 | 760 k | 5,0% |
-| Dining City | *(toàn chuỗi)* | 7,8 tr | 13 | 604 k | 7,3% |
-| **Tổng** | | **89,0 tr** | **83** | **1,07 tr** | 2,4% |
+**Thẻ “Đối tác” ở M7 = hoá đơn gắn CTKM đối tác + hoá đơn nền tảng KHÔNG gắn CTKM** (Grab nhận qua Nguồn / PTTT,
+Dining City từ báo cáo team). Dòng phụ của thẻ tách hai kênh; khối **“Đối tác = Aggregator + Partner”** cuối trang
+thay cho khối Aggregator cũ (số tự khai ở báo cáo S19) — giờ Grab đo thẳng trên hoá đơn POS.
 
-**Khoá tự nhiên là `month + platform + store`, không phải `month + platform`.** Báo cáo nguồn
-liệt kê GrabFood ở hai cửa hàng; khử trùng theo `platform` sẽ nuốt mất một cửa hàng và báo
-57,8 tr thay vì 89,0 tr.
+**Không đếm đôi:** hoá đơn Grab có gắn CTKM không phải đối tác (quà sinh nhật, Monday Treat — T8: 5 HĐ) chỉ nằm ở
+“Đối tác”; loader rút khỏi bản chất của CTKM đó.
 
-**Dòng tổng của nền tảng bị bỏ khi đã có dòng cửa hàng.** Trong biểu mẫu nguồn, dòng
-`GrabFood` là TỔNG của hai dòng cửa hàng ngay dưới — lấy cả ba là cộng đôi.
+**Kiểm tra chéo:** QA #17 — phần nhận theo tên CTKM của `fact_partner` = bản chất PARTNER của `fact_promo_day`,
+9/9 tháng khớp từng đồng. Thẻ M7 = tổng M9 từng tháng (T8/2026: 183,0 tr, sau khi bỏ SonKim/Cư dân).
 
-`take_rate` để trống nghĩa là **chưa khai** discount/hoa hồng, không phải nền tảng không giữ
-đồng nào. Màn hình hiện `—`.
+> ⚠️ Kiểm tra chéo M7 ↔ M7.2 ở §0 (“M7 bỏ nội bộ = M7.2”) giờ phải **bỏ thêm phần đơn nền tảng không gắn CTKM**
+> (`partner_fact.basis ≠ CTKM`), vì M7.2 chấm theo chương trình CTKM.
+
+**Sửa phân loại cùng đợt:** `Giảm 10% Cho Nhân Viên Thuộc Tòa Nhà IFC` (29 HĐ · 6,9 tr) và toàn bộ chương trình
+SonKim Group / cư dân — không phải CBNV NOIRE nên không vào INTERNAL, cũng không phải partnership có hợp đồng
+thật nên không vào PARTNER — chuyển hết về **COMMERCIAL**, chấm như campaign thương mại thường.
