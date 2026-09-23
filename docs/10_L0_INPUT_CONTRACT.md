@@ -88,8 +88,10 @@ tháng thì file bị **bỏ qua** và báo cáo ghi rõ dưới dòng *“khôn
 
 ## 4. Hệ thống tự làm gì khi thấy file mới
 
-`update.py` giữ chữ ký từng file (kích thước + giờ sửa) ở `_cache/l0_manifest.json`, so với lần
-trước, rồi **chỉ dựng lại phần bị ảnh hưởng**:
+`update.py` giữ dấu vân tay từng file ở `_cache/l0_manifest.json` — chữ ký (kích thước + giờ sửa)
+để soát nhanh, **hash nội dung (sha256)** để quyết định. Chép lại / mở rồi đóng một file làm đổi
+giờ sửa nhưng nội dung y nguyên → **không dựng lại**. So với lần trước rồi **chỉ dựng lại phần bị
+ảnh hưởng**:
 
 | File thay đổi | Dựng lại |
 |---|---|
@@ -104,7 +106,30 @@ trước, rồi **chỉ dựng lại phần bị ảnh hưởng**:
 Sau đó luôn chạy `tools/export_derived.py` (nếu lane luỹ kế chạy) và loader Node → 16 chốt QA.
 
 **Bước nào lỗi thì không ghi nhớ thay đổi** — lần chạy sau tự làm lại. Không có chuyện
-“lỗi một lần là mất cập nhật vĩnh viễn”.
+“lỗi một lần là mất cập nhật vĩnh viễn”. Loader Node được gọi với `--strict` nên lỗi của nó
+cũng tính là lỗi (chạy tay `npm run dev` thì vẫn giữ bản cũ để app mở được).
+
+**Chốt gác cổng 1–4 đỏ → không ghi `src/data/`.** Loader kiểm chốt TRƯỚC khi ghi và ghi
+năm file JSON nguyên khối (ra `.tmp` rồi mới tráo) — không có bộ JSON nửa mới nửa cũ.
+
+### 4a. Cách ly file sai mẫu — `L0_input/_REJECT/`
+
+File **mới hoặc vừa thay** mà thiếu sheet/cột bắt buộc (`SCHEMA` ở `tools/l0_registry.py`)
+bị **dời** vào `L0_input/_REJECT/<cùng đường dẫn>` kèm file `….LY_DO.txt` ghi lỗi và cách xử lý.
+
+Vì sao dời chứ không chỉ báo: hai file cùng tháng thì hệ thống lấy **bản mới nhất** — bản sai
+vừa thả sẽ thắng bản đúng đang dùng và dashboard đọc ra số hỏng.
+
+| Trường hợp | Hệ thống làm |
+|---|---|
+| File sai mẫu, tên mới | dời vào `_REJECT/`, bản đúng đang có vẫn được dùng |
+| File sai mẫu **đè** lên bản đúng cùng tên | dời vào `_REJECT/`, **giữ số đã dựng** (không dựng lại tháng đó với nguồn rỗng) tới khi có bản đúng thay |
+| File sai mẫu đang mở trong Excel / đang chép dở | chưa dời, **không dựng**, báo trong `_BAO_CAO_CAP_NHAT.txt`; lần chạy sau soát lại |
+| File lạ (không khớp mẫu tên nguồn) | **không đụng** — đó là đầu vào của cổng chuẩn hoá `tools/l0_ingest.py` |
+| File đã dùng ổn định từ trước | **không đụng**, kể cả khi mẫu chuẩn thay đổi — chỉ báo trong mục “FILE SAI MẪU” |
+
+Xử lý: xuất lại đúng mẫu, thả vào thư mục nguồn như bình thường. File trong `_REJECT/` xoá được
+khi đã thả bản đúng. `tools/l0_setup.py --import` không bao giờ dời thư mục `_…` (hệ thống).
 
 **Chế độ tự động chờ file chép xong**: phải thấy hai lần soát liên tiếp giống nhau mới chạy.
 File POS 60MB đang chép dở mà dựng ngay là đọc ra Excel hỏng.

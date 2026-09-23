@@ -10,11 +10,12 @@
 Muốn tự động hoàn toàn: chạy `CAP_NHAT_TU_DONG.bat` và để cửa sổ mở —
 cứ thả file là hệ thống tự cập nhật sau khi file chép xong.
 
-## Ba quy tắc
+## Bốn quy tắc
 
 - **Không đổi tên file export.** Tháng được đọc từ tên file (`T8.2026`, `2026-08`, `Tháng 8.2026`).
 - **Thay file = thả đè hoặc thả bản mới.** Hai file cùng tháng → hệ thống lấy bản MỚI NHẤT và báo bản bị bỏ qua. Không bao giờ cộng đôi.
 - **Không sửa file trong `data_input/`.** Đó là đầu ra do hệ thống sinh.
+- **File sai mẫu bị dời vào `_REJECT/`.** Thiếu sheet/cột bắt buộc → hệ thống không đọc, dời file vào `_REJECT/` kèm `….LY_DO.txt`; số đang có giữ nguyên. Xuất lại đúng mẫu rồi thả lại.
 
 ## Các thư mục
 
@@ -32,13 +33,13 @@ cứ thả file là hệ thống tự cập nhật sau khi file chép xong.
 | `03_MARKETING/03_Social/01_Fanpage` | Social · Fanpage Facebook |  | `Facebook*.xlsx | Tháng */*/*.csv` |
 | `03_MARKETING/03_Social/02_Tiktok` | Social · TikTok |  | `TikTok*.xlsx` |
 | `03_MARKETING/04_Ngan_Sach` | Ngân sách Marketing theo quý |  | `NOIRE_MKT_*Checked*.xlsx` |
-| `03_MARKETING/05_Promotion_Ke_Hoach` | Pre-Analysis chương trình khuyến mãi |  | `NOIRE_Promotion_Pre-Analysis*.xlsx` |
+| `03_MARKETING/05_Promotion_Ke_Hoach` | Pre-Analysis chương trình khuyến mãi |  | `NOIRE_Promotion_Pre-Analysis*.xlsx | NOIRE_Promotion_Pre-Analysis*.xlsm` |
 | `03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia` | M7.1 · Sổ Pre-Analysis chuẩn (đánh giá chương trình trước khi chạy) |  | `Pre_Analysis_*.xlsx` |
 | `03_MARKETING/06_Promotion_Ket_Qua` | Báo cáo hiệu quả LTO đã chạy |  | `NOIRE_Bao_Cao_Hieu_Qua_LTO*.xlsx` |
 | `03_MARKETING/08_Bao_Cao_MKT_Thang` | Báo cáo marketing tháng (Promotion-AGG) |  | `*Promotion AGG*.xlsx` |
 | `03_MARKETING/07_Campaign_Tracking` | M7 · Danh mục chương trình (master chung M7 · M7.1 · M7.2) |  | `Campaign_Tracking*.xlsx` |
 | `04_CRM/01_Voucher_iPOS` | Nhật ký voucher iPOS |  | `exportVoucherLogOfCampaign_*.xlsx` |
-| `04_CRM/02_Zalo_OA` | Zalo OA |  | `OA Zalo T*.xls*` |
+| `04_CRM/02_Zalo_OA` | Zalo OA export (legacy) |  | `OA Zalo T*.xls*` |
 | `04_CRM/03_Member` | Member đăng ký (CRM Dashboard đã làm sạch) |  | `CRM_Dashboard*.xlsx | member_actual*.xlsx` |
 | `04_CRM/04_KPI_CRM` | KPI CRM theo quý |  | `*KPI CRM*.xlsx` |
 | `05_DOI_TAC/01_Danh_Muc` | Danh mục đối tác — Partner + Aggregator |  | `NOIRE_Doi_Tac*.xlsx` |

@@ -150,11 +150,12 @@ def root_readme():
         "Muốn tự động hoàn toàn: chạy `CAP_NHAT_TU_DONG.bat` và để cửa sổ mở —",
         "cứ thả file là hệ thống tự cập nhật sau khi file chép xong.",
         "",
-        "## Ba quy tắc",
+        "## Bốn quy tắc",
         "",
         "- **Không đổi tên file export.** Tháng được đọc từ tên file (`T8.2026`, `2026-08`, `Tháng 8.2026`).",
         "- **Thay file = thả đè hoặc thả bản mới.** Hai file cùng tháng → hệ thống lấy bản MỚI NHẤT và báo bản bị bỏ qua. Không bao giờ cộng đôi.",
         "- **Không sửa file trong `data_input/`.** Đó là đầu ra do hệ thống sinh.",
+        "- **File sai mẫu bị dời vào `_REJECT/`.** Thiếu sheet/cột bắt buộc → hệ thống không đọc, dời file vào `_REJECT/` kèm `….LY_DO.txt`; số đang có giữ nguyên. Xuất lại đúng mẫu rồi thả lại.",
         "",
         "## Các thư mục",
         "",
@@ -289,8 +290,10 @@ def import_files(dry=False):
                 stat[_place(f, sid, base, False, dry, log)] += 1
     # 3. thư mục cũ còn sót
     canon_top = {s["dir"].split("/")[0] for s in SOURCES.values()}
+    # `_…` là thư mục hệ thống (_REJECT cách ly file sai mẫu, _archive) — không phải cây cũ.
     leftovers = [d for d in os.listdir(L0_ROOT)
-                 if os.path.isdir(os.path.join(L0_ROOT, d)) and d not in canon_top]
+                 if os.path.isdir(os.path.join(L0_ROOT, d)) and d not in canon_top
+                 and not d.startswith("_")]
     arch = os.path.join(ROOT, "_archive", "L0_input_cu")
     for d in leftovers:
         log.append(f"   → dời thư mục cũ vào _archive/L0_input_cu/: {d}")

@@ -557,6 +557,20 @@ def file_sig(path):
         return None
 
 
+def file_sha(path):
+    """Dấu vân tay NỘI DUNG file (sha256). Chép lại / mở rồi đóng làm đổi giờ sửa
+    nhưng nội dung y nguyên — so bằng hash thì không dựng lại vô cớ."""
+    import hashlib
+    h = hashlib.sha256()
+    try:
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+    except OSError:
+        return None
+    return h.hexdigest()
+
+
 def month_range(a, b):
     y, m = int(a[:4]), int(a[5:7])
     out = []
