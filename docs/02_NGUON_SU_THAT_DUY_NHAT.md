@@ -21,6 +21,7 @@
 | **Phễu booking tiệc** — chốt là gì · đặt bàn nhỏ · chiến dịch ads nào là booking · loại kết quả ads · nhóm lý do mất · loại sự kiện | `data_contract.json` → **`$booking`** | `monthly_lib.booking_*()` · `ads_is_booking()` · `HUB_DATA.booking_meta` | build_month · loader · M10 |
 | **Cấu trúc sheet Excel** — cột · khoá · tier | `data_contract.json` → `sheets` | `monthly_lib.SHEETS` · `CONTRACT.sheets` | mọi lane |
 | **Nguồn L0** — thư mục · mẫu tên · nhịp · tháng bắt đầu | `tools/l0_registry.py` *(xuất ra `data_sources.json`)* | `monthly_lib.l0_files` · `l0_latest` · `l0_by_month` · `l0_scan` | mọi script + `update.py` |
+| **Bộ chuyển file lạ → schema chuẩn** — dạng file nào ánh xạ sang cột chuẩn nào | `tools/l0_ingest.py` → `ADAPTERS` | `l0_ingest.ingest()` · `merge()` | `build_mkt.py` · `check_input.py` |
 | **Gốc dữ liệu L0** | `L0_input/` cố định *(đổi bằng `NOIRE_ROOT`)* | `monthly_lib.L0_ROOT` | mọi script |
 | **Tháng nào cần dựng lại** | `tools/build_month.py → BUILDERS` *(cột nguồn)* | `update.py → plan()` | `update.py` |
 

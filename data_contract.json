@@ -794,6 +794,26 @@
       ],
       "desc": "Log eVoucher đối tác (L0 S21) theo chiến dịch × tháng. Dòng phát: `issued` theo THÁNG của Ngày phát hành mã (store trống) · dòng dùng: `used` · `gross` (HĐ trước giảm) · `disc` theo THÁNG của Ngày sử dụng × cửa hàng. Không lấy tháng từ tên file. Không chứa số điện thoại khách."
     },
+    "partner_ingest": {
+      "tier": "master",
+      "key": [
+        "source",
+        "file"
+      ],
+      "req": [
+        "file"
+      ],
+      "cols": [
+        "source",
+        "file",
+        "adapter",
+        "rows",
+        "note",
+        "applied",
+        "miss"
+      ],
+      "desc": "CỔNG CHUẨN HOÁ ĐẦU VÀO — file trong thư mục nguồn KHÔNG đúng mẫu tên chuẩn đã được tools/l0_ingest.py chuyển sang schema chuẩn. `rows` = số dòng chuyển được · `applied` = đã điền vào file chuẩn những gì (file chuẩn luôn thắng từng ô) · `miss` = ô file lạ không ghi rõ, để trống chờ bổ sung. Không có bộ chuyển thì `adapter` trống và file KHÔNG được đọc."
+    },
     "pre_analytics": {
       "tier": "master",
       "key": [

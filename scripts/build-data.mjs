@@ -984,6 +984,12 @@ function buildMkt(tables, over) {
     partner_campaigns: PTN.campaigns,
     partner_check: PTN.check,
     partner_plan: PTN.plan,
+    /* Cổng chuẩn hoá đầu vào (tools/l0_ingest.py): file lạ trong thư mục nguồn đã được chuyển
+       sang schema chuẩn — hiện ở chân màn M9 để biết số nào đến từ file nào, còn thiếu gì. */
+    partner_ingest: T(tables, 'partner_ingest').map((r) => ({
+      source: r.source ?? null, file: r.file ?? null, adapter: r.adapter ?? null,
+      rows: n0(r.rows), note: r.note ?? null, applied: r.applied ?? null, miss: r.miss ?? null,
+    })),
     pre_q3,
     pre_stat: applyStats({
       n: pre_q3.length, neg: neg.length,

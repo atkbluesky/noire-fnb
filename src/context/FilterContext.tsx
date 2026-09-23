@@ -272,22 +272,25 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return sumAgg(prevPeriodMonths.map(m => byMonth[m]));
   }, [prevPeriodMonths, filters.scope, filters.brand, filters.perday]);
 
+  /* Cột lấy theo HỢP các khoá của MỌI dòng — dòng đầu thiếu một khoá thì cột đó từng
+     biến mất khỏi cả file. Giá trị không phải số/chuỗi được làm phẳng: mảng nối bằng " · ",
+     object bỏ qua — trước đây đổ thẳng ra thành "[object Object]", mất sạch số bên trong. */
   const exportToCSV = (filename: string, rows: Record<string, any>[]) => {
     if (!rows || !rows.length) return;
-    const keys = Object.keys(rows[0]);
-    const header = keys.join(',');
-    const csvContent = rows.map(r => {
-      return keys.map(k => {
-        let v = r[k];
-        if (v == null) return '""';
-        if (typeof v === 'string') {
-          return `"${v.replace(/"/g, '""')}"`;
-        }
-        return v;
-      }).join(',');
-    }).join('\n');
+    const keys: string[] = [];
+    rows.forEach(r => Object.keys(r).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
+    const cell = (v: any): string => {
+      if (v === null || v === undefined) return '""';
+      if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '""';
+      if (typeof v === 'boolean') return v ? '"x"' : '""';
+      if (Array.isArray(v)) return cell(v.map(x => (x && typeof x === 'object' ? '' : x)).filter(Boolean).join(' · '));
+      if (typeof v === 'object') return '""';
+      return `"${String(v).replace(/"/g, '""')}"`;
+    };
+    const header = keys.map(k => `"${k.replace(/"/g, '""')}"`).join(',');
+    const csvContent = rows.map(r => keys.map(k => cell(r[k])).join(',')).join('\r\n');
 
-    const blob = new Blob(['\uFEFF' + header + '\n' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + header + '\r\n' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);

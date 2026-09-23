@@ -3,6 +3,7 @@
 FILE NHẬP CHUẨN M9 · ĐỐI TÁC — hai file, mỗi file một việc
 ==========================================================
     python tools/partner_template.py            tạo file còn thiếu (TỪ CHỐI đè file đã có — không mất số bạn đã nhập)
+    python tools/partner_template.py --sync-cols  thêm CỘT còn thiếu vào file đang dùng (giữ nguyên số đã nhập)
     python tools/partner_template.py --force    tạo lại cả hai từ đầu (mất số đã nhập)
 
 ① 05_DOI_TAC/01_Danh_Muc/NOIRE_Doi_Tac_Partner_Aggregator.xlsx  — DANH MỤC (sửa khi có hợp đồng mới)
@@ -61,6 +62,7 @@ PARTNER_COLS = [
     ("fee_period", "Kỳ tính phí", 11, "need", "Không · Một lần (tính vào tháng bắt đầu) · Hàng tháng (mỗi tháng trong kỳ HĐ).", FEE_PERIOD),
     ("commission_pct", "Chiết khấu / hoa hồng cho đối tác (%)", 14, "need", "% trên doanh thu hoá đơn NOIRE trả lại cho đối tác (nếu có). Ưu đãi cho KHÁCH khai ở 3_CHUONG_TRINH.", None),
     ("media", "Giá trị media quy đổi (đ)", 15, "need", "Đối tác truyền thông giúp — chỉ để tham khảo, KHÔNG cộng vào lợi nhuận.", None),
+    ("aliases", "Tên khác trên báo cáo", 24, "need", "Tên đối tác này được viết thế nào ở file lạ / báo cáo team, ngăn bằng |. Cổng chuẩn hoá đầu vào dùng để nhận ra dòng.", None),
     ("owner", "Người phụ trách", 14, "need", "", None),
     ("note", "Ghi chú", 40, "need", "", None),
 ]
@@ -78,6 +80,8 @@ AGG_COLS = [
     ("fee_unit", "Phí theo", 12, "need", "Không · Theo booking · Theo khách.", FEE_UNIT),
     ("fee_unit_amount", "Phí mỗi booking / khách (đ)", 14, "need", "Vd Dining City 18.000 đ/khách.", None),
     ("sponsor", "Ai tài trợ ưu đãi", 14, "need", "NOIRE · Đối tác / nền tảng · Chia.", SPONSOR),
+    ("media", "Giá trị media quy đổi (đ)", 15, "need", "Nền tảng truyền thông giúp — chỉ để tham khảo, KHÔNG cộng vào lợi nhuận.", None),
+    ("aliases", "Tên khác trên báo cáo", 24, "need", "Tên nền tảng này được viết thế nào ở báo cáo team / file lạ, ngăn bằng |. Vd: GrabFood|Grab DineOut. Cổng chuẩn hoá đầu vào (tools/l0_ingest.py) dùng để nhận ra dòng.", None),
     ("noire_share", "% NOIRE chịu ưu đãi", 11, "need", "100% nếu NOIRE fund.", None),
     ("source", "Nguồn số liệu", 14, "need", "POS tự động = hoá đơn có Nguồn là nền tảng (Grab). Tự thống kê = nhập tay ở file Aggregator theo tháng (03_Aggregator · AGG_THANG) (Dining City).", SOURCE),
     ("owner", "Người phụ trách", 14, "need", "", None),
@@ -160,6 +164,7 @@ AGGS = [
     dict(code="P03", name="Grab Dine Out", kind="Dine-out · ưu đãi tại quán", brand="NDC, NJFB", stores="TẤT CẢ",
          start=D("2026-07-27"), end=D("2026-09-30"), status="Đang chạy", commission_pct=0.138, fee_month=0,
          fee_unit="Không", fee_unit_amount=0, sponsor="NOIRE", noire_share=1, source="POS tự động",
+         media=172944323, aliases="GrabFood|Grab DineOut",
          note="CMS 13,8% (báo cáo Promotion-AGG T8/2026). Hoá đơn nhận theo cột Nguồn = GRABFOOD trên POS."),
     dict(code="P11", name="GrabFood (giao hàng)", kind="Giao hàng", brand="NCB", stores="TẤT CẢ",
          start=None, end=None, status="Đang chạy", commission_pct=0.25, fee_month=0, fee_unit="Không",
@@ -168,6 +173,7 @@ AGGS = [
     dict(code="P02", name="Dining City", kind="Đặt bàn", brand="NDC, NJFB", stores="TẤT CẢ",
          start=D("2026-07-01"), end=D("2026-12-31"), status="Đang chạy", commission_pct=0, fee_month=0,
          fee_unit="Theo booking", fee_unit_amount=18000, sponsor="NOIRE", noire_share=1, source="Tự thống kê",
+         media=0, aliases="DiningCity|Dingning City",
          note="POS KHÔNG ghi nhận được Dining City — nhập số ở file Aggregator theo tháng (03_Aggregator · AGG_THANG). Hoa hồng 18.000đ/booking."),
 ]
 PROGRAMS = [
@@ -354,16 +360,77 @@ def build_agg(path):
     wb.save(path)
 
 
+def sync_cols(path, sheets):
+    """Thêm CỘT còn thiếu vào file đang dùng — không chạm dòng dữ liệu nào.
+
+    Mẫu chuẩn lớn lên (thêm 'Giá trị media quy đổi', 'Tên khác trên báo cáo'…) mà file người
+    dùng đang điền vẫn là bản cũ thì cột mới không có chỗ nhập, và dữ liệu file gốc rơi mất.
+    Hàm này nối cột mới vào CUỐI sheet, giữ nguyên thứ tự và nội dung cột cũ."""
+    from openpyxl import load_workbook
+    from openpyxl.comments import Comment
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.worksheet.datavalidation import DataValidation
+    HDR, FILL, BOX = _styles()
+    wb = load_workbook(path)
+    added = []
+    for sheet, cols in sheets.items():
+        if sheet not in wb.sheetnames:
+            continue
+        ws = wb[sheet]
+        have = {str(c.value).strip() for c in ws[1] if c.value}
+        for key, h, w, kind, tip, opts in cols:
+            if h in have:
+                continue
+            j = ws.max_column + 1
+            c = ws.cell(1, j, h)
+            c.font = Font(bold=True, color="F3F2EE")
+            c.fill = HDR
+            c.alignment = Alignment(wrap_text=True, vertical="center")
+            c.border = BOX
+            if tip:
+                c.comment = Comment(tip, "NOIRE")
+            ws.column_dimensions[c.column_letter].width = w
+            if opts:
+                dv = DataValidation(type="list", formula1='"%s"' % ",".join(opts), allow_blank=True)
+                dv.add(f"{c.column_letter}2:{c.column_letter}500")
+                ws.add_data_validation(dv)
+            for i in range(2, ws.max_row + 1):
+                cell = ws.cell(i, j)
+                cell.fill = FILL["need"]
+                cell.border = BOX
+                if key in MONEY:
+                    cell.number_format = "#,##0"
+                elif key in PCT:
+                    cell.number_format = "0.0%"
+            added.append(f"{sheet}.{h}")
+    if added:
+        wb.save(path)
+    return added
+
+
 def main(argv):
     force = "--force" in argv
+    sync = "--sync-cols" in argv
+    SHEETS = {OUT_NAME: {"1_PARTNER": PARTNER_COLS, "2_AGGREGATOR": AGG_COLS,
+                         "3_CHUONG_TRINH": PROG_COLS, "4_KE_HOACH": PLAN_COLS},
+              AGG_NAME: {"AGG_THANG": AGG_MONTH_COLS}}
     for sid, name, fn in (("S15_partnership", OUT_NAME, build_catalog), ("S19_aggregator", AGG_NAME, build_agg)):
         d = l0_dir(sid)
         if not d:
             print(f"không thấy thư mục nguồn {sid}")
             return 1
         path = os.path.join(d, name)
+        if os.path.exists(path) and sync:
+            try:
+                added = sync_cols(path, SHEETS[name])
+            except PermissionError:
+                print(f"{name} đang mở trong Excel — đóng file rồi chạy lại.")
+                continue
+            print(f"{name}: thêm {len(added)} cột — {', '.join(added) or 'đã đủ cột'}")
+            continue
         if os.path.exists(path) and not force:
-            print(f"{name} đã có — KHÔNG ghi đè số bạn đã nhập. Dùng --force để tạo lại từ đầu.")
+            print(f"{name} đã có — KHÔNG ghi đè số bạn đã nhập. Dùng --sync-cols để thêm cột mới, "
+                  f"--force để tạo lại từ đầu.")
             continue
         fn(path)
         print(f"→ {os.path.relpath(path)}")

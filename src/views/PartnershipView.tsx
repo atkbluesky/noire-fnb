@@ -5,7 +5,7 @@ import { HUB_DATA, MKT_DATA } from '../data';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { DataTable, Column } from '../components/common/DataTable';
+import { DataTable, Column, columnsToRows } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
 import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../utils/formatters';
 import {
@@ -134,6 +134,12 @@ export const PartnershipView: React.FC = () => {
     })),
   };
 
+  /* Tên file CSV mang kỳ lọc: mở file ra là biết số của tháng nào, không lẫn với lần xuất trước. */
+  const csvPeriod = ms.length ? (ms.length === 1 ? ms[0] : `${ms[0]}_${ms[ms.length - 1]}`) : 'khong_ky';
+
+  /* Cổng chuẩn hoá đầu vào — file lạ đã nạp vào schema chuẩn (tools/l0_ingest.py). */
+  const ingest = MKT_DATA.partner_ingest || [];
+
   const ranked = active.slice().sort((a, b) => a.t.net - b.t.net);
   const rankOption: EChartsOption = {
     tooltip: {
@@ -201,6 +207,9 @@ export const PartnershipView: React.FC = () => {
   /* ── Cột dùng chung: Đối tác và Kỳ hạn tách riêng, Doanh thu và AOV tách riêng ── */
   const colPartner: Column<Row> = {
     key: 'name', header: 'ĐỐI TÁC',
+    exportValue: r => ({ 'Mã ĐT': r.code, 'Đối tác': r.name, 'Kênh': r.channel, 'Loại': r.kind ?? '',
+      'Brand áp dụng': r.brand ?? '', 'Cửa hàng áp dụng': r.stores ?? '', 'Nguồn số': r.source,
+      'Người phụ trách': r.owner ?? '', 'Ghi chú': r.note ?? '' }),
     render: r => (
       <div className="py-1 min-w-[120px]">
         <div className="font-bold text-[13px] leading-tight text-brand-text">{r.name}</div>
@@ -210,6 +219,7 @@ export const PartnershipView: React.FC = () => {
 
   const colTerm: Column<Row> = {
     key: 'term', header: 'KỲ HẠN',
+    exportValue: r => ({ 'Trạng thái': r.status ?? '', 'Bắt đầu HĐ': r.start ?? '', 'Kết thúc HĐ': r.end ?? '' }),
     render: r => {
       const validStart = r.start && r.start !== '—' && r.start !== '-' ? r.start : null;
       const validEnd = r.end && r.end !== '—' && r.end !== '-' ? r.end : null;
@@ -229,6 +239,14 @@ export const PartnershipView: React.FC = () => {
 
   const colOffer: Column<Row> = {
     key: 'offer', header: 'CHƯƠNG TRÌNH · CƠ CHẾ ƯU ĐÃI',
+    exportValue: r => ({
+      'Số chương trình': r.programs.length,
+      'Chương trình · ưu đãi': r.programs.map(g =>
+        [g.brand, offerText(g), g.mech, g.start || g.end ? `${g.start ?? '…'} → ${g.end ?? '…'}` : '', g.condition]
+          .filter(Boolean).join(' · ')).join(' | '),
+      'Campaign ID iPOS': r.programs.map(g => g.cid).filter(Boolean).join(' · '),
+      'Tên CTKM trên POS': r.programs.map(g => g.pos_name).filter(Boolean).join(' · '),
+    }),
     render: r => r.programs.length ? (
       <div className="max-w-[340px] min-w-[200px] space-y-1.5 py-1">
         {r.programs.map(g => {
@@ -260,6 +278,11 @@ export const PartnershipView: React.FC = () => {
 
   const colNetOnly = (withPlan: boolean): Column<Row> => ({
     key: 'net', header: 'DOANH THU', align: 'right',
+    exportValue: r => ({
+      'Doanh thu (đ)': r.t.net,
+      '% DT chuỗi': chainNet ? r.t.net / chainNet : '',
+      ...(withPlan ? { 'Kế hoạch DT (đ)': r.plan ?? '', '% đạt kế hoạch': r.plan ? r.t.net / r.plan : '' } : {}),
+    }),
     render: r => (
       <div className="text-right font-mono leading-tight py-1 min-w-[90px]">
         <div className="font-bold text-brand-goldLight text-[13px]">{r.t.net ? formatVND(r.t.net) : '—'}</div>
@@ -275,6 +298,10 @@ export const PartnershipView: React.FC = () => {
 
   const colAov: Column<Row> = {
     key: 'aov', header: 'AOV', align: 'right',
+    exportValue: r => ({
+      'AOV (đ)': r.t.bills ? r.t.net / r.t.bills : '',
+      'AOV vs chuỗi': r.t.bills && chainAov ? r.t.net / r.t.bills / chainAov - 1 : '',
+    }),
     render: r => {
       const aov = r.t.bills ? r.t.net / r.t.bills : null;
       const d = aov !== null && chainAov ? aov / chainAov - 1 : null;
@@ -293,6 +320,14 @@ export const PartnershipView: React.FC = () => {
 
   const colCost = (header: string): Column<Row> => ({
     key: 'cost', header, align: 'right',
+    exportValue: r => ({
+      'Tổng chi phí (đ)': cost(r.t),
+      'Ưu đãi NOIRE chịu (đ)': r.t.cost,
+      'Phí nền tảng / hợp tác (đ)': r.t.fee,
+      'Trong đó phí ƯỚC TÍNH (đ)': r.t.fee_est,
+      'Hoa hồng đã trừ trong DT (đ)': r.t.fee_netted,
+      '% chi phí / DT': r.t.net ? cost(r.t) / r.t.net : '',
+    }),
     render: r => {
       const c = cost(r.t);
       return (
@@ -313,6 +348,8 @@ export const PartnershipView: React.FC = () => {
 
   const colFlags: Column<Row> = {
     key: 'flags', header: 'CẦN XỬ LÝ',
+    exportValue: r => ({ 'Cần xử lý': r.flags.join(' · '), 'Cách nhận số': r.bases.join(' · '),
+      'Tháng đầu': r.first ?? '', 'Tháng cuối': r.last ?? '' }),
     render: r => <div className="max-w-[180px] min-w-[90px]"><Flags flags={r.flags} /></div>,
   };
 
@@ -323,6 +360,10 @@ export const PartnershipView: React.FC = () => {
     colOffer,
     {
       key: 'terms', header: 'HOA HỒNG · PHÍ HĐ',
+      exportValue: r => ({ 'Hoa hồng nền tảng (%)': r.commission_pct ?? '', 'Phí cố định/tháng (đ)': r.fee_month ?? '',
+        'Phí theo': r.fee_unit ?? '', 'Phí mỗi booking/khách (đ)': r.fee_unit_amount ?? '',
+        'Ai tài trợ ưu đãi': r.sponsor ?? '', '% NOIRE chịu ưu đãi': r.noire_share,
+        'Media quy đổi (đ)': r.media ?? '' }),
       render: r => (
         <div className="space-y-0.5 text-[11px] leading-tight py-1 min-w-[100px]">
           {r.commission_pct ? (
@@ -343,6 +384,8 @@ export const PartnershipView: React.FC = () => {
     },
     {
       key: 'bills', header: 'BOOKING · HĐ · KHÁCH', align: 'right',
+      exportValue: r => ({ 'Hoá đơn': r.t.bills, 'Booking': r.t.bookings, 'Huỷ / không đến': r.t.cancels,
+        'Khách': r.t.guests, 'Doanh thu tự thống kê (đ)': r.t.net_self }),
       render: r => (
         <div className="text-right font-mono leading-tight py-1 min-w-[90px]">
           <div className="font-bold text-brand-text">{r.t.bills ? `${formatNumber(r.t.bills)} HĐ` : '—'}</div>
@@ -368,6 +411,9 @@ export const PartnershipView: React.FC = () => {
     colOffer,
     {
       key: 'terms', header: 'PHÍ HĐ · CHIẾT KHẤU',
+      exportValue: r => ({ 'Phí hợp tác (đ)': r.fee ?? '', 'Kỳ tính phí': r.fee_period ?? '',
+        'Chiết khấu cho đối tác (%)': r.commission_pct ?? '', '% NOIRE chịu ưu đãi': r.noire_share,
+        'Media quy đổi (đ)': r.media ?? '' }),
       render: r => (
         <div className="space-y-0.5 text-[11px] leading-tight py-1 min-w-[110px]">
           <div className="font-medium text-brand-text">
@@ -382,6 +428,8 @@ export const PartnershipView: React.FC = () => {
     },
     {
       key: 'codes', header: 'MÃ PHÁT → DÙNG', align: 'right',
+      exportValue: r => ({ 'Mã phát (kỳ lọc)': vBy[r.code]?.issued ?? '', 'Mã đã dùng (kỳ lọc)': vBy[r.code]?.used ?? '',
+        'Tỷ lệ dùng mã': vBy[r.code]?.issued ? (vBy[r.code]!.used / vBy[r.code]!.issued) : '' }),
       render: r => {
         const v = vBy[r.code];
         if (!v || (!v.issued && !v.used)) return <span className="font-mono text-brand-faint py-1 inline-block">—</span>;
@@ -400,6 +448,7 @@ export const PartnershipView: React.FC = () => {
     },
     {
       key: 'bills', header: 'HĐ · KHÁCH', align: 'right',
+      exportValue: r => ({ 'Hoá đơn': r.t.bills, 'Khách': r.t.guests }),
       render: r => (
         <div className="text-right font-mono leading-tight py-1 min-w-[80px]">
           <div className="font-bold text-brand-text">{r.t.bills ? formatNumber(r.t.bills) : '—'}</div>
@@ -419,6 +468,9 @@ export const PartnershipView: React.FC = () => {
   const campCols: Column<CRow>[] = [
     {
       key: 'campaign', header: 'CHIẾN DỊCH',
+      exportValue: c => ({ 'Campaign ID': c.cid ?? '', 'Đối tác': PARTNER_BY_CODE[c.partner ?? '']?.name ?? c.partner ?? '',
+        'Mã ĐT': c.partner ?? '', 'Brand': c.brand ?? '', 'Tháng phát': c.first ?? '', 'Hết hạn': c.expire ?? '',
+        'Tháng dùng gần nhất': c.last_use ?? '' }),
       render: c => (
         <div className="leading-tight py-1 min-w-[140px]">
           <div className="font-semibold text-brand-text">{PARTNER_BY_CODE[c.partner ?? '']?.name ?? c.partner ?? '—'}</div>
@@ -430,10 +482,12 @@ export const PartnershipView: React.FC = () => {
     },
     {
       key: 'offer', header: 'ƯU ĐÃI',
+      exportValue: c => ({ 'Ưu đãi': c.offer ?? '', 'Mã chương trình': c.prog ?? '' }),
       render: c => <div className="max-w-[260px] whitespace-normal text-[11px] py-1 leading-snug">{c.offer ?? '—'}</div>,
     },
     {
       key: 'used', header: 'PHÁT → DÙNG', align: 'right',
+      exportValue: c => ({ 'Mã phát': c.issued, 'Mã đã dùng': c.used, 'Tỷ lệ dùng': c.use_rate ?? '', 'Mã tạm khoá': c.locked }),
       render: c => (
         <div className="text-right font-mono leading-tight py-1 min-w-[90px]">
           <div className="font-semibold text-brand-text">{formatNumber(c.issued)} → {formatNumber(c.used)}</div>
@@ -447,6 +501,7 @@ export const PartnershipView: React.FC = () => {
     },
     {
       key: 'gross', header: 'HĐ TRƯỚC GIẢM · TIỀN GIẢM', align: 'right',
+      exportValue: c => ({ 'HĐ trước giảm (đ)': c.gross, 'Tiền giảm (đ)': c.disc }),
       render: c => (
         <div className="text-right font-mono leading-tight py-1 min-w-[110px]">
           <div className="font-bold text-brand-text">{c.gross ? formatVND(c.gross) : '—'}</div>
@@ -524,7 +579,7 @@ export const PartnershipView: React.FC = () => {
         hero
         headerAction={
           <button
-            onClick={() => exportToCSV('Noire_Aggregator', aggTable)}
+            onClick={() => exportToCSV(`Noire_M9_Aggregator_${csvPeriod}`, columnsToRows(aggCols, aggTable))}
             className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface/60 hover:bg-brand-surface px-2.5 py-1 text-xs font-semibold text-brand-muted hover:border-brand-gold/50 hover:text-brand-gold transition-all"
             title="Xuất bảng Aggregator ra CSV"
           >
@@ -542,7 +597,7 @@ export const PartnershipView: React.FC = () => {
         hero
         headerAction={
           <button
-            onClick={() => exportToCSV('Noire_Partner', partTable)}
+            onClick={() => exportToCSV(`Noire_M9_Partner_${csvPeriod}`, columnsToRows(partCols, partTable))}
             className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface/60 hover:bg-brand-surface px-2.5 py-1 text-xs font-semibold text-brand-muted hover:border-brand-gold/50 hover:text-brand-gold transition-all"
             title="Xuất bảng Partner ra CSV"
           >
@@ -560,7 +615,7 @@ export const PartnershipView: React.FC = () => {
         headerAction={
           camps.length ? (
             <button
-              onClick={() => exportToCSV('Noire_eVoucher_Doi_Tac', camps)}
+              onClick={() => exportToCSV('Noire_M9_eVoucher_theo_chien_dich', columnsToRows(campCols, camps))}
               className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface/60 hover:bg-brand-surface px-2.5 py-1 text-xs font-semibold text-brand-muted hover:border-brand-gold/50 hover:text-brand-gold transition-all"
               title="Xuất danh sách eVoucher ra CSV"
             >
@@ -574,6 +629,23 @@ export const PartnershipView: React.FC = () => {
           ? <DataTable columns={campCols} data={camps} searchable={false} pageSize={6} />
           : <p className="py-6 text-center text-xs text-brand-muted">Chưa có log eVoucher</p>}
       </Card>
+
+      {ingest.length > 0 && (
+        <div className="rounded-lg border border-brand-border/70 bg-brand-surface/40 p-3 text-[10px] leading-relaxed text-brand-faint">
+          <span className="font-semibold text-brand-muted">Cổng chuẩn hoá đầu vào</span>
+          {' '}— file trong thư mục nguồn không đúng mẫu chuẩn được nạp vào đúng cột chuẩn; file chuẩn luôn thắng từng ô:
+          <ul className="mt-1 space-y-1">
+            {ingest.map(r => (
+              <li key={`${r.source}|${r.file}`}>
+                <span className="font-mono text-brand-muted">{r.file}</span>
+                {r.adapter ? <> → {r.note}</> : <span className="text-status-warning"> → chưa có bộ chuyển, file KHÔNG được đọc</span>}
+                {r.applied && <div className="pl-3 text-brand-muted">đã điền: {r.applied}</div>}
+                {r.miss && <div className="pl-3 text-status-warning">cần bổ sung: {r.miss}</div>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="text-[10px] text-brand-faint">
         Mẫu số % DT chuỗi: {formatVND(chainNet)} ({ms.length ? `${formatMonthLabel(ms[0])} → ${formatMonthLabel(ms[ms.length - 1])}` : '—'} · theo brand và phạm vi cửa hàng đang lọc).

@@ -103,6 +103,7 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 | `partner_agg` | **month** · _brand_ · _store_ · **code** · bookings · cancels · guests · bills · net · disc_noire · disc_platform · commission · fee_other · method · note | month + code + brand + store | — |
 | `partner_plan` | **month** · **code** · scenario · issued · use_rate · aov · rev · cost · gp · note | month + code | — |
 | `partner_voucher` | **cid** · campaign · partner · brand · expire · **kind** · **month** · _store_ · issued · used · locked · gross · disc | cid + kind + month + store | — |
+| `partner_ingest` | _source_ · **file** · adapter · rows · note · applied · miss | source + file | — |
 | `pre_analytics` | _name_ · _brand_ · kind · roi · nc | name + brand | — |
 | `crm_target` | _month_ · _kpi_ · target | month + kpi | — |
 | `system_tools` | _root_ · files · loc · dirs | root | — |
@@ -126,6 +127,7 @@ theo `ma` sẽ nuốt mất 94/700 dòng doanh thu.
 - **`partner_agg`** — Số aggregator TỰ THỐNG KÊ theo tháng × brand — file 05_DOI_TAC/03_Aggregator/NOIRE_Aggregator_Theo_Thang.xlsx, sheet AGG_THANG. `net` = Tổng tiền hoá đơn (gồm VAT & phí phục vụ, KHÔNG trừ phí nền tảng). Với nền tảng nguồn POS chỉ lấy `commission` · `fee_other` (phí thực trả).
 - **`partner_plan`** — Kế hoạch đối tác theo tháng — file danh mục đối tác, sheet 4_KE_HOACH. Ô trống = chưa đặt kế hoạch (hiện '—'), không phải 0.
 - **`partner_voucher`** — Log eVoucher đối tác (L0 S21) theo chiến dịch × tháng. Dòng phát: `issued` theo THÁNG của Ngày phát hành mã (store trống) · dòng dùng: `used` · `gross` (HĐ trước giảm) · `disc` theo THÁNG của Ngày sử dụng × cửa hàng. Không lấy tháng từ tên file. Không chứa số điện thoại khách.
+- **`partner_ingest`** — CỔNG CHUẨN HOÁ ĐẦU VÀO — file trong thư mục nguồn KHÔNG đúng mẫu tên chuẩn đã được tools/l0_ingest.py chuyển sang schema chuẩn. `rows` = số dòng chuyển được · `applied` = đã điền vào file chuẩn những gì (file chuẩn luôn thắng từng ô) · `miss` = ô file lạ không ghi rõ, để trống chờ bổ sung. Không có bộ chuyển thì `adapter` trống và file KHÔNG được đọc.
 - **`pre_analytics`** — CŨ — không còn dùng. Thay bằng `pre_plan` (03_campaign.xlsx) đọc thẳng file Pre-Analysis S16 qua tools/pre_analysis.py.
 - **`crm_target`** — KPI CRM cam kết theo tháng. kpi ∈ member|oa
 - **`system_tools`** — Kiểm toán phân mảnh hệ thống — nuôi tab D2.
