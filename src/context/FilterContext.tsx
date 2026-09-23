@@ -20,6 +20,9 @@ export interface AggregatedMonth {
   guest: number;
   tc: number;
   target: number;
+  /** Net chỉ của các cặp (cửa hàng × tháng) có giao target — tử số của % Đạt Kế hoạch,
+   *  tránh cộng doanh thu của cửa hàng chưa giao target vào tỷ lệ đạt. */
+  netTargeted: number;
   ta: number | null;
   aov: number | null;
   days: number;
@@ -40,6 +43,11 @@ export interface FilterContextType {
   selectedMonths: string[];
   isPartialMonth: (month: string) => boolean;
   aggByMonth: Record<string, AggregatedMonth>;
+  /** Cộng dồn toàn bộ kỳ chọn (Từ → Đến). */
+  periodAgg: AggregatedMonth;
+  /** Kỳ liền trước cùng số tháng (T7–T8 → T5–T6). Rỗng nếu dữ liệu không đủ. */
+  prevPeriodMonths: string[];
+  prevPeriodAgg: AggregatedMonth | null;
   activeView: string;
   setActiveView: (viewId: string) => void;
   isCommandPaletteOpen: boolean;
@@ -165,10 +173,18 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return !!HUB_DATA.coverage[month]?.partial;
   };
 
+  // Kỳ liền trước cùng độ dài — chỉ lấy khi đủ tháng, không so kỳ lệch độ dài.
+  const prevPeriodMonths = useMemo(() => {
+    const start = allMonths.indexOf(selectedMonths[0]);
+    const n = selectedMonths.length;
+    if (start < 0 || n === 0 || start - n < 0) return [];
+    return allMonths.slice(start - n, start);
+  }, [allMonths, selectedMonths]);
+
   // Aggregated data according to current filters
-  const aggByMonth = useMemo(() => {
+  const buildAggByMonth = (months: string[]): Record<string, AggregatedMonth> => {
     const out: Record<string, AggregatedMonth> = {};
-    selectedMonths.forEach(m => {
+    months.forEach(m => {
       out[m] = {
         net: 0,
         gross: 0,
@@ -177,6 +193,7 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         guest: 0,
         tc: 0,
         target: 0,
+        netTargeted: 0,
         ta: null,
         aov: null,
         days: HUB_DATA.days[m] || 30,
@@ -185,6 +202,7 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
     });
 
+    const netByKey: Record<string, number> = {};
     HUB_DATA.store_month.forEach((r: StoreMonth) => {
       if (!out[r.month] || !inScope(r.store)) return;
       const o = out[r.month];
@@ -194,15 +212,17 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       o.voucher += r.voucher || 0;
       o.guest += r.guest || 0;
       o.tc += r.tc || 0;
+      netByKey[`${r.month}|${r.store}`] = (netByKey[`${r.month}|${r.store}`] || 0) + (r.net || 0);
     });
 
     (HUB_DATA.target || []).forEach(t => {
-      if (out[t.month] && inScope(t.store)) {
-        out[t.month].target += t.target || 0;
+      if (out[t.month] && inScope(t.store) && (t.target || 0) > 0) {
+        out[t.month].target += t.target;
+        out[t.month].netTargeted += netByKey[`${t.month}|${t.store}`] || 0;
       }
     });
 
-    selectedMonths.forEach(m => {
+    months.forEach(m => {
       const o = out[m];
       o.ta = o.guest > 0 ? o.net / o.guest : null;
       o.aov = o.tc > 0 ? o.net / o.tc : null;
@@ -210,7 +230,47 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     return out;
-  }, [selectedMonths, filters.scope, filters.brand, filters.perday]);
+  };
+
+  const sumAgg = (rows: AggregatedMonth[]): AggregatedMonth => {
+    const s = rows.reduce(
+      (a, o) => ({
+        ...a,
+        net: a.net + o.net,
+        gross: a.gross + o.gross,
+        disc: a.disc + o.disc,
+        voucher: a.voucher + o.voucher,
+        guest: a.guest + o.guest,
+        tc: a.tc + o.tc,
+        target: a.target + o.target,
+        netTargeted: a.netTargeted + o.netTargeted,
+        days: a.days + o.days,
+        dcov: a.dcov + o.dcov,
+      }),
+      { net: 0, gross: 0, disc: 0, voucher: 0, guest: 0, tc: 0, target: 0, netTargeted: 0,
+        ta: null, aov: null, days: 0, dcov: 0, netday: 0 } as AggregatedMonth
+    );
+    s.ta = s.guest > 0 ? s.net / s.guest : null;
+    s.aov = s.tc > 0 ? s.net / s.tc : null;
+    s.netday = filters.perday ? (s.dcov > 0 ? s.net / s.dcov : 0) : s.net;
+    return s;
+  };
+
+  const aggByMonth = useMemo(
+    () => buildAggByMonth(selectedMonths),
+    [selectedMonths, filters.scope, filters.brand, filters.perday]
+  );
+
+  const periodAgg = useMemo(
+    () => sumAgg(selectedMonths.map(m => aggByMonth[m])),
+    [aggByMonth, selectedMonths]
+  );
+
+  const prevPeriodAgg = useMemo(() => {
+    if (!prevPeriodMonths.length) return null;
+    const byMonth = buildAggByMonth(prevPeriodMonths);
+    return sumAgg(prevPeriodMonths.map(m => byMonth[m]));
+  }, [prevPeriodMonths, filters.scope, filters.brand, filters.perday]);
 
   const exportToCSV = (filename: string, rows: Record<string, any>[]) => {
     if (!rows || !rows.length) return;
@@ -252,6 +312,9 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         selectedMonths,
         isPartialMonth,
         aggByMonth,
+        periodAgg,
+        prevPeriodMonths,
+        prevPeriodAgg,
         activeView,
         setActiveView,
         isCommandPaletteOpen,
