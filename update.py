@@ -66,8 +66,19 @@ ALL_MONTH_SOURCES = {"S03_daily", "S00_targets", "S13_member", "S07_lead", "S22_
 
 
 # ─────────────────────────── ảnh chụp L0 ───────────────────────────
-def snapshot():
-    """{đường_dẫn_tương_đối: chữ_ký} cho MỌI file dữ liệu trong thư mục các nguồn."""
+def _entry(v):
+    """Manifest cũ lưu mỗi file một chuỗi chữ ký — đọc được cả hai dạng."""
+    return v if isinstance(v, dict) else {"sig": v, "sha": None}
+
+
+def snapshot(prev=None):
+    """{đường_dẫn_tương_đối: {sig, sha}} cho MỌI file dữ liệu trong thư mục các nguồn.
+
+    `sig` (kích thước + giờ sửa) để soát nhanh; `sha` (hash nội dung) để QUYẾT ĐỊNH.
+    File có `sig` y như lần trước thì dùng lại `sha` cũ — không băm lại 567 MB mỗi 30 giây.
+    Giới hạn đã biết: sửa nội dung mà giữ nguyên kích thước VÀ cùng giây sửa thì lọt —
+    trường hợp đó chạy `--force`."""
+    prev = prev or {}
     out = {}
     for sid in L.SOURCES:
         d = L.l0_dir(sid)
@@ -76,9 +87,34 @@ def snapshot():
         for root, _, files in os.walk(d):
             for f in files:
                 p = os.path.join(root, f)
-                if L._is_data(p):
-                    out[os.path.relpath(p, L.L0_ROOT).replace("\\", "/")] = L.file_sig(p)
+                if not L._is_data(p):
+                    continue
+                rel = os.path.relpath(p, L.L0_ROOT).replace("\\", "/")
+                sig, old = L.file_sig(p), prev.get(rel)
+                sha = old["sha"] if old and old["sig"] == sig and old.get("sha") else L.file_sha(p)
+                out[rel] = {"sig": sig, "sha": sha}
     return out
+
+
+def current(man):
+    """Ảnh chụp đĩa + file đang GIỮ SỐ (bị cách ly sau khi đè lên bản đúng — xem quarantine)."""
+    snap = snapshot(man["files"])
+    held = man["held"]
+    for rel in list(held):
+        if rel in snap or _held_superseded(rel):
+            del held[rel]                    # đã có bản mới → dựng lại bình thường
+        else:
+            snap[rel] = held[rel]
+    return snap
+
+
+def _held_superseded(rel):
+    """Nguồn đã có file khác thay chỗ file bị cách ly (cùng tháng, hoặc nguồn không theo tháng)."""
+    sid = source_of(rel)
+    if not sid:
+        return True
+    m = L.file_month(sid, os.path.join(L.L0_ROOT, rel))
+    return m in L.l0_by_month(sid) if m else bool(L.l0_files(sid))
 
 
 def source_of(rel):
@@ -91,23 +127,125 @@ def source_of(rel):
 
 def load_manifest():
     try:
-        return json.load(io.open(MANIFEST, encoding="utf-8"))
+        d = json.load(io.open(MANIFEST, encoding="utf-8"))
     except (OSError, ValueError):
-        return {"files": {}}
+        d = {}
+    return {"files": {k: _entry(v) for k, v in (d.get("files") or {}).items()},
+            "held": {k: _entry(v) for k, v in (d.get("held") or {}).items()}}
 
 
-def save_manifest(files):
+def save_manifest(files, held):
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
     io.open(MANIFEST, "w", encoding="utf-8").write(json.dumps(
-        {"files": files, "saved": datetime.now().isoformat(timespec="seconds")},
+        {"files": files, "held": held, "saved": datetime.now().isoformat(timespec="seconds")},
         ensure_ascii=False, indent=1))
+
+
+def _same(a, b):
+    """Cùng NỘI DUNG. Manifest cũ chưa có hash thì so theo chữ ký như trước."""
+    if a.get("sha") and b.get("sha"):
+        return a["sha"] == b["sha"]
+    return a["sig"] == b["sig"]
 
 
 def diff(old, new):
     added = sorted(k for k in new if k not in old)
-    changed = sorted(k for k in new if k in old and old[k] != new[k])
+    changed = sorted(k for k in new if k in old and not _same(old[k], new[k]))
     removed = sorted(k for k in old if k not in new)
     return added, changed, removed
+
+
+# ─────────────────────────── cách ly file sai mẫu ───────────────────────────
+REJECT = os.path.join(L.L0_ROOT, "_REJECT")
+
+
+def _reject_target(rel):
+    dest = os.path.join(REJECT, *rel.split("/"))
+    if os.path.exists(dest):                 # không bao giờ ghi đè bản đã cách ly trước
+        stem, ext = os.path.splitext(dest)
+        dest = f"{stem}__{datetime.now():%Y%m%d-%H%M%S}{ext}"
+    return dest
+
+
+def quarantine(rels, new, old, held):
+    """File MỚI / VỪA THAY mà sai mẫu (thiếu sheet/cột bắt buộc) → dời vào L0_input/_REJECT/.
+
+    Vì sao phải dời chứ không chỉ báo: hai file cùng tháng thì hệ thống lấy bản MỚI NHẤT,
+    nên bản sai vừa thả sẽ thắng bản đúng đang dùng và dashboard đọc ra số hỏng.
+
+    Chỉ xét file vừa đổi — file đang dùng ổn định không bị đụng. Chỉ xét file khớp MẪU TÊN
+    của nguồn: file lạ là đầu vào của tools/l0_ingest.py (cổng chuẩn hoá), không phải lỗi.
+    Bản sai ĐÈ lên bản đúng cùng tên → giữ số đã dựng (`held`) tới khi có bản đúng thay,
+    thay vì dựng lại tháng đó với nguồn rỗng.
+    → (đã cách ly [(rel, đích, lỗi, giữ_số)], chưa xử lý được [(rel, lý do)])"""
+    from l0_validate import validate_file
+    cands = []
+    for rel in rels:
+        sid = source_of(rel)
+        if not sid or (L.SOURCES[sid].get("schema") or {}).get("month_files"):
+            continue
+        path = os.path.join(L.L0_ROOT, rel)
+        if os.path.normcase(path) not in {os.path.normcase(f) for f in L.l0_files(sid)}:
+            continue
+        errs = validate_file(sid, path)
+        if errs:
+            cands.append((rel, sid, path, errs))
+    moved, busy = [], []
+    if not cands:
+        return moved, busy
+    time.sleep(2)                            # file còn đang chép thì chữ ký còn đổi
+    for rel, sid, path, errs in cands:
+        if L.file_sig(path) != new[rel]["sig"]:
+            busy.append((rel, "đang chép dở — chạy lại khi chép xong"))
+        else:
+            dest = _reject_target(rel)
+            try:
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                # rename chứ không shutil.move: file đang mở thì move lùi về chép-rồi-xoá,
+                # xoá hỏng là để lại một bản sao rác trong _REJECT. Cùng ổ đĩa nên rename đủ.
+                os.rename(path, dest)
+            except OSError as e:
+                busy.append((rel, f"không dời được (đang mở trong Excel?) — {str(e)[:60]}"))
+            else:
+                keep = rel in old
+                io.open(dest + ".LY_DO.txt", "w", encoding="utf-8").write("\n".join([
+                    f"CÁCH LY {datetime.now():%d/%m/%Y %H:%M} — file sai mẫu chuẩn, hệ thống KHÔNG đọc.",
+                    f"Nguồn   : {L.SOURCES[sid]['name']}",
+                    f"Từ      : L0_input/{rel}",
+                    "", "Lỗi:", *(f"  · {e}" for e in errs), "",
+                    f"Cách xử lý: xuất lại đúng mẫu (xem L0_input/{L.SOURCES[sid]['dir']}/README.md) "
+                    f"rồi thả vào L0_input/{L.SOURCES[sid]['dir']}/.",
+                    *(["Số trên dashboard đang giữ theo bản đúng dựng lần trước."] if keep else []),
+                    "File này có thể xoá khi đã thả bản đúng.", ""]))
+                moved.append((rel, os.path.relpath(dest, L.L0_ROOT).replace("\\", "/"), errs, keep))
+                new.pop(rel)
+                if keep:
+                    held[rel] = old[rel]
+                    new[rel] = old[rel]
+                continue
+        # chưa dời được → lần này coi như chưa thấy file, lần sau soát lại
+        if rel in old:
+            new[rel] = old[rel]
+        else:
+            new.pop(rel)
+    return moved, busy
+
+
+def quarantine_lines(moved, busy):
+    out = []
+    if moved:
+        out += ["FILE SAI MẪU — ĐÃ DỜI VÀO L0_input/_REJECT/ (hệ thống KHÔNG đọc)"]
+        for rel, dest, errs, keep in moved:
+            out.append(f"  ✖ {rel}")
+            out += [f"      · {e}" for e in errs]
+            out.append(f"      → nằm ở {dest} (kèm file .LY_DO.txt)")
+            if keep:
+                out.append("      → file này ĐÈ lên bản đúng cùng tên: số trên dashboard giữ theo bản dựng lần trước")
+        out.append("  Xuất lại đúng mẫu rồi thả vào thư mục nguồn như bình thường.")
+    if busy:
+        out += ["", "FILE SAI MẪU — CHƯA XỬ LÝ LẦN NÀY"] if out else ["FILE SAI MẪU — CHƯA XỬ LÝ LẦN NÀY"]
+        out += [f"  ⚠ {rel}: {why}" for rel, why in busy]
+    return out + [""] if out else []
 
 
 # ─────────────────────────── lập kế hoạch ───────────────────────────
@@ -224,7 +362,7 @@ def execute(p):
         ok &= run("M7.1 đánh giá trước khi chạy (preeval.py)", [PY, os.path.join(TOOLS, "preeval.py")], log)
     node = shutil.which("node")
     if node:
-        ok &= run("Loader dashboard + chốt QA", [node, os.path.join(HERE, "scripts", "build-data.mjs")], log)
+        ok &= run("Loader dashboard + chốt QA", [node, os.path.join(HERE, "scripts", "build-data.mjs"), "--strict"], log)
     else:
         log.append(("Loader dashboard", False, 0, "không thấy Node.js — cài Node rồi chạy npm run build:data"))
         ok = False
@@ -240,11 +378,12 @@ def qa_lines(log):
     return []
 
 
-def write_report(changes, p, ok, log):
+def write_report(changes, p, ok, log, qlines=()):
     lines = [
         f"BÁO CÁO CẬP NHẬT — {datetime.now():%d/%m/%Y %H:%M}",
         f"Kết quả: {'THÀNH CÔNG' if ok else 'CÓ LỖI — xem các bước ✖ bên dưới, lần chạy sau sẽ tự làm lại'}",
         "",
+        *qlines,
         "FILE THAY ĐỔI SO VỚI LẦN TRƯỚC",
     ]
     added, changed, removed = changes
@@ -281,9 +420,16 @@ def once(force=False):
     print(f"NOIRE — CẬP NHẬT DASHBOARD   {datetime.now():%d/%m/%Y %H:%M}")
     print(f"thư mục thả file: {L.L0_ROOT}")
     print("=" * 78)
-    old = load_manifest()["files"]
-    new = snapshot()
+    man = load_manifest()
+    old, held = man["files"], man["held"]
+    new = current(man)
     added, changed, removed = diff(old, new)
+    moved, busy = quarantine(added + changed, new, old, held)
+    if moved or busy:
+        added, changed, removed = diff(old, new)
+    qlines = quarantine_lines(moved, busy)
+    for ln in qlines:
+        print(ln)
     touched = [(f, source_of(f)) for f in added + changed + removed]
     p = plan(touched, force)
     print(f"file: {len(added)} mới · {len(changed)} thay · {len(removed)} xoá")
@@ -298,14 +444,16 @@ def once(force=False):
             rep += ["", f"⚠ không chạy được kiểm tra độ đủ tháng: {str(e)[:80]}"]
         io.open(REPORT, "w", encoding="utf-8").write(
             f"BÁO CÁO CẬP NHẬT — {datetime.now():%d/%m/%Y %H:%M}\nKhông có file nào thay đổi — dashboard đã mới nhất.\n\n"
-            + "\n".join(rep) + "\n")
+            + "\n".join([*qlines, *rep]) + "\n")
+        save_manifest(new, held)             # nội dung không đổi — chỉ cập nhật chữ ký / file giữ số
         print("\nKhông có file nào thay đổi — dashboard đã mới nhất.")
         print(f"Báo cáo thiếu file: {REPORT}")
         return 0
     ok, log = execute(p)
-    write_report((added, changed, removed), p, ok, log)
-    if ok:
-        save_manifest(new)
+    write_report((added, changed, removed), p, ok, log, qlines)
+    # Lỗi thì KHÔNG ghi nhớ thay đổi (lần sau làm lại) — nhưng vẫn phải nhớ file nào đang
+    # giữ số vì đã bị cách ly, nếu không lần sau tưởng file bị xoá và dựng tháng đó với nguồn rỗng.
+    save_manifest(new if ok else old, held)
     print("\n" + "=" * 78)
     print("✔ XONG — dashboard đã cập nhật." if ok else "✖ CÓ BƯỚC LỖI — chưa ghi nhớ thay đổi, lần sau tự chạy lại.")
     print(f"Báo cáo: {REPORT}")
@@ -319,8 +467,11 @@ def watch(interval=30):
     last = None
     while True:
         time.sleep(interval)
-        cur = snapshot()
-        if cur == load_manifest()["files"]:
+        man = load_manifest()
+        cur = current(man)
+        if not any(diff(man["files"], cur)):
+            if cur != man["files"]:
+                save_manifest(cur, man["held"])   # chỉ đổi giờ sửa, nội dung y nguyên
             last = None
             continue
         # Chờ file chép XONG: hai lần soát liên tiếp giống nhau mới chạy. File 60MB

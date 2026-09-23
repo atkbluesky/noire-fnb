@@ -13,7 +13,7 @@
  * Nguyên tắc NT2  : công thức chỉ tồn tại ở tầng này, view không được tính lại.
  */
 import ExcelJS from 'exceljs';
-import { readdir, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { readdir, mkdir, writeFile, readFile, rename } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +22,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const IN = path.join(ROOT, 'data_input');
 const OUT = path.join(ROOT, 'src', 'data');
 const VERBOSE = process.argv.includes('--v');
+const STRICT = process.argv.includes('--strict');   // update.py: lỗi là lỗi, không giữ bản cũ rồi báo đạt
 
 const log = (...a) => console.log(...a);
 const vlog = (...a) => VERBOSE && console.log(...a);
@@ -1628,12 +1629,6 @@ async function main() {
   delete hub.guest_segment;
   delete hub.product;
 
-  await writeFile(path.join(OUT, 'daily.json'), JSON.stringify(daily), 'utf8');
-  await writeFile(path.join(OUT, 'product.json'), JSON.stringify(product), 'utf8');
-  await writeFile(path.join(OUT, 'data.json'), JSON.stringify(hub), 'utf8');
-  await writeFile(path.join(OUT, 'data_mkt.json'), JSON.stringify(mkt), 'utf8');
-  await writeFile(path.join(OUT, 'campaign.json'), JSON.stringify(campaign), 'utf8');
-
   // Chốt của hai khối được gộp lại, sắp theo SỐ chốt — không phải theo thứ tự
   // dựng — để bảng in ra đọc được từ trên xuống.
   const allQA = [...hub.qa, ...mkt.qa].sort((a, b) => a.no - b.no);
@@ -1651,6 +1646,26 @@ async function main() {
   const partial = Object.entries(hub.coverage).filter(([, v]) => v.partial).map(([m]) => m);
   if (partial.length) log(`\n   Tháng chưa trọn kỳ (loại khỏi mặc định): ${partial.join(', ')}`);
 
+  // Chốt gác cổng kiểm TRƯỚC khi ghi — bản trước ghi JSON rồi mới chặn, nên Vercel
+  // dừng deploy nhưng `npm run dev` ở máy vẫn hiện số sai. Nay fail là giữ nguyên bản cũ.
+  const blocking = hub.qa.filter((q) => !q.ok && [1, 2, 3, 4].includes(q.no));
+  if (blocking.length) {
+    console.error('\n✖ Chốt gác cổng không đạt — KHÔNG ghi src/data/, giữ nguyên bản đang chạy:');
+    for (const q of blocking) console.error(`   ${q.no}. ${q.name} — ${q.detail}`);
+    process.exit(1);
+  }
+
+  // Ghi nguyên khối: ra .tmp hết rồi mới tráo — lỗi giữa chừng không để lại bộ JSON
+  // nửa mới nửa cũ (data.json tháng mới đi cùng daily.json tháng cũ).
+  const outputs = { 'daily.json': daily, 'product.json': product, 'data.json': hub,
+                    'data_mkt.json': mkt, 'campaign.json': campaign };
+  for (const [f, o] of Object.entries(outputs)) {
+    await writeFile(path.join(OUT, f + '.tmp'), JSON.stringify(o), 'utf8');
+  }
+  for (const f of Object.keys(outputs)) {
+    await rename(path.join(OUT, f + '.tmp'), path.join(OUT, f));
+  }
+
   log('');
   const kb = (o) => (JSON.stringify(o).length / 1024).toFixed(0);
   log(`   → src/data/data.json      ${kb(hub)} KB   (tải ngay khi mở dashboard)`);
@@ -1660,19 +1675,15 @@ async function main() {
   log(`   → src/data/campaign.json  ${kb(campaign)} KB   (chỉ tải khi mở cụm M7)${campaign.meta.demo ? ' · DỮ LIỆU MẪU' : ''}`);
   log(`   xong trong ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   log('─'.repeat(72));
-
-  const blocking = hub.qa.filter((q) => !q.ok && [1, 2, 3, 4].includes(q.no));
-  if (blocking.length) {
-    console.error('\n✖ Chốt gác cổng không đạt — dừng build để không phát tán số sai:');
-    for (const q of blocking) console.error(`   ${q.no}. ${q.name} — ${q.detail}`);
-    process.exit(1);
-  }
 }
 
 main().catch(async (e) => {
   console.error('\n✖ Lỗi dựng dữ liệu:', e.message);
   const keep = path.join(OUT, 'data.json');
-  if (existsSync(keep)) {
+  // Giữ bản cũ và thoát 0 chỉ để `npm run dev` vẫn mở được app. update.py chạy với
+  // --strict: lỗi phải trả mã 1, nếu không update.py tưởng thành công, ghi nhớ
+  // thay đổi, và lần sau KHÔNG tự làm lại bước này.
+  if (existsSync(keep) && !STRICT) {
     const kb = (await readFile(keep)).length / 1024;
     console.error(`  Giữ nguyên bản cũ src/data/data.json (${kb.toFixed(0)} KB) để app vẫn chạy được.`);
     process.exit(0);
