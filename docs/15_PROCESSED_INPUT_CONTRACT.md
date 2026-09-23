@@ -233,10 +233,11 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 | `campaign_unmapped` | **name_pos** · nature · _brand_ · first · last · days · bills · net · disc | name_pos + brand | — |
 | `campaign_issue` | **campaign_id** · **field** · level · **msg** | campaign_id + field | — |
 | `pre_plan` | **pre_id** · campaign_id · **name** · brand · kind · plan_status · est_tc · base_gross · growth · target_gross · incr_gross · target_aov · cogs_pct · cm_pct · promo_cost · fixed_cost · total_cost · net_contrib · roi · breakeven_incr · assessment · driver · source_file · label · period_from · period_to · act_net · act_tc · incr_net · cost_total · flow_through · roi_actual · act_promo_net · act_promo_bills | pre_id | — |
-| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id · quarter · season_factor · scheme_mode · tc_base · tc_share · participation_src · cannib_src · other_cogs_pct · opex_pct · base_note · safety_bills | program_id + scenario | — |
+| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id · quarter · season_factor · scheme_mode · tc_base · tc_share · participation_src · cannib_src · other_cogs_pct · opex_pct · base_note · safety_bills · input_source · missing | program_id + scenario | — |
 | `pre_eval_scheme` | **program_id** · _scheme_id_ · scheme_name · condition · benefit · bills · bill_value · discount · rev_after_disc · ta · cogs · cogs_pct · margin_pct · merch_cost · promo_cost · basis_note | program_id + scheme_id | — |
 | `pre_eval_fin` | **program_id** · _scenario_ · _row_ · label · base · without · with_promo · total · cannib_pct · incr · incr_pct | program_id + scenario + row | — |
 | `pre_eval_base` | **program_id** · _store_ · base_from · base_to · base_days · net_incl · tc · guests · aov_incl · ta_incl · tc_day · net_day · tax_factor · disc_share · note | program_id + store | — |
+| `pre_eval_input` | **program_id** · **field** · value · source · level · status · hint | program_id + field | — |
 
 - **`product`** — Bảng món LUỸ KẾ toàn kỳ. Nếu cắt top-N thì bắt buộc khai tổng thật ở _stats.
 - **`category`** — Cơ cấu theo Loại món — tính trên TOÀN BỘ SKU, không chỉ phần đã cắt.
@@ -260,6 +261,7 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 - **`pre_eval_scheme`** — M7.1 · Program's details — kinh tế học 1 hoá đơn theo từng scheme (Cơ sở).
 - **`pre_eval_fin`** — M7.1 · Financial evaluation (khung PP672): hàng Gross/Discount/Net/COGS/GP × cột Base · Không KM · Có KM · Tổng · %Cannib · Tăng thêm.
 - **`pre_eval_base`** — M7.1 · dữ liệu nền tự lấy từ POS cho từng chương trình × cửa hàng.
+- **`pre_eval_input`** — M7.1 · dữ liệu đầu vào ĐÃ CHUẨN HOÁ của từng chương trình theo $preeval.input_fields — mỗi trường một dòng: giá trị · nguồn (SO = sổ Pre_Analysis · DECK = file deck quý S16) · mức bắt buộc · trạng thái (OK / THIEU). Sinh bởi tools/preeval.py.
 
 ### TẦNG D · `_stats` — đặt ở file nào cũng được
 

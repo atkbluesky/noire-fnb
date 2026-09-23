@@ -209,6 +209,15 @@ export interface PreEvalBase {
   guests: number | null; aov: number | null; ta: number | null; tc_day: number | null; tax_factor: number | null;
   disc_share: number | null; note: string | null;
 }
+/** M7.1 · 1 trường đầu vào ĐÃ CHUẨN HOÁ ($preeval.input_fields) — nguồn SO = sổ · DECK = file deck quý */
+export interface PreEvalInput {
+  field: string; value: string | number | null; source: 'SO' | 'DECK' | null;
+  level: 'required' | 'required_promo' | 'recommended' | 'optional';
+  /** OK · THIEU (bắt buộc còn trống) · TRONG (không bắt buộc, để trống) */
+  status: 'OK' | 'THIEU' | 'TRONG';
+  /** deck ghi gì ở ô còn trống */
+  hint: string | null;
+}
 export interface PreEvalProgram {
   id: string; name: string; brand: string; stores: string[]; date_from: string; date_to: string; days: number | null;
   objective: string | null; lever: string | null; status: string | null; decision: string; decision_note: string | null;
@@ -216,6 +225,11 @@ export interface PreEvalProgram {
   quarter: string | null; season_factor: number | null; scheme_mode: string | null; tc_base: number | null;
   participation_src: string | null; cannib_src: string | null; other_cogs_pct: number | null; opex_pct: number | null;
   base_note: string | null;
+  /** SO · DECK: <file> · DECK: <file> + sổ */
+  input_source: string | null;
+  /** mã trường bắt buộc còn trống (decision THIEU_SO) */
+  missing: string[];
+  inputs: PreEvalInput[];
   scn: Record<string, PreEvalScenario>;
   fin: Record<string, PreEvalFinRow[]>;
   schemes: PreEvalScheme[];
@@ -243,6 +257,8 @@ export interface CampaignData {
     scenarios: { code: string; label: string; bills_mult: number; cannib_add: number; cogs_add: number }[];
     decisions: TaxItem[];
     gates: { max_cogs_pct: number; max_promo_cost_pct_net: number; min_gm_pct: number };
+    input_fields: { code: string; label: string; level: string }[];
+    input_levels: TaxItem[];
     programs: PreEvalProgram[];
   };
   /** tên CTKM trên POS (chữ thường) → campaign_id */

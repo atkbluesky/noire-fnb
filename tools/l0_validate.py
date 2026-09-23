@@ -19,6 +19,7 @@ nên file không đổi thì không mở lại.
 from __future__ import annotations
 
 import csv
+import fnmatch
 import io
 import json
 import os
@@ -115,7 +116,8 @@ def validate_file(sid, path):
                     tot = [n for n in names if norm(n) == "tất cả cửa hàng"]
                     hit = tot[0] if tot else names[0]
                     break
-                m = [n for n in names if norm(n) == norm(a)]
+                # `*` = phần đổi theo kỳ trong tên sheet (`03_Q4 Master Plan` ↔ `*Master Plan`)
+                m = [n for n in names if (fnmatch.fnmatch(norm(n), norm(a)) if "*" in a else norm(n) == norm(a))]
                 if m:
                     hit = m[0]
                     break

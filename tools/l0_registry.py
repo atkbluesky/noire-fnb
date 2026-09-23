@@ -145,10 +145,16 @@ SOURCES = [
     dict(
         id="S16_pre_analytics", group="03_MARKETING", dir="03_MARKETING/05_Promotion_Ke_Hoach",
         name="Pre-Analysis chương trình khuyến mãi", cadence="quarterly", since="2026-07", required=False,
-        pattern="NOIRE_Promotion_Pre-Analysis*.xlsx", example="NOIRE_Promotion_Pre-Analysis_Q3_2026.xlsx",
-        how="Bảng dự toán chương trình trước khi chạy (P&L theo loại: Combo · Discount · Gift · LTO · Voucher · Activation). "
-            "NGUỒN DUY NHẤT của target + chi phí kế hoạch: chương trình nào đã chạy thì nối qua cột `pre_id` ở Campaign_Tracking.",
-        produces=["pre_plan", "pre_q3"], via="tools/pre_analysis.py → tools/campaign.py", modules=["M7.1", "M7.2"],
+        pattern="NOIRE_Promotion_Pre-Analysis*.xlsx | NOIRE_Promotion_Pre-Analysis*.xlsm",
+        example="NOIRE_Promotion_Pre-Analysis_Q4_2026.xlsm",
+        how="Kế hoạch chương trình khuyến mãi, một file mỗi quý (.xlsx hoặc .xlsm). Hai định dạng: "
+            "(1) file deck theo quý — sheet `Master Plan` (+ Pre-Analysis · Budget · Calendar), Q4/2026 trở đi: hệ thống "
+            "TỰ CHUYỂN từng chương trình sang mẫu chuẩn M7.1 (cột sheet `chuong_trinh` của sổ Pre_Analysis_2026.xlsx); "
+            "ô deck không ghi rõ (ngày, cửa hàng, cơ chế ưu đãi) để trống và M7.1 yêu cầu bổ sung ở sổ, dòng cùng program_id; "
+            "(2) 6 sheet loại Combo · Discount · Gift · LTO · Voucher · Activation (Q3/2026) — nguồn target + chi phí kế hoạch "
+            "cho M7.2, chương trình đã chạy nối qua cột `pre_id` ở Campaign_Tracking.",
+        produces=["pre_plan", "pre_q3", "pre_eval", "pre_eval_input"],
+        via="tools/pre_analysis.py → tools/campaign.py (Q3) · tools/preeval.py (deck quý)", modules=["M7.1", "M7.2"],
     ),
     dict(
         id="S24_preeval", group="03_MARKETING", dir="03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia",
@@ -156,7 +162,7 @@ SOURCES = [
         since="2026-01", required=False,
         pattern="Pre_Analysis_*.xlsx", example="Pre_Analysis_2026.xlsx",
         how="MỘT sổ cho cả năm — mỗi chương trình vài dòng: `chuong_trinh` (1 dòng), `co_che` (từng scheme), `mon` (món tham gia / món tặng), `chi_phi` (merch · KOL · POSM · ads), `ty_le_chi_phi` (Finance). Dữ liệu nền (TC · AOV · TA · giá bán · giá vốn · CTKM cũ) hệ thống TỰ LẤY từ POS và làm mới ở các sheet NEN_*. Kết quả: phiếu đánh giá từng chương trình trên M7.1. Dựng sổ: python tools/preeval_template.py",
-        produces=["pre_eval", "pre_eval_scheme", "pre_eval_fin", "pre_eval_base"],
+        produces=["pre_eval", "pre_eval_scheme", "pre_eval_fin", "pre_eval_base", "pre_eval_input"],
         via="tools/preeval.py", modules=["M7.1"],
     ),
     dict(
@@ -302,7 +308,8 @@ SCHEMA = {
     "S22_tiktok": dict(sheets=[["Tong_hop_thang", None]], cols=[("Tháng", "Ngày", "Date"),
                        ("Lượt xem bài đăng", "Lượt xem video", "Video Views")]),
     "S10_budget": dict(sheets=[["Summary"], ["Budget Brand"], ["Budget Store Ads"]]),
-    "S16_pre_analytics": dict(sheets=[["1. Tổng hợp (Master)"]]),
+    # định dạng quý đặt mã quý trong tên sheet (`03_Q4 Master Plan`) → so theo mẫu `*`
+    "S16_pre_analytics": dict(sheets=[["1. Tổng hợp (Master)", "*Master Plan"]]),
     "S19_aggregator": dict(sheets=[["AGG_THANG"]]),
     "S25_mkt_report": dict(sheets=[["Budget"]]),
     "S11_voucher": dict(sheets=[None], cols=["Mã khuyến mãi", "Chương trình", "Trạng thái",

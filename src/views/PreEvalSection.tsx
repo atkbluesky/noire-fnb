@@ -7,7 +7,7 @@ import { StatusBadge, BadgeVariant } from '../components/common/StatusBadge';
 import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
 import { formatVND, formatNumber, formatPercent } from '../utils/formatters';
-import type { PreEvalProgram, TaxItem } from '../types/campaign';
+import type { PreEvalInput, PreEvalProgram, TaxItem } from '../types/campaign';
 
 /* M7.1 · ĐÁNH GIÁ CHƯƠNG TRÌNH TRƯỚC KHI CHẠY — trình bày theo LUỒNG RA QUYẾT ĐỊNH
      0 Cách đọc (4 câu hỏi)  →  1 Lọc (quý · quyết định · tìm)  →  2 Tổng quan danh mục
@@ -21,12 +21,16 @@ const pct = (x: number | null | undefined, d = 0) => (x === null || x === undefi
 const dmy = (s?: string | null) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}` : '—');
 const tone = (x: number | null | undefined) => (x === null || x === undefined ? 'text-brand-muted' : x >= 0 ? 'text-status-ok' : 'text-status-bad');
 const signed = (x: number | null | undefined) => (x === null || x === undefined ? '—' : `${x > 0 ? '+' : ''}${formatVND(x)}`);
+const SO_FILE = 'L0_input/03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia/Pre_Analysis_2026.xlsx';
+/** chương trình chưa tính được (thiếu trường bắt buộc) — ô số hiện "—", không lên ma trận */
+const pending = (d: string) => d === 'THIEU_SO';
 
 interface Row {
   id: string; name: string; brand: string; stores: number; period: string; quarter: string; status: string | null;
   mode: string | null; objective: string | null; lever: string | null; bills: number; tc_share: number | null;
   net_incr: number; eb_cons: number; eb_base: number; eb_opt: number; safety: number | null; cannib: number | null;
   max_cannib: number | null; gates: string | null; decision: string; rank: number; spend: number;
+  source: string | null; missing: string[];
 }
 
 export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; isDark?: boolean }> = ({ brandMatches, isDark }) => {
@@ -34,6 +38,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
   const DEC = byCode(PE?.decisions);
   const LEVER = byCode(CAMPAIGN.taxonomy.levers);
   const OBJ = byCode(CAMPAIGN.taxonomy.objectives);
+  const FIELD = Object.fromEntries((PE?.input_fields || []).map(f => [f.code, f]));
   const ORDER: Record<string, number> = { DUYET: 0, CHAY_THU: 1, BRANDING: 2, SUA_CO_CHE: 3, THIEU_SO: 4 };
 
   const all = useMemo(() => (PE?.programs || []).filter(p => p.brand === 'ALL' || brandMatches(p.brand)), [PE, brandMatches]);
@@ -55,6 +60,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
     eb_cons: p.scn.THAN_TRONG?.ebitda ?? 0, eb_base: p.scn.CO_SO?.ebitda ?? 0, eb_opt: p.scn.LAC_QUAN?.ebitda ?? 0,
     safety: p.scn.CO_SO?.safety_bills ?? null, cannib: p.scn.CO_SO?.cannib ?? null, max_cannib: p.scn.CO_SO?.max_cannib ?? null,
     gates: p.scn.CO_SO?.gate_flags ?? null, decision: p.decision, rank: ORDER[p.decision] ?? 9, spend: p.scn.CO_SO?.promo_cost ?? 0,
+    source: p.input_source, missing: p.missing,
   })).sort((a, b) => a.rank - b.rank || b.eb_base - a.eb_base);
   const sel: PreEvalProgram | undefined = list.find(p => p.id === selId) ?? list.find(p => p.id === rows[0]?.id);
 
@@ -72,8 +78,9 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
   const count = (code: string) => inQ.filter(p => p.decision === code).length;
   const pos = rows.filter(r => r.decision === 'DUYET' || r.decision === 'CHAY_THU');
 
-  /* ── MA TRẬN QUYẾT ĐỊNH ── */
-  const xs = rows.map(r => r.eb_base), ys = rows.map(r => r.eb_cons);
+  /* ── MA TRẬN QUYẾT ĐỊNH (chỉ chương trình đã tính được) ── */
+  const mrows = rows.filter(r => !pending(r.decision));
+  const xs = mrows.map(r => r.eb_base), ys = mrows.map(r => r.eb_cons);
   const pad = (a: number[]) => {
     const mn = Math.min(0, ...a), mx = Math.max(0, ...a), d = (mx - mn) * 0.15 || 1e6;
     return [mn - d, mx + d];
@@ -82,7 +89,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
   const matrix: EChartsOption = {
     tooltip: {
       formatter: (p: any) => {
-        const r = rows[p.dataIndex];
+        const r = mrows[p.dataIndex];
         return r ? `<b>${r.name}</b><br/>${DEC[r.decision]?.label}<br/>EBITDA Cơ sở ${signed(r.eb_base)}<br/>EBITDA Thận trọng ${signed(r.eb_cons)}<br/>Chi ưu đãi ${vnd(r.spend)}` : '';
       },
     },
@@ -92,11 +99,11 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
     yAxis: { type: 'value', min: y0, max: y1, name: 'Thận trọng', axisLabel: { formatter: (v: number) => formatVND(v, 0), fontSize: 10 }, splitLine: { show: false } },
     series: [{
       type: 'scatter',
-      data: rows.map(r => ({
+      data: mrows.map(r => ({
         value: [r.eb_base, r.eb_cons],
         symbolSize: Math.max(10, Math.min(40, Math.sqrt(Math.max(r.spend, 1)) / 250)),
         itemStyle: { color: DEC[r.decision]?.color ?? '#9E9B93', borderColor: r.id === sel?.id ? '#C5A059' : undefined, borderWidth: r.id === sel?.id ? 3 : 0 },
-        label: { show: rows.length <= 12, formatter: r.name.length > 18 ? r.name.slice(0, 17) + '…' : r.name, position: 'right', fontSize: 9, color: isDark ? '#9E9B93' : '#52525B' },
+        label: { show: mrows.length <= 12, formatter: r.name.length > 18 ? r.name.slice(0, 17) + '…' : r.name, position: 'right', fontSize: 9, color: isDark ? '#9E9B93' : '#52525B' },
       })),
       markArea: {
         silent: true,
@@ -121,6 +128,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
             {r.brand} · {r.stores} CH · {r.period} · {r.quarter}
             {r.status === 'MAU' && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]">MẪU</span>}
             {r.mode === 'NHANH' && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]">1 DÒNG</span>}
+            {r.source?.startsWith('DECK') && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]" title={r.source}>DECK{r.source.includes('sổ') ? ' + SỔ' : ''}</span>}
           </div>
         </button>
       ),
@@ -136,19 +144,19 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
     },
     {
       key: 'bills', header: 'Hoá đơn', align: 'right',
-      render: r => (
+      render: r => pending(r.decision) ? <span className="text-brand-muted">—</span> : (
         <div className="text-right font-mono leading-tight">
           <div>{formatNumber(r.bills)}</div>
           <div className="text-[10px] text-brand-muted">{pct(r.tc_share, 1)} TC</div>
         </div>
       ),
     },
-    { key: 'net_incr', header: 'DT tăng thêm', align: 'right', render: r => <span className={`font-mono ${tone(r.net_incr)}`}>{signed(r.net_incr)}</span> },
-    { key: 'eb_base', header: '① EBITDA', align: 'right', render: r => <span className={`font-mono font-bold ${tone(r.eb_base)}`}>{signed(r.eb_base)}</span> },
-    { key: 'eb_cons', header: '② Thận trọng', align: 'right', render: r => <span className={`font-mono ${tone(r.eb_cons)}`}>{signed(r.eb_cons)}</span> },
+    { key: 'net_incr', header: 'DT tăng thêm', align: 'right', render: r => pending(r.decision) ? <span className="text-brand-muted">—</span> : <span className={`font-mono ${tone(r.net_incr)}`}>{signed(r.net_incr)}</span> },
+    { key: 'eb_base', header: '① EBITDA', align: 'right', render: r => pending(r.decision) ? <span className="text-brand-muted">—</span> : <span className={`font-mono font-bold ${tone(r.eb_base)}`}>{signed(r.eb_base)}</span> },
+    { key: 'eb_cons', header: '② Thận trọng', align: 'right', render: r => pending(r.decision) ? <span className="text-brand-muted">—</span> : <span className={`font-mono ${tone(r.eb_cons)}`}>{signed(r.eb_cons)}</span> },
     {
       key: 'safety', header: '③ An toàn', align: 'right',
-      render: r => (
+      render: r => pending(r.decision) ? <span className="text-brand-muted">—</span> : (
         <div className="text-right font-mono leading-tight" title="Hoá đơn dự kiến ÷ hoá đơn cần để hoà vốn · %cannib giả định / tối đa còn hoà vốn">
           <div className={r.safety === null ? 'text-brand-muted' : r.safety >= 1.5 ? 'text-status-ok' : r.safety >= 1 ? 'text-status-warning' : 'text-status-bad'}>
             {r.safety === null ? (r.eb_base >= 0 ? 'không phí cố định' : '—') : `×${formatNumber(r.safety, 1)}`}
@@ -163,6 +171,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
         <div className="leading-tight">
           <StatusBadge label={DEC[r.decision]?.label ?? r.decision} variant={(DEC[r.decision]?.badge as BadgeVariant) ?? 'neutral'} />
           {r.gates && <div className="mt-0.5 text-[10px] text-status-warning" title={r.gates}>⚠ {r.gates.split(' · ').length} cảnh báo</div>}
+          {pending(r.decision) && <div className="mt-0.5 text-[10px] text-brand-muted">{r.missing.length ? `cần bổ sung ${r.missing.length} trường` : 'chưa tính được'}</div>}
         </div>
       ),
     },
@@ -171,7 +180,9 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
   const todo = rows.map(r => {
     const b = list.find(x => x.id === r.id)?.scn.CO_SO;
     let act = list.find(x => x.id === r.id)?.decision_note ?? '';
-    if (r.decision === 'DUYET') act = 'Đủ điều kiện — in phiếu trình ký; khi chạy điền campaign_id để đối chiếu thực tế';
+    if (pending(r.decision) && r.missing.length)
+      act = `Bổ sung ở sổ · dòng ${r.id}: ${r.missing.map(m => FIELD[m]?.label ?? m).join(' · ')}`;
+    else if (r.decision === 'DUYET') act = 'Đủ điều kiện — in phiếu trình ký; khi chạy điền campaign_id để đối chiếu thực tế';
     else if (r.decision === 'SUA_CO_CHE')
       act = b?.breakeven_bills === null
         ? 'Không hoà vốn ở số hoá đơn nào — đổi ưu đãi / ngưỡng hoá đơn / chi phí'
@@ -202,6 +213,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
           <div><b className="text-status-ok">DUYỆT</b>: đạt 1 + 2</div>
           <div><b className="text-status-warning">CHẠY THỬ</b>: đạt 1, trượt 2</div>
           <div><b className="text-status-bad">SỬA CƠ CHẾ</b>: trượt 1</div>
+          <div><b className="text-brand-muted">THIẾU DỮ LIỆU</b>: bổ sung ở sổ</div>
           <div className="text-brand-muted">Bước 3–4 nói đổi gì</div>
         </div>
       </div>
@@ -232,7 +244,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
       {/* 2 · TỔNG QUAN */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {[
-          ['Chương trình', formatNumber(rows.length), `${q === 'ALL' ? 'mọi kỳ' : q}${decF ? ' · đã lọc' : ''}`, ''],
+          ['Chương trình', formatNumber(rows.length), `${q === 'ALL' ? 'mọi kỳ' : q}${decF ? ' · đã lọc' : ''} · ${rows.filter(r => pending(r.decision)).length} thiếu dữ liệu`, ''],
           ['Duyệt chạy', formatNumber(rows.filter(r => r.decision === 'DUYET').length), 'lãi cả khi thận trọng', 'text-status-ok'],
           ['Chạy thử', formatNumber(rows.filter(r => r.decision === 'CHAY_THU').length), 'lãi cơ sở, lỗ thận trọng', 'text-status-warning'],
           ['Sửa cơ chế', formatNumber(rows.filter(r => r.decision === 'SUA_CO_CHE').length), 'lỗ ở kịch bản cơ sở', 'text-status-bad'],
@@ -250,7 +262,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
       {/* 3 · MA TRẬN + VIỆC CẦN LÀM */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <Card title="Ma Trận Quyết Định" description="Mỗi chấm = 1 chương trình · phải = có lãi (bước 1) · trên = chịu được rủi ro (bước 2) · cỡ chấm = chi ưu đãi · bấm chấm để mở phiếu" chip="MATRIX" className="xl:col-span-3">
-          {rows.length ? <EChartWrapper option={matrix} height={340} onEvents={{ click: (p: any) => setSelId(rows[p.dataIndex]?.id ?? null) }} />
+          {mrows.length ? <EChartWrapper option={matrix} height={340} onEvents={{ click: (p: any) => setSelId(mrows[p.dataIndex]?.id ?? null) }} />
             : <div className="p-6 text-xs text-brand-muted">Không có chương trình trong bộ lọc.</div>}
         </Card>
         <Card title="Việc Cần Làm" description="Mỗi chương trình một hành động — đọc từ điểm hoà vốn & %cannib tối đa" chip={`${todo.filter(t => t.decision !== 'DUYET').length} CẦN XỬ LÝ`} className="xl:col-span-2">
@@ -261,7 +273,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: DEC[t.decision]?.color }} />
                   <span className="truncate font-bold text-brand-text">{t.name}</span>
-                  <span className={`ml-auto shrink-0 font-mono ${tone(t.eb_base)}`}>{signed(t.eb_base)}</span>
+                  <span className={`ml-auto shrink-0 font-mono ${pending(t.decision) ? 'text-brand-muted' : tone(t.eb_base)}`}>{pending(t.decision) ? '—' : signed(t.eb_base)}</span>
                 </div>
                 <div className="mt-0.5 pl-4 text-brand-muted">{t.act}</div>
                 {t.gates && <div className="pl-4 text-[10px] text-status-warning">⚠ {t.gates}</div>}
@@ -295,7 +307,7 @@ const EvalCard: React.FC<{
   const F = Object.fromEntries((p.fin[scn] || []).map(r => [r.row, r]));
   const actual = p.campaign_id ? CAMPAIGN.campaigns.find(c => c.id === p.campaign_id) : undefined;
   const scnLabel = PE.scenarios.find(s => s.code === scn)?.label ?? scn;
-  if (!S || !B) return null;
+  if (p.decision === 'THIEU_SO' || !S || !B) return <PendingCard p={p} dec={dec} />;
 
   const H = ({ n, t, sub }: { n: string; t: string; sub?: string }) => (
     <div className="mb-2 flex items-baseline gap-2 border-b border-brand-border pb-1">
@@ -507,7 +519,14 @@ const EvalCard: React.FC<{
             <div><span className="text-brand-muted">COGS món khác:</span> {pct(p.other_cogs_pct)} (mặc định brand, Kế toán khoá)</div>
             <div><span className="text-brand-muted">Chi phí vận hành biến đổi:</span> {pct(p.opex_pct, 1)} DT thuần tăng thêm</div>
             <div><span className="text-brand-muted">Hệ số mùa vụ:</span> ×{formatNumber(p.season_factor ?? 1, 2)} · <span className="text-brand-muted">Kỳ nền:</span> {p.base_note}</div>
+            <div><span className="text-brand-muted">Nguồn nhập:</span> {p.input_source === 'SO' || !p.input_source ? 'sổ Pre_Analysis_2026.xlsx' : p.input_source}</div>
           </div>
+          {p.inputs.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-[11px] text-brand-muted">Dữ liệu đầu vào chuẩn — {p.inputs.filter(i => i.status === 'OK').length}/{p.inputs.length} trường có số · bấm để xem</summary>
+              <InputTable rows={p.inputs} />
+            </details>
+          )}
           <div className="mt-2 overflow-x-auto">
             <table className="w-full min-w-[720px] font-mono text-[11px]">
               <thead>
@@ -551,6 +570,90 @@ const EvalCard: React.FC<{
             <div className="mt-1 text-[10px] text-brand-faint">{actual.name} · {actual.label}{actual.reason ? ` · ${actual.reason}` : ''}</div>
           </section>
         )}
+      </div>
+    </Card>
+  );
+};
+
+/* ───────────────────────── ĐẦU VÀO CHUẨN · PHIẾU NHẬP LIỆU ───────────────────────── */
+const InputTable: React.FC<{ rows: PreEvalInput[] }> = ({ rows }) => {
+  const PE = CAMPAIGN.preeval;
+  const FIELD = Object.fromEntries(PE.input_fields.map(f => [f.code, f]));
+  const LEVEL = byCode(PE.input_levels);
+  const order = (r: PreEvalInput) => (r.status === 'THIEU' ? 0 : r.status === 'TRONG' && r.level === 'recommended' ? 1 : 2);
+  const sorted = [...rows].sort((a, b) => order(a) - order(b));
+  const show = (v: PreEvalInput['value']) => (v === null ? '' : typeof v === 'number' ? formatNumber(v, 4) : String(v));
+  return (
+    <div className="mt-2 overflow-x-auto">
+      <table className="w-full min-w-[720px] text-[11px]">
+        <thead>
+          <tr className="text-[10px] text-brand-muted">
+            <th className="text-left">Trường (cột ở sheet chuong_trinh)</th><th className="text-left">Mức</th>
+            <th className="text-left">Giá trị</th><th className="text-left">Nguồn</th><th className="text-left">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map(r => (
+            <tr key={r.field} className="border-t border-brand-border align-top">
+              <td className="py-1 pr-2">
+                <div className="text-brand-text">{FIELD[r.field]?.label ?? r.field}</div>
+                <div className="font-mono text-[10px] text-brand-faint">{r.field}</div>
+              </td>
+              <td className="py-1 pr-2"><StatusBadge label={LEVEL[r.level]?.label ?? r.level} variant={(r.status === 'THIEU' ? 'bad' : r.level === 'recommended' && r.status === 'TRONG' ? 'warning' : 'neutral') as BadgeVariant} /></td>
+              <td className="max-w-[420px] py-1 pr-2">
+                {r.value !== null ? <span className="break-words text-brand-text">{show(r.value)}</span> : <span className="text-brand-faint">trống</span>}
+                {r.hint && r.status !== 'OK' && <div className="text-[10px] italic text-brand-muted">{r.hint}</div>}
+              </td>
+              <td className="py-1 pr-2 text-brand-muted">{r.source === 'SO' ? 'Sổ' : r.source === 'DECK' ? 'File deck' : '—'}</td>
+              <td className={`py-1 font-bold ${r.status === 'THIEU' ? 'text-status-bad' : r.status === 'OK' ? 'text-status-ok' : 'text-brand-muted'}`}>
+                {r.status === 'THIEU' ? 'THIẾU — cần bổ sung' : r.status === 'OK' ? 'Có' : r.level === 'recommended' ? 'Trống — dùng mặc định' : 'Trống'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const PendingCard: React.FC<{ p: PreEvalProgram; dec?: TaxItem }> = ({ p, dec }) => {
+  const FIELD = Object.fromEntries(CAMPAIGN.preeval.input_fields.map(f => [f.code, f]));
+  const H = ({ n, t, sub }: { n: string; t: string; sub?: string }) => (
+    <div className="mb-2 flex items-baseline gap-2 border-b border-brand-border pb-1">
+      <span className="font-mono text-[11px] font-bold text-brand-gold">{n}</span>
+      <span className="text-[11px] font-bold uppercase tracking-wider text-brand-text">{t}</span>
+      {sub && <span className="text-[10px] text-brand-muted">{sub}</span>}
+    </div>
+  );
+  return (
+    <Card title={`Phiếu Đánh Giá · ${p.name}`}
+      description={`${p.id} · ${p.brand} · ${p.stores.join(', ') || 'chưa có cửa hàng'} · ${p.date_from ?? '?'} → ${p.date_to ?? '?'} · ${p.quarter ?? ''} · nguồn: ${p.input_source ?? 'sổ'}`}
+      chip={dec?.label}>
+      <div className="space-y-6 text-xs">
+        <section>
+          <H n="A" t="Kết luận" sub="chưa đủ dữ liệu để tính EBITDA tăng thêm" />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <div className="rounded-xl border-2 p-3" style={{ borderColor: dec?.color }}>
+              <div className="text-[10px] font-bold uppercase text-brand-muted">→ Quyết định</div>
+              <div className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: dec?.color }}>{dec?.label ?? p.decision}</div>
+              <div className="mt-1 text-[11px] text-brand-text">{p.decision_note}</div>
+            </div>
+            <div className="rounded-xl border border-brand-border p-3 lg:col-span-2">
+              <div className="text-[10px] font-bold uppercase text-brand-muted">Cách bổ sung</div>
+              <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11px] text-brand-text">
+                <li>Mở sổ <code className="break-all text-[10px]">{SO_FILE}</code> → sheet <b>chuong_trinh</b>.</li>
+                <li>Thêm một dòng (hoặc sửa dòng đã có) với <b>program_id = <span className="font-mono text-brand-gold">{p.id}</span></b>.</li>
+                <li>Chỉ điền các cột còn thiếu: {p.missing.length ? p.missing.map(m => <code key={m} className="mr-1 text-[10px] text-status-bad">{m}</code>) : '—'}
+                  {' '}(cơ chế nhiều scheme → sheet <b>co_che</b>). Ô đã có từ file deck không cần gõ lại — số ở sổ luôn thắng số deck.</li>
+                <li>Lưu sổ → chạy <b>CAP_NHAT.bat</b>. Chương trình tự được tính và xếp vào Duyệt / Chạy thử / Sửa cơ chế.</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+        <section>
+          <H n="E" t="Dữ liệu đầu vào chuẩn" sub={`${p.inputs.filter(i => i.status === 'THIEU').length} trường bắt buộc còn thiếu · ô trống có gợi ý "deck ghi gì"`} />
+          <InputTable rows={p.inputs} />
+        </section>
       </div>
     </Card>
   );
