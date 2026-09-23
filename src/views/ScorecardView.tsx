@@ -10,39 +10,40 @@ import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../uti
 import type { EChartsOption } from 'echarts';
 
 export const ScorecardView: React.FC = () => {
-  const { filters, inScope, selectedMonths, aggByMonth, isPartialMonth, theme } = useFilters();
+  const {
+    filters, inScope, selectedMonths, aggByMonth, periodAgg, prevPeriodMonths, prevPeriodAgg,
+    isPartialMonth, theme,
+  } = useFilters();
   const isDark = theme === 'dark';
 
+  // Toàn bộ thẻ KPI, donut và bảng xếp hạng tính trên CẢ kỳ chọn (Từ → Đến),
+  // so với kỳ liền trước cùng số tháng — không chỉ lấy tháng cuối kỳ.
   const ms = selectedMonths;
+  const firstMonth = ms[0] || '2026-07';
   const lastMonth = ms[ms.length - 1] || '2026-07';
-  const prevMonth = ms[ms.length - 2] || null;
+  const periodLabel = ms.length > 1
+    ? `${formatMonthLabel(firstMonth)} → ${formatMonthLabel(lastMonth)}`
+    : formatMonthLabel(lastMonth);
+  const prevLabel = prevPeriodMonths.length > 1
+    ? `${formatMonthLabel(prevPeriodMonths[0])} → ${formatMonthLabel(prevPeriodMonths[prevPeriodMonths.length - 1])}`
+    : prevPeriodMonths.length === 1 ? formatMonthLabel(prevPeriodMonths[0]) : null;
+  const periodFileTag = ms.length > 1 ? `${firstMonth}_${lastMonth}` : lastMonth;
 
-  const currentAgg = aggByMonth[lastMonth] || {
-    net: 0,
-    gross: 0,
-    disc: 0,
-    voucher: 0,
-    guest: 0,
-    tc: 0,
-    target: 0,
-    ta: null,
-    aov: null,
-    dcov: 30,
-    days: 30,
-    netday: 0,
-  };
+  const currentAgg = periodAgg;
+  const prevAgg = prevPeriodAgg;
 
-  const prevAgg = prevMonth ? aggByMonth[prevMonth] : null;
+  const partialMonths = ms.filter(m => isPartialMonth(m));
+  const isPartial = partialMonths.length > 0;
+  const perDay = (v: number, dcov: number) => (dcov > 0 ? v / dcov : 0);
 
-  const isPartial = isPartialMonth(lastMonth);
-  const curNet = filters.perday ? currentAgg.net / currentAgg.dcov : currentAgg.net;
-  const prevNet = prevAgg ? (filters.perday ? prevAgg.net / prevAgg.dcov : prevAgg.net) : null;
+  const curNet = filters.perday ? perDay(currentAgg.net, currentAgg.dcov) : currentAgg.net;
+  const prevNet = prevAgg ? (filters.perday ? perDay(prevAgg.net, prevAgg.dcov) : prevAgg.net) : null;
 
-  const curGuest = filters.perday ? Math.round(currentAgg.guest / currentAgg.dcov) : currentAgg.guest;
-  const prevGuest = prevAgg ? (filters.perday ? Math.round(prevAgg.guest / prevAgg.dcov) : prevAgg.guest) : null;
+  const curGuest = filters.perday ? Math.round(perDay(currentAgg.guest, currentAgg.dcov)) : currentAgg.guest;
+  const prevGuest = prevAgg ? (filters.perday ? Math.round(perDay(prevAgg.guest, prevAgg.dcov)) : prevAgg.guest) : null;
 
-  const curTC = filters.perday ? Math.round(currentAgg.tc / currentAgg.dcov) : currentAgg.tc;
-  const prevTC = prevAgg ? (filters.perday ? Math.round(prevAgg.tc / prevAgg.dcov) : prevAgg.tc) : null;
+  const curTC = filters.perday ? Math.round(perDay(currentAgg.tc, currentAgg.dcov)) : currentAgg.tc;
+  const prevTC = prevAgg ? (filters.perday ? Math.round(perDay(prevAgg.tc, prevAgg.dcov)) : prevAgg.tc) : null;
 
   const curTA = currentAgg.ta;
   const prevTA = prevAgg ? prevAgg.ta : null;
@@ -50,11 +51,14 @@ export const ScorecardView: React.FC = () => {
   const curAOV = currentAgg.aov;
   const prevAOV = prevAgg ? prevAgg.aov : null;
 
-  const planAchieve = currentAgg.target > 0 ? currentAgg.net / currentAgg.target : null;
+  // % Đạt KH = Net của cửa hàng×tháng có target ÷ Σ target (không cộng Net cửa hàng chưa giao target)
+  const planAchieve = currentAgg.target > 0 ? currentAgg.netTargeted / currentAgg.target : null;
   const discountRate = currentAgg.gross > 0 ? currentAgg.disc / currentAgg.gross : null;
   const voucherRate = currentAgg.gross > 0 ? currentAgg.voucher / currentAgg.gross : null;
   const partySize = currentAgg.tc > 0 ? currentAgg.guest / currentAgg.tc : 0;
-  const idRate = (HUB_DATA.identify.find(x => x.month === lastMonth) || {}).rate || 0;
+  const idRows = HUB_DATA.identify.filter(x => ms.includes(x.month));
+  const idBills = idRows.reduce((a, x) => a + (x.bills || 0), 0);
+  const idRate = idBills > 0 ? idRows.reduce((a, x) => a + (x.id_bills || 0), 0) / idBills : 0;
 
   // Chart 1: Revenue trend by Brand + Total
   const brandSeriesData: Record<string, number[]> = {};
@@ -133,9 +137,9 @@ export const ScorecardView: React.FC = () => {
     ],
   };
 
-  // Chart 2: Brand Distribution Donut (Latest month)
-  const lastMonthBrandValues = BRANDS.map((b) => brandSeriesData[b][ms.length - 1] || 0);
-  const totalBrandVal = lastMonthBrandValues.reduce((a, b) => a + b, 0);
+  // Chart 2: Brand Distribution Donut (cả kỳ chọn)
+  const periodBrandValues = BRANDS.map((b) => brandSeriesData[b].reduce((a, v) => a + v, 0));
+  const totalBrandVal = periodBrandValues.reduce((a, b) => a + b, 0);
 
   const pieOption: EChartsOption = {
     tooltip: {
@@ -168,7 +172,7 @@ export const ScorecardView: React.FC = () => {
           show: false,
         },
         data: BRANDS.map((b, i) => ({
-          value: lastMonthBrandValues[i],
+          value: periodBrandValues[i],
           name: b,
           itemStyle: { color: BRAND_COLORS[b] },
         })),
@@ -176,31 +180,48 @@ export const ScorecardView: React.FC = () => {
     ],
   };
 
-  // Table: Store Ranking for Latest Month
-  const storeRows = HUB_DATA.store_month
-    .filter(r => r.month === lastMonth && inScope(r.store))
-    .map(r => {
-      const prevR = prevMonth 
-        ? HUB_DATA.store_month.find(x => x.month === prevMonth && x.store === r.store)
-        : null;
-      const targetObj = (HUB_DATA.target || []).find(
-        t => t.month === lastMonth && t.store === r.store
-      );
-      const tg = targetObj ? targetObj.target : 0;
-      const achieve = tg > 0 ? r.net / tg : null;
-      const storeInfo = HUB_DATA.stores[r.store];
+  // Table: Store Ranking — cộng dồn cả kỳ chọn
+  const storeAcc: Record<string, { net: number; guest: number; tc: number; prevNet: number | null }> = {};
+  HUB_DATA.store_month.forEach(r => {
+    if (!inScope(r.store)) return;
+    if (ms.includes(r.month)) {
+      const s = (storeAcc[r.store] ||= { net: 0, guest: 0, tc: 0, prevNet: null });
+      s.net += r.net || 0;
+      s.guest += r.guest || 0;
+      s.tc += r.tc || 0;
+    }
+  });
+  HUB_DATA.store_month.forEach(r => {
+    if (!storeAcc[r.store] || !prevPeriodMonths.includes(r.month)) return;
+    storeAcc[r.store].prevNet = (storeAcc[r.store].prevNet || 0) + (r.net || 0);
+  });
+  const storeTarget: Record<string, { target: number; netTargeted: number }> = {};
+  (HUB_DATA.target || []).forEach(t => {
+    if (!storeAcc[t.store] || !ms.includes(t.month) || !(t.target > 0)) return;
+    const st = (storeTarget[t.store] ||= { target: 0, netTargeted: 0 });
+    st.target += t.target;
+    st.netTargeted += HUB_DATA.store_month
+      .filter(x => x.month === t.month && x.store === t.store)
+      .reduce((a, x) => a + (x.net || 0), 0);
+  });
+
+  const storeRows = Object.entries(storeAcc)
+    .map(([code, s]) => {
+      const storeInfo = HUB_DATA.stores[code];
+      const tg = storeTarget[code]?.target || 0;
+      const achieve = tg > 0 ? storeTarget[code].netTargeted / tg : null;
 
       return {
-        storeCode: r.store,
-        storeName: storeInfo?.name || r.store,
+        storeCode: code,
+        storeName: storeInfo?.name || code,
         brand: storeInfo?.brand || 'OTHER',
         tier: storeInfo?.tier || 'core',
-        net: r.net,
-        prevNet: prevR ? prevR.net : null,
-        guest: r.guest,
-        tc: r.tc,
-        ta: r.guest > 0 ? r.net / r.guest : 0,
-        aov: r.tc > 0 ? r.net / r.tc : 0,
+        net: s.net,
+        prevNet: s.prevNet,
+        guest: s.guest,
+        tc: s.tc,
+        ta: s.guest > 0 ? s.net / s.guest : 0,
+        aov: s.tc > 0 ? s.net / s.tc : 0,
         target: tg,
         achieve,
       };
@@ -300,10 +321,12 @@ export const ScorecardView: React.FC = () => {
             TỔNG THỂ ĐANG Ở ĐÂU
           </span>
           <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
-            Scorecard Điều Hành — Kỳ {formatMonthLabel(lastMonth)}
+            Scorecard Điều Hành — Kỳ {periodLabel}
           </h2>
           <p className="text-xs text-brand-muted mt-1">
             Hàng trên phản ánh quy mô (Volume), hàng dưới phản ánh chất lượng vận hành (Quality).
+            {' '}Số liệu cộng dồn {ms.length} tháng
+            {prevLabel ? <> · so với kỳ liền trước <b>{prevLabel}</b></> : ' · không có kỳ liền trước cùng độ dài để so sánh'}.
           </p>
         </div>
 
@@ -311,8 +334,8 @@ export const ScorecardView: React.FC = () => {
           <div className="rounded-lg border border-status-bad/40 bg-status-badBg/30 px-3.5 py-2 text-xs text-status-bad flex items-center gap-2">
             <span className="font-bold">Lưu ý:</span>
             <span>
-              Tháng {formatMonthLabel(lastMonth)} chưa trọn kỳ (đến{' '}
-              {HUB_DATA.coverage[lastMonth]?.last}) — khuyến nghị xem theo chuẩn hoá <b>/ngày</b>.
+              {partialMonths.map(m => `${formatMonthLabel(m)} (đến ${HUB_DATA.coverage[m]?.last})`).join(', ')}{' '}
+              chưa trọn kỳ — khuyến nghị xem theo chuẩn hoá <b>/ngày</b>.
             </span>
           </div>
         )}
@@ -367,7 +390,7 @@ export const ScorecardView: React.FC = () => {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MetricCard
           label="% Đạt Kế hoạch"
-          subLabel="Net ÷ Target"
+          subLabel="Net (CH có target) ÷ Target"
           value={planAchieve ? formatPercent(planAchieve) : '—'}
           customDeltaText={
             planAchieve
@@ -405,7 +428,7 @@ export const ScorecardView: React.FC = () => {
         />
         <MetricCard
           label="Nhận diện Khách"
-          subLabel="HĐ có SĐT ÷ Tổng HĐ"
+          subLabel="HĐ có SĐT ÷ Tổng HĐ (toàn chuỗi)"
           value={formatPercent(idRate)}
           isFlagged={true}
           flagMessage="Rào cản CRM"
@@ -426,7 +449,7 @@ export const ScorecardView: React.FC = () => {
         </Card>
 
         <Card
-          title={`Cơ Cấu Doanh Thu Brand — ${formatMonthLabel(lastMonth)}`}
+          title={`Cơ Cấu Doanh Thu Brand — ${periodLabel}`}
           description="Tỷ trọng đóng góp doanh thu của 3 thương hiệu"
           chip="TỶ TRỌNG"
         >
@@ -441,7 +464,7 @@ export const ScorecardView: React.FC = () => {
 
       {/* Row 4: Store Leaderboard Table */}
       <Card
-        title={`Bảng Xếp Hạng Cửa Hàng — Kỳ ${formatMonthLabel(lastMonth)}`}
+        title={`Bảng Xếp Hạng Cửa Hàng — Kỳ ${periodLabel}`}
         description="Sắp xếp theo Net Sales, đối chiếu kế hoạch và đánh giá hiệu quả vận hành"
         chip={`CORE (${storeRows.length})`}
       >
@@ -450,7 +473,7 @@ export const ScorecardView: React.FC = () => {
           data={storeRows}
           searchPlaceholder="Tìm theo tên hoặc mã cửa hàng..."
           searchKeys={['storeName', 'storeCode', 'brand']}
-          exportFilename={`Noire_Store_Scorecard_${lastMonth}`}
+          exportFilename={`Noire_Store_Scorecard_${periodFileTag}`}
         />
         <div className="mt-3 flex items-center justify-between text-[11px] text-brand-muted border-t border-brand-border/40 pt-2">
           <span>Ngưỡng chuẩn: ≥100% Đạt · 90–99% Cần theo dõi · &lt;90% Không đạt.</span>

@@ -35,7 +35,9 @@ Cửa hàng không có target hiển thị `—`, **không hiển thị 0%** —
 
 ## 3. Chỉ số & công thức
 
-Toàn bộ lấy từ `FilterContext.aggByMonth` — **không tính lại ở view** (NT2).
+Toàn bộ lấy từ `FilterContext.periodAgg` (cộng dồn **cả kỳ Từ → Đến**, không chỉ tháng cuối kỳ) — **không tính lại ở view** (NT2).
+So sánh với `prevPeriodAgg` = kỳ liền trước **cùng số tháng** (T8 → T7 · T7–T8 → T5–T6); không đủ dữ liệu thì ẩn delta.
+Thẻ KPI, donut cơ cấu brand và bảng xếp hạng cửa hàng đều theo cùng kỳ này; biểu đồ xu hướng vẫn tách từng tháng.
 
 | Chỉ số | Công thức |
 |---|---|
@@ -44,8 +46,8 @@ Toàn bộ lấy từ `FilterContext.aggByMonth` — **không tính lại ở vi
 | AOV | `Net ÷ TC` |
 | Party Size | `Guest ÷ TC` |
 | Discount % | `(giảm giá + chiết khấu) ÷ gross` |
-| % Đạt Kế hoạch | `Net ÷ Σ target` |
-| Nhận diện Khách | `id_bills ÷ bills` — **hiện 8,6%** |
+| % Đạt Kế hoạch | `Σ Net (chỉ cửa hàng × tháng có target) ÷ Σ target` — không cộng Net của cửa hàng chưa giao target |
+| Nhận diện Khách | `Σ id_bills ÷ Σ bills` trong kỳ (toàn chuỗi) |
 
 **Ngưỡng cứng:** Đạt ≥ 100% · Cần theo dõi 90–99% · Không đạt < 90%.
 Cấm dùng chữ “tốt/ổn/khá” không kèm ngưỡng.
