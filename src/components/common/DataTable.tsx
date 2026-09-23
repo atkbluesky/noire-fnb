@@ -9,6 +9,27 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right';
   sortable?: boolean;
   width?: string;
+  /** Giá trị cho file CSV. Trả object = MỘT cột trên màn thành NHIỀU cột trong CSV
+   *  (ô gộp "tên + mã + loại + kỳ hạn" tách ra cho máy đọc được). Không khai thì lấy
+   *  `row[key]` nếu là số/chuỗi — KHÔNG bao giờ đổ object ra thành "[object Object]". */
+  exportValue?: (row: T, index: number) => Record<string, unknown> | string | number | null;
+}
+
+/** Bảng trên màn → dòng cho CSV. Xuất ĐÚNG những gì đang hiển thị, theo đúng thứ tự cột,
+ *  tiêu đề là tên cột tiếng Việt. Dùng chung cho nút xuất của DataTable và nút xuất tự đặt
+ *  ở màn hình — một định nghĩa, không có bản sao nào lệch. */
+export function columnsToRows<T extends Record<string, any>>(columns: Column<T>[], rows: T[]): Record<string, any>[] {
+  return rows.map((row, i) => {
+    const out: Record<string, any> = {};
+    columns.forEach(col => {
+      const v = col.exportValue ? col.exportValue(row, i) : row[col.key];
+      if (v !== null && typeof v === 'object' && !Array.isArray(v)) Object.assign(out, v);
+      else if (Array.isArray(v)) out[col.header] = v.join(' · ');
+      else if (typeof v === 'object') out[col.header] = '';
+      else out[col.header] = v ?? '';
+    });
+    return out;
+  });
 }
 
 interface DataTableProps<T> {
@@ -96,7 +117,7 @@ export function DataTable<T extends Record<string, any>>({
 
   const handleExport = () => {
     if (exportFilename && sortedData.length > 0) {
-      exportToCSV(exportFilename, sortedData);
+      exportToCSV(exportFilename, columnsToRows(columns, sortedData));
     }
   };
 

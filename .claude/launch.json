@@ -4,14 +4,33 @@
     {
       "name": "noire-hub",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3001
     },
     {
       "name": "noire-hub-prod",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "preview", "--port", "4173"],
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "4173"
+      ],
       "port": 4173
+    },
+    {
+      "name": "noire-hub-alt",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "./node_modules/vite/bin/vite.js",
+        "--port",
+        "3011",
+        "--strictPort"
+      ],
+      "port": 3011
     }
   ]
 }

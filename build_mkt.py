@@ -666,6 +666,69 @@ try:
                                                       lambda d: has(d) and _month(d.get("month")))]
     for r in D["partner_plan"]:
         r.pop("name", None)
+    # ── CỔNG CHUẨN HOÁ ĐẦU VÀO ───────────────────────────────────────────────────────
+    # File trong thư mục không đúng mẫu tên chuẩn (danh mục cũ, báo cáo team…) KHÔNG bị bỏ
+    # qua: bộ chuyển ở tools/l0_ingest.py đọc và ánh xạ sang đúng cột chuẩn, file chuẩn
+    # THẮNG từng ô, chỗ file lạ không ghi rõ thì để trống + báo "cần bổ sung".
+    import l0_ingest as ING  # noqa: E402
+    from monthly_lib import to_num  # noqa: E402
+    ing_rows = []
+    try:
+        plat = {}
+        for p in parts:
+            for nm in [p.get("name")] + str(p.get("aliases") or "").split("|"):
+                if nm and str(nm).strip():
+                    plat[str(nm).strip()] = p["code"]
+
+        def match_prog(r, std):
+            pn = norm(r.get("pos_name") or "")
+            for x in std:
+                if x.get("code") != r.get("code"):
+                    continue
+                if pn and norm(x.get("pos_name") or "") == pn:
+                    return x
+                if not pn and (to_num(x.get("rate")) or 0) == (to_num(r.get("rate")) or 0):
+                    return x
+            return None
+
+        def match_agg(r, std):
+            # File lạ ghi theo CỬA HÀNG, file chuẩn ghi theo BRAND → vẫn là một dòng.
+            for x in std:
+                if x.get("month") != r.get("month") or x.get("code") != r.get("code"):
+                    continue
+                if all(not (x.get(k) and r.get(k)) or x.get(k) == r.get(k) for k in ("brand", "store")):
+                    return x
+            return None
+
+        for sid, kw, jobs in (
+            ("S15_partnership", {}, [("danh mục", lambda raw: (parts, raw.get("partners", []), ["code"], None)),
+                                     ("chương trình", lambda raw: (progs, raw.get("programs", []), ["prog"], match_prog)),
+                                     ("kế hoạch", lambda raw: (D["partner_plan"], raw.get("plan", []), ["month", "code"], None))]),
+            ("S19_aggregator", {"platforms": plat},
+             [("số aggregator", lambda raw: (agg, raw.get("agg", []), ["month", "code", "brand", "store"], match_agg))]),
+        ):
+            raw, files = ING.ingest(sid, **kw) if kw else ING.ingest(sid)
+            applied = []
+            for label, pick in jobs:
+                tgt, src, key, m = pick(raw)
+                if src:
+                    _, lines = ING.merge(tgt, src, key, label + ": ", match=m)
+                    applied += lines
+            for f in files:
+                ing_rows.append(dict(source=sid, file=f["file"], adapter=f.get("adapter"), rows=f.get("rows") or 0,
+                                     note=f.get("note"), applied=" · ".join(applied) or None,
+                                     miss=" · ".join(f.get("miss") or []) or None))
+                log("   cổng chuẩn hoá · %s: %s" % (f["file"], f.get("note")))
+                for m in (f.get("miss") or [])[:5]:
+                    log("      ⚠ %s" % m)
+            for a in applied:
+                log("      → %s" % a)
+    except Exception as e:                                          # noqa: BLE001
+        ing_rows.append(dict(source=None, file=None, adapter=None, rows=0, note="lỗi cổng chuẩn hoá: %s" % str(e)[:90],
+                             applied=None, miss=None))
+        log("   cổng chuẩn hoá: lỗi %s" % str(e)[:90])
+    D["partner_ingest"] = ing_rows
+
     lost = sorted({r["code"] for r in progs + agg + D["partner_plan"] if r.get("code") and r["code"] not in known})
     if lost:
         log("   ⚠ Mã ĐT chưa khai ở 1_PARTNER / 2_AGGREGATOR: %s" % ", ".join(lost))
@@ -674,7 +737,7 @@ try:
            sum(p["channel"] == "AGGREGATOR" for p in parts), len(progs), len(D["partner_plan"])))
     log("   %s · %d dòng số aggregator đã điền" % (os.path.basename(F_AGG or "—"), len(agg)))
 except Exception as e:
-    D["partners"] = []; D["partner_program"] = []; D["partner_agg"] = []; D["partner_plan"] = []
+    D["partners"] = []; D["partner_program"] = []; D["partner_agg"] = []; D["partner_plan"] = []; D["partner_ingest"] = []
     log("   đối tác: lỗi %s" % str(e)[:120])
 
 # ── Log eVoucher đối tác (S21) — mỗi file là log TOÀN chiến dịch tới ngày xuất ──

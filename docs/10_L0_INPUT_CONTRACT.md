@@ -192,3 +192,42 @@ Lỗi đã từng xảy ra trên dữ liệu thật. **Liệt kê để đừng 
 4. Khai sheet mới ở `data_contract.json`, chạy `python tools/gen_contract_doc.py`.
 
 Không bước nào cần sửa `update.py` hay `check_input.py`.
+
+---
+
+## Cổng chuẩn hoá đầu vào — file lạ vào ĐÚNG file chuẩn *(23/09/2026)*
+
+**Quy tắc:** thả một file Excel không đúng quy chuẩn vào thư mục nguồn thì **file đó là nơi LẤY
+dữ liệu, còn nơi ĐỔ dữ liệu vào vẫn là file chuẩn** — không dựng lane đọc riêng, không thiết kế
+một khối giao diện mới cho từng dạng file. Màn hình chỉ đọc schema chuẩn, nên số của mọi nguồn
+vẫn so được với nhau.
+
+```
+thư mục nguồn ─┬─ file đúng mẫu tên chuẩn ─────────────► đọc thẳng
+               └─ file LẠ ── tools/l0_ingest.py ──┐
+                              (adapter theo dạng) │
+                                                  ▼
+                              ánh xạ sang ĐÚNG CỘT của file chuẩn
+                              · file chuẩn THẮNG từng ô
+                              · chỉ điền vào ô TRỐNG, thêm dòng chưa có
+                              · ô file lạ không ghi rõ → ĐỂ TRỐNG + "cần bổ sung"
+                              · ghi rõ nguồn (file · sheet) để đối chiếu ngược
+```
+
+| Việc | Lệnh |
+|---|---|
+| Xem thư mục nào có file lạ, chuyển được gì, thiếu gì | `python tools/l0_ingest.py` |
+| Xem một nguồn | `python tools/l0_ingest.py S15` |
+| Kiểm kê đầu vào (có mục Cổng chuẩn hoá) | `python check_input.py` |
+| File chuẩn thiếu cột mà mẫu đã có (mẫu lớn lên) | `python tools/partner_template.py --sync-cols` |
+
+**Thêm một dạng file mới:** viết `detect()` + `convert()` trong `tools/l0_ingest.py`, thêm MỘT dòng
+vào `ADAPTERS`. Không sửa màn hình, không thêm bảng mới ở loader.
+
+**Tuyệt đối không đoán:** không suy ngày từ "Tháng 10", không đoán mã cửa hàng, không đổi nền số
+(báo cáo team ghi Sales *trước VAT* thì KHÔNG tự đổi thành Tổng tiền hoá đơn — để trống, ghi số
+báo cáo vào ghi chú để người khai điền đúng nền).
+
+**Đang có bộ chuyển:** `S15_partnership` (danh mục đối tác kiểu cũ) · `S19_aggregator` (báo cáo
+Promotion-AGG của team, mục C2). File lạ ở nguồn chưa có bộ chuyển được liệt kê rõ là **KHÔNG
+được đọc** — không im lặng bỏ qua.

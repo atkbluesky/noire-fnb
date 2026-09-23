@@ -335,6 +335,20 @@ export interface PartnerCheck {
   net: number;
 }
 
+/** Cổng chuẩn hoá đầu vào — file lạ trong thư mục nguồn đã nạp vào schema chuẩn. */
+export interface PartnerIngest {
+  source: string | null;
+  file: string | null;
+  /** Bộ chuyển đã dùng; trống = chưa có bộ chuyển, file KHÔNG được đọc. */
+  adapter: string | null;
+  rows: number;
+  note: string | null;
+  /** Đã điền vào file chuẩn những gì (file chuẩn luôn thắng từng ô). */
+  applied: string | null;
+  /** Ô file lạ không ghi rõ — để trống, chờ bổ sung. */
+  miss: string | null;
+}
+
 export interface PartnerPlan {
   month: string;
   code: string;
@@ -397,6 +411,7 @@ export interface MktData {
   partner_campaigns: PartnerCampaign[];
   partner_check: PartnerCheck[];
   partner_plan: PartnerPlan[];
+  partner_ingest: PartnerIngest[];
   oa: ZaloOAItem[];
   member_month: MemberMonth[];
   member_stat: { total: number; months_filled: number; months_template: number };

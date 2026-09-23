@@ -191,7 +191,8 @@ def main():
     # ── 01_master.xlsx ── bảng máy tính được; ngân sách · dim_store · pre_analytics GIỮ tay
     mast = {"crm_target": M.get("crm_target"), "partners": M.get("partners"),
             "partner_program": M.get("partner_program"), "partner_agg": M.get("partner_agg"),
-            "partner_plan": M.get("partner_plan"), "partner_voucher": M.get("partner_voucher")}
+            "partner_plan": M.get("partner_plan"), "partner_voucher": M.get("partner_voucher"),
+            "partner_ingest": M.get("partner_ingest")}
     # Sheet không còn nguồn thì GỠ, không để số đóng băng nằm lại (partner_camp: gộp vào partner_program).
     drop_sheets(MASTER, ["partner_camp"])
     k = replace_sheets(MASTER, mast)

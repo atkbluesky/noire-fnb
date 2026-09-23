@@ -10,6 +10,7 @@
 | **Loader** | `scripts/build-data.mjs` — `buildPartner()` → `partner_fact` · `partners` · `partner_voucher` · `partner_campaigns` · `partner_check` · `partner_plan` |
 | **Định nghĩa** | `data_contract.json` → **`$partner`** (kênh · cách nhận số) · **`$promo_nature.rules[].partner`** (tên CTKM → Mã ĐT) · cột file nhập: `tools/partner_template.py` |
 | **Trạng thái** | ✅ M7 và M9 cùng một bảng số (QA #17) · ⚠️ Dining City là số tự thống kê |
+| **Cổng chuẩn hoá** | File lạ trong 3 thư mục trên được `tools/l0_ingest.py` nạp vào schema chuẩn — xem [`10_L0_INPUT_CONTRACT.md`](../10_L0_INPUT_CONTRACT.md) §Cổng chuẩn hoá |
 
 ---
 
@@ -114,7 +115,18 @@ HĐ trước giảm, tiền giảm. Gắn vào đối tác qua **Campaign ID** �
 Chi phí đối tác 22,8 tr = 11,0% doanh thu đối tác (ưu đãi NOIRE chịu 10,4 tr + phí 12,4 tr, trong đó 11,8 tr ước tính
 13,8% Grab Dine Out — nhập hoa hồng thực trả để thay). M7 thẻ “Đối tác” = tổng M9 từng tháng.
 
-## 7. Thêm một đối tác mới
+## 7. Xuất CSV
+
+Mỗi bảng có nút **Xuất CSV** riêng, xuất **đúng những gì đang hiển thị** theo đúng bộ lọc tháng/brand,
+tên file kèm kỳ lọc (`Noire_M9_Aggregator_2026-01_2026-08.csv`). Cột gộp trên màn được tách ra cho máy
+đọc được (ô "Đối tác" → Mã ĐT · Đối tác · Kênh · Loại · Brand · Nguồn số…), số để dạng số thô nên Excel
+cộng được ngay. Định nghĩa ở `Column.exportValue` + `columnsToRows()` của `DataTable` — dùng chung cho
+mọi bảng toàn hệ thống.
+
+*(sửa 23/09/2026: trước đây nút xuất đổ thẳng object dòng ra CSV nên cột `t` — toàn bộ hoá đơn, doanh
+thu, chi phí — thành `[object Object]`, chương trình ưu đãi cũng mất; tiêu đề là khoá tiếng Anh.)*
+
+## 8. Thêm một đối tác mới
 
 1. Danh mục: thêm dòng ở `1_PARTNER` hoặc `2_AGGREGATOR` (Mã ĐT mới) + chương trình ở `3_CHUONG_TRINH`.
 2. Đối tác đo trên POS: `data_contract.json → $promo_nature.rules` thêm `{"nature": "PARTNER", "partner": "<Mã ĐT>", "re": [...]}`
