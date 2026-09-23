@@ -442,6 +442,84 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
     return results, fin, scheme_rows, base_rows, issues
 
 
+# ─────────────────────────── đầu vào chuẩn: sổ + file deck quý ───────────────────────────
+FIELDS = P["input_fields"]["fields"]
+
+
+def _empty(v):
+    return v is None or (isinstance(v, str) and not v.strip())
+
+
+def merge_inputs(progs, costs):
+    """Sổ Pre_Analysis (S24) + file deck quý (S16, Q4/2026+) → MỘT danh sách chương trình theo mẫu chuẩn.
+    File deck đã được tools/pre_analysis.py chuyển sang đúng cột `chuong_trinh`. Dòng sổ có cùng
+    program_id bổ sung / ghi đè TỪNG Ô: ô sổ có số thì dùng số sổ, ô sổ trống thì giữ số deck.
+    Chi phí: sổ có dòng chi_phi cho chương trình → dùng sổ; chưa có → chi phí MKT của deck."""
+    import pre_analysis
+    deck = pre_analysis.deck_programs()
+    so = {p["program_id"]: p for p in progs}
+    so_cost = {c.get("program_id") for c in costs}
+    out, extra_costs = [], []
+    for d in deck["programs"]:
+        s = so.pop(d["program_id"], None) or {}
+        m = {k: v for k, v in d.items() if not k.startswith("_")}
+        src = {k: "DECK" for k, v in m.items() if not _empty(v)}
+        for k, v in s.items():
+            if not _empty(v):
+                m[k], src[k] = v, "SO"
+        m.update(_src=src, _hint=d["_hint"], _quarter=d["_quarter"],
+                 _source=f"DECK: {d['_file']}" + (" + sổ" if s else ""))
+        out.append(m)
+        if d["program_id"] not in so_cost:
+            extra_costs += [dict(c, _src="DECK") for c in deck["costs"] if c["program_id"] == d["program_id"]]
+    for p in progs:                                   # chương trình chỉ có ở sổ
+        if p["program_id"] in so:
+            out.append(dict(p, _src={k: "SO" for k, v in p.items() if not _empty(v)}, _hint={}, _source="SO"))
+    return out, costs + extra_costs, deck["issues"]
+
+
+def missing_fields(prog, has_scheme):
+    """Trường bắt buộc còn trống ($preeval.input_fields) → danh sách mã trường."""
+    branding = str(prog.get("objective") or "").upper() == "BRANDING"
+    miss = []
+    for f in FIELDS:
+        if f["level"] == "required" and _empty(prog.get(f["code"])):
+            miss.append(f["code"])
+        elif f["level"] == "required_promo" and not branding and not has_scheme and _empty(prog.get(f["code"])):
+            miss.append(f["code"])
+    return miss
+
+
+def input_rows(prog, costs, miss):
+    """Dữ liệu đầu vào đã chuẩn hoá của 1 chương trình — mỗi trường một dòng (bảng pre_eval_input)."""
+    out = []
+    for f in FIELDS:
+        k = f["code"]
+        if k == "chi_phi":
+            v = sum(_f(c.get("amount"), 0) for c in costs) or None
+            src = ("DECK" if all(c.get("_src") == "DECK" for c in costs) else "SO") if costs else None
+        else:
+            v, src = prog.get(k), prog["_src"].get(k)
+        out.append(dict(program_id=prog["program_id"], field=k, value=None if _empty(v) else v, source=src,
+                        level=f["level"], status="THIEU" if k in miss else ("OK" if not _empty(v) else "TRONG"),
+                        hint=prog["_hint"].get(k)))
+    return out
+
+
+def pending_row(prog, miss, why=None):
+    """Chương trình CHƯA tính được (thiếu trường bắt buộc) vẫn lên M7.1 — quyết định THIEU_SO."""
+    label = {f["code"]: f["label"] for f in FIELDS}
+    d0 = _d(prog.get("date_from"))
+    q = prog.get("_quarter") or (f"{d0.year}-Q{(d0.month - 1) // 3 + 1}" if d0 else None)
+    note = why or ("Cần bổ sung: " + " · ".join(label.get(m, m) for m in miss))
+    return dict(program_id=prog["program_id"], scenario="CO_SO", name=prog.get("name"),
+                brand=(prog.get("brand") or "ALL").upper(),
+                stores=str(prog.get("store_scope") or "").replace(" ", ""), date_from=prog.get("date_from"),
+                date_to=prog.get("date_to"), objective=prog.get("objective"), lever=prog.get("lever_primary"),
+                status=prog.get("status"), decision="THIEU_SO", decision_note=note, quarter=q,
+                campaign_id=prog.get("campaign_id"), input_source=prog["_source"], missing="|".join(miss) or None)
+
+
 def main():
     for _s in (sys.stdout, sys.stderr):
         try:
@@ -449,33 +527,52 @@ def main():
         except (AttributeError, ValueError):
             pass
     files = l0_files(SID)
-    if not files:
-        log("  – chưa có sổ Pre_Analysis_*.xlsx — bỏ qua M7.1 đánh giá")
-        write_workbook(OUT, {"pre_eval": [], "pre_eval_scheme": [], "pre_eval_fin": [], "pre_eval_base": []},
-                       title="M7.1 · PRE-ANALYTICS — chưa có sổ")
+    path = max(files, key=os.path.getmtime) if files else None
+    progs = read_sheet(path, "chuong_trinh") if path else []
+    schemes, items, costs = ((read_sheet(path, "co_che"), read_sheet(path, "mon"), read_sheet(path, "chi_phi"))
+                             if path else ([], [], []))
+    opex = read_sheet(path, "ty_le_chi_phi") if path else []
+    progs, costs, issues = merge_inputs(progs, costs)
+    if not progs:
+        log("  – chưa có sổ Pre_Analysis_*.xlsx và file deck quý — bỏ qua M7.1 đánh giá")
+        write_workbook(OUT, {"pre_eval": [], "pre_eval_scheme": [], "pre_eval_fin": [], "pre_eval_base": [],
+                             "pre_eval_input": []}, title="M7.1 · PRE-ANALYTICS — chưa có đầu vào")
         return 0
-    path = max(files, key=os.path.getmtime)
-    progs = read_sheet(path, "chuong_trinh")
-    schemes, items, costs = read_sheet(path, "co_che"), read_sheet(path, "mon"), read_sheet(path, "chi_phi")
-    opex = read_sheet(path, "ty_le_chi_phi")
     daily, promo, menu, first, last = load_facts()
     out = defaultdict(list)
-    issues = []
     for p in progs:
         pid = p["program_id"]
-        res, fin, sch, base, iss = evaluate(
-            p, [s for s in schemes if s.get("program_id") == pid], [i for i in items if i.get("program_id") == pid],
-            [c for c in costs if c.get("program_id") == pid], opex, daily, promo, menu, first, last)
+        sch = [s for s in schemes if s.get("program_id") == pid]
+        cst = [c for c in costs if c.get("program_id") == pid]
+        miss = missing_fields(p, bool(sch))
+        out["pre_eval_input"] += input_rows(p, cst, miss)
+        if miss:
+            out["pre_eval"].append(pending_row(p, miss))
+            continue
+        res, fin, sc_rows, base, iss = evaluate(
+            p, sch, [i for i in items if i.get("program_id") == pid], cst, opex, daily, promo, menu, first, last)
         issues += iss
-        out["pre_eval"] += res or []
+        if not res:
+            out["pre_eval"].append(pending_row(p, [], "Chưa tính được: " + "; ".join(iss)))
+            out["pre_eval_base"] += base
+            continue
+        for r in res:
+            r.update(input_source=p["_source"], missing=None)
+            if p.get("_quarter"):                        # chương trình từ file deck thuộc quý của file đó
+                r["quarter"] = p["_quarter"]
+        out["pre_eval"] += res
         out["pre_eval_fin"] += fin
-        out["pre_eval_scheme"] += sch
+        out["pre_eval_scheme"] += sc_rows
         out["pre_eval_base"] += base
     write_workbook(OUT, dict(out), title="M7.1 · PRE-ANALYTICS — sinh tự động bởi tools/preeval.py")
     base = [r for r in out["pre_eval"] if r["scenario"] == "CO_SO"]
-    log(f"  sổ: {os.path.basename(path)} · {len(progs)} chương trình")
+    n_deck = sum(1 for p in progs if p["_source"] != "SO")
+    log(f"  sổ: {os.path.basename(path) if path else '—'} · {len(progs)} chương trình ({n_deck} từ file deck quý)")
     for r in base:
-        log(f"   {r['program_id']:<26} {r['decision']:<11} hoá đơn {r['bills']:>5} · tăng thêm {r['net_incr']:>13,} · EBITDA {r['ebitda_incr']:>12,}".replace(",", "."))
+        if r["decision"] == "THIEU_SO":
+            log(f"   {r['program_id']:<26} THIEU_SO    {r['decision_note']}")
+        else:
+            log(f"   {r['program_id']:<26} {r['decision']:<11} hoá đơn {r['bills']:>5} · tăng thêm {r['net_incr']:>13,} · EBITDA {r['ebitda_incr']:>12,}".replace(",", "."))
     for i in issues:
         log("   ! " + i)
     return 0

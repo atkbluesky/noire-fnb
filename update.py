@@ -152,7 +152,7 @@ def plan(touched, force=False):
             p["mkt"] = True
         if sid in ("S23_campaign", "S16_pre_analytics"):   # danh mục chương trình · kế hoạch Pre-Analysis
             p["campaign"] = True
-        if sid == "S24_preeval":                            # sổ đánh giá trước khi chạy
+        if sid in ("S24_preeval", "S16_pre_analytics"):     # sổ đánh giá · file deck quý → mẫu chuẩn M7.1
             p["preeval"] = True
     # M7.2 đo trên số tháng (ngày · fact_promo_day · ads) → tháng đổi là đo lại
     if p["months"] or p["tracking"]:

@@ -5,7 +5,7 @@
 | **Câu hỏi** | Nếu chạy chương trình này thì sẽ ra sao? |
 | **`activeView`** | `m71` *(mục con của M7)* |
 | **View** | `src/views/PreAnalyticsView.tsx` + `src/views/PreEvalSection.tsx` (phiếu đánh giá) |
-| **ETL** | `tools/pre_analysis.py` (bộ đọc DUY NHẤT file S16) → `tools/campaign.py` → sheet `pre_plan` → `CAMPAIGN.plan` |
+| **ETL** | `tools/pre_analysis.py` (bộ đọc DUY NHẤT file S16) → `tools/campaign.py` → sheet `pre_plan` → `CAMPAIGN.plan` · file deck quý (Q4/2026+) → mẫu chuẩn → `tools/preeval.py` → `pre_eval` · `pre_eval_input` (§0.8) |
 | **Giai đoạn** | P5.5 |
 | **Trạng thái** | ✅ **25 chương trình kế hoạch · nối 5 chương trình đã chạy trên POS, hiện thực tế cạnh kế hoạch** · ⚠️ `Growth%` vẫn là giả định gõ tay |
 | **Sổ đánh giá chuẩn** | ✅ `L0_input/03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia/Pre_Analysis_2026.xlsx` (S24) → `tools/preeval.py` → `data_input/04_preeval.xlsx` → phiếu đánh giá trên M7.1 · 3 chương trình mẫu |
@@ -132,6 +132,40 @@ Trình bày theo thứ tự ra quyết định, không giới hạn số chươn
 | 5 | **Phiếu đánh giá** (bấm tên / chấm) | A Kết luận → B Vì sao (cầu EBITDA: khách vốn sẽ đến vs khách mới) → C Rủi ro 3 kịch bản & hoà vốn → D Chi tiết tính PP672 (Program's details · Financial evaluation) → E Giả định & dữ liệu nền → F Thực tế (nếu đã chạy) · In phiếu |
 
 Kế hoạch Q3 lập tay (S16) thu gọn cuối trang — chỉ để tham khảo.
+
+### 0.8 File deck theo quý (Q4/2026+) → mẫu chuẩn *(23/09/2026)*
+
+Team thả file deck quý `NOIRE_Promotion_Pre-Analysis_Q4_2026.xlsm` (S16 — sheet `Master Plan` · `Pre-Analysis` ·
+`Budget` · `Calendar`). **M7.1 không có màn riêng cho file này**: `tools/pre_analysis.py · deck_programs()` chuyển
+từng chương trình ở Master Plan sang ĐÚNG các cột sheet `chuong_trinh` của sổ chuẩn (`$preeval.input_fields`), rồi
+`tools/preeval.py` đánh giá như mọi chương trình khác — cùng bố cục §0.7.
+
+| Cột chuẩn | Lấy từ deck | Khi nào để TRỐNG |
+|---|---|---|
+| `program_id` | `<BRAND>-<năm>Q<quý>-<TÊN>` (vd `NDC-2026Q4-KHUNGSANG`) | — |
+| `name` · `brand` | PROGRAM · BRAND | — |
+| `store_scope` | OUTLET nhận ra qua `alias_re` dim_store (`39NTMK` · `The Berkley` · `SSV` · `The Crest` · `SKC` · `ET` = Empress Tower · `TM` = The Mett) hoặc cụm cả brand (`2 outlets` · `NDC` · `All NOIRE system`); cụm mô tả viết thường (`shared decor concept`) bỏ qua | còn tên chưa có alias (`Metropole`, `Galleria`, `Noire branches`), deck ghi "không chỉ rõ" |
+| `date_from` · `date_to` | TIMELINE ghi rõ `dd/mm–dd/mm` · `dd–dd/mm` · `dd/mm/yyyy` | `Q4` · `Tháng 10` · `Christmas Q4` · nhiều đêm rời |
+| `dow` | `T2–T6` · `T2,T3,T5,CN` trong TIMELINE | không ghi thứ |
+| `objective` | `BRANDING` khi TYPE là Branding / Key Window / Guest Shift / Performance | chương trình khuyến mãi → nên chọn TC/AOV |
+| `content` · `hypothesis` | MECHANIC / CONTENT · OBJECTIVE | — |
+| `benefit` (+ `condition` …) | — deck chỉ có mô tả chữ | **luôn trống** — bắt buộc bổ sung (trừ Branding) |
+| `chi_phi` | MKT COST → 1 dòng `OTHER` | deck không ghi chi phí |
+| `note` | Loại · Calendar · Cơ sở phân tích · KPI · business case deck (Cơ sở) · ghi chú deck | — |
+
+**Thiếu thì hỏi, không đoán.** Chương trình thiếu trường bắt buộc vẫn lên M7.1 với quyết định **THIẾU DỮ LIỆU**:
+bảng xếp hạng hiện "—", *Việc cần làm* ghi "Bổ sung ở sổ · dòng `<program_id>`: …", phiếu mở ra mục **A** (thiếu gì,
+cách bổ sung) + **E · Dữ liệu đầu vào chuẩn** (mọi trường: giá trị · nguồn Sổ/File deck · mức bắt buộc · gợi ý
+"deck ghi gì" ở ô trống). Bảng `pre_eval_input` (data_input/04_preeval.xlsx) giữ đúng bảng này.
+
+**Bổ sung:** mở sổ `Pre_Analysis_2026.xlsx` → sheet `chuong_trinh` → thêm dòng cùng `program_id` → chỉ gõ ô còn
+thiếu → `CAP_NHAT.bat`. Gộp từng ô: ô sổ có số thì thắng, ô sổ trống giữ số deck; `chi_phi` ở sổ (nếu có) thay chi phí
+deck. Hệ thống KHÔNG ghi vào thư mục `05_Promotion_Ke_Hoach`.
+
+**Q4/2026 lúc nhập (23/09):** 29 chương trình → 4 Branding tính được, 25 THIẾU DỮ LIỆU (mọi chương trình khuyến mãi
+thiếu `benefit`; NCB thiếu thêm ngày — deck chỉ ghi `Tháng 10` / `Q4`; cửa hàng `Metropole` · `Galleria` chưa có alias ở dim_store).
+`ET` (Empress Tower) và `TM` (The Mett) thêm vào `alias_re` của dim_store ngày 23/09/2026 theo xác nhận của team. File Q3 (6 sheet loại) vẫn chỉ cấp target cho M7.2 và khối tham khảo cuối trang;
+chọn file theo định dạng (`files_by_format`), không theo ngày sửa.
 
 ---
 ## 1. Vị trí kiến trúc — vì sao không phải tầng L5

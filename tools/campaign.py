@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from monthly_lib import (  # noqa: E402
     CONTRACT, DATA_INPUT, MONTHLY_DIR, STORE_META, classify_nature, date_of,
-    l0_dir, l0_files, l0_latest, norm, read_workbook, to_num, write_workbook,
+    l0_dir, l0_files, norm, read_workbook, to_num, write_workbook,
 )
 import pre_analysis  # noqa: E402
 
@@ -588,8 +588,13 @@ def validate(camps, targets, costs, controls):
 # ─────────────────────────── kế hoạch Pre-Analysis (S16) ───────────────────────────
 def load_plan():
     """Kế hoạch đọc thẳng S16 — nguồn DUY NHẤT của target/chi phí kế hoạch cho chương trình
-    có `pre_id`. Ngày nộp target = ngày sửa file kế hoạch (file lập trước kỳ chạy)."""
-    f = l0_latest("S16_pre_analytics")
+    có `pre_id`. Ngày nộp target = ngày sửa file kế hoạch (file lập trước kỳ chạy).
+
+    Thư mục S16 có hai định dạng: 6 sheet loại (Q3/2026 — mã C1/D2… nối Campaign Tracking) và file
+    deck theo quý (Q4/2026 trở đi — tools/preeval.py chuyển sang mẫu chuẩn M7.1). Chỉ file 6 sheet
+    loại mới cấp target cho M7.2 — chọn theo ĐỊNH DẠNG, không theo ngày sửa, để file quý mới hơn
+    không đè mất kế hoạch Q3."""
+    f = pre_analysis.latest_legacy()
     if not f:
         return [], None
     try:

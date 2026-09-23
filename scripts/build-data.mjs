@@ -1514,6 +1514,8 @@ function buildCampaign(tables) {
       scenarios: CONTRACT.$preeval.scenarios,
       decisions: CONTRACT.$preeval.decisions,
       gates: CONTRACT.$preeval.gates,
+      input_fields: CONTRACT.$preeval.input_fields.fields,
+      input_levels: CONTRACT.$preeval.input_fields.levels,
       programs: Object.values(T(tables, 'pre_eval').reduce((m, r) => {
         const x = (m[r.program_id] ||= {
           id: r.program_id, name: r.name, brand: r.brand, stores: String(r.stores ?? '').split('|').filter(Boolean),
@@ -1522,8 +1524,10 @@ function buildCampaign(tables) {
           campaign_id: r.campaign_id ?? null, quarter: r.quarter ?? null, season_factor: num(r.season_factor),
           scheme_mode: r.scheme_mode ?? null, tc_base: num(r.tc_base), participation_src: r.participation_src ?? null,
           cannib_src: r.cannib_src ?? null, other_cogs_pct: num(r.other_cogs_pct), opex_pct: num(r.opex_pct),
-          base_note: r.base_note ?? null, scn: {}, fin: {}, schemes: [], base: [],
+          base_note: r.base_note ?? null, input_source: r.input_source ?? null,
+          missing: String(r.missing ?? '').split('|').filter(Boolean), scn: {}, fin: {}, schemes: [], base: [], inputs: [],
         });
+        if (r.decision === 'THIEU_SO') return m;            // chưa tính được — không có số kịch bản
         x.scn[r.scenario] = {
           bills: num(r.bills), bills_incr: num(r.bills_incr), cannib: num(r.cannib_pct), rev_incl: num(r.rev_incl),
           net_incr: num(r.net_incr), gp_incr: num(r.gp_incr), promo_cost: num(r.promo_cost),
@@ -1546,6 +1550,10 @@ function buildCampaign(tables) {
           bill_value: num(r.bill_value), discount: num(r.discount), rev: num(r.rev_after_disc), ta: num(r.ta),
           cogs: num(r.cogs), cogs_pct: num(r.cogs_pct), margin_pct: num(r.margin_pct), merch: num(r.merch_cost),
           promo_cost: num(r.promo_cost), note: r.basis_note ?? null,
+        }));
+        p.inputs = T(tables, 'pre_eval_input').filter((r) => r.program_id === p.id).map((r) => ({
+          field: r.field, value: r.value ?? null, source: r.source ?? null, level: r.level, status: r.status,
+          hint: r.hint ?? null,
         }));
         p.base = T(tables, 'pre_eval_base').filter((r) => r.program_id === p.id).map((r) => ({
           store: r.store, from: r.base_from ?? null, to: r.base_to ?? null, days: num(r.base_days),

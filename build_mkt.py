@@ -50,6 +50,7 @@ os.makedirs(CACHE, exist_ok=True)
 
 # Mọi đường dẫn nguồn lấy từ sổ đăng ký qua monthly_lib — KHÔNG nối chuỗi thư mục.
 from monthly_lib import l0_by_month, l0_dir, l0_latest  # noqa: E402
+import pre_analysis  # noqa: E402
 
 D_ADS   = l0_dir("S08_ads_meta")
 D_ADS25 = None                               # lịch sử 2025 chưa đưa vào L0_input
@@ -63,7 +64,7 @@ D_OA    = l0_dir("S12_zalo_oa")
 F_MEM   = l0_latest("S13_member")
 F_KPI   = l0_latest("S14_crm_kpi")
 F_PART  = l0_latest("S15_partnership")
-F_PRE3  = l0_latest("S16_pre_analytics")
+F_PRE3  = pre_analysis.latest_legacy()   # file 6 sheet loại (Q3) — file quý mới hơn không được đè
 F_LTO   = l0_latest("S17_lto_actual")
 
 LOG = []
@@ -742,7 +743,6 @@ except Exception as e:
 log("\n[6/6] Pre-Analytics ...")
 try:
     # Bộ đọc DUY NHẤT của file Pre-Analysis (dùng chung với M7.1 / M7.2) — không tự đọc sheet Master
-    import pre_analysis  # tools/ đã nằm trên sys.path (monthly_lib)
     rows = [dict(name=str(x["name"])[:60], brand=x.get("brand") or "", kind=x["kind"],
                  roi=float(x["roi"]) if x.get("roi") is not None else None,
                  nc=float(x.get("net_contrib") or 0))

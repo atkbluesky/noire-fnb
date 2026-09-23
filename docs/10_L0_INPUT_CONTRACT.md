@@ -54,7 +54,7 @@ L0_input/
 │   │   ├── 01_Fanpage/                S18 · Facebook_Tong_hop_*.xlsx   (mẫu _MAU_Facebook_Tong_hop.xlsx)
 │   │   └── 02_Tiktok/                 S22 · TikTok_Tong_hop_*.xlsx     (mẫu _MAU_TikTok_Tong_hop.xlsx)
 │   ├── 04_Ngan_Sach/                  S10 · NOIRE_MKT_*Checked*.xlsx
-│   ├── 05_Promotion_Ke_Hoach/         S16 · NOIRE_Promotion_Pre-Analysis*.xlsx
+│   ├── 05_Promotion_Ke_Hoach/         S16 · NOIRE_Promotion_Pre-Analysis*.xlsx | .xlsm (mỗi quý một file)
 │   ├── 06_Promotion_Ket_Qua/          S17 · NOIRE_Bao_Cao_Hieu_Qua_LTO*.xlsx
 │   └── 07_Campaign_Tracking/          S23 · Campaign_Tracking_2026.xlsx (mẫu _MAU_Campaign_Tracking.xlsx) → M7.2
 ├── 04_CRM/

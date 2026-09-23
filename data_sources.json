@@ -101,6 +101,7 @@
         "fact_promo_day",
         "nature",
         "recon",
+        "daily_party",
         "heat",
         "zone",
         "staff",
@@ -491,14 +492,16 @@
       "cadence": "quarterly",
       "since": "2026-07",
       "required": false,
-      "pattern": "NOIRE_Promotion_Pre-Analysis*.xlsx",
-      "example": "NOIRE_Promotion_Pre-Analysis_Q3_2026.xlsx",
-      "how": "Bảng dự toán chương trình trước khi chạy (P&L theo loại: Combo · Discount · Gift · LTO · Voucher · Activation). NGUỒN DUY NHẤT của target + chi phí kế hoạch: chương trình nào đã chạy thì nối qua cột `pre_id` ở Campaign_Tracking.",
+      "pattern": "NOIRE_Promotion_Pre-Analysis*.xlsx | NOIRE_Promotion_Pre-Analysis*.xlsm",
+      "example": "NOIRE_Promotion_Pre-Analysis_Q4_2026.xlsm",
+      "how": "Kế hoạch chương trình khuyến mãi, một file mỗi quý (.xlsx hoặc .xlsm). Hai định dạng: (1) file deck theo quý — sheet `Master Plan` (+ Pre-Analysis · Budget · Calendar), Q4/2026 trở đi: hệ thống TỰ CHUYỂN từng chương trình sang mẫu chuẩn M7.1 (cột sheet `chuong_trinh` của sổ Pre_Analysis_2026.xlsx); ô deck không ghi rõ (ngày, cửa hàng, cơ chế ưu đãi) để trống và M7.1 yêu cầu bổ sung ở sổ, dòng cùng program_id; (2) 6 sheet loại Combo · Discount · Gift · LTO · Voucher · Activation (Q3/2026) — nguồn target + chi phí kế hoạch cho M7.2, chương trình đã chạy nối qua cột `pre_id` ở Campaign_Tracking.",
       "produces": [
         "pre_plan",
-        "pre_q3"
+        "pre_q3",
+        "pre_eval",
+        "pre_eval_input"
       ],
-      "via": "tools/pre_analysis.py → tools/campaign.py",
+      "via": "tools/pre_analysis.py → tools/campaign.py (Q3) · tools/preeval.py (deck quý)",
       "modules": [
         "M7.1",
         "M7.2"
@@ -506,7 +509,8 @@
       "schema": {
         "sheets": [
           [
-            "1. Tổng hợp (Master)"
+            "1. Tổng hợp (Master)",
+            "*Master Plan"
           ]
         ]
       }
@@ -526,7 +530,8 @@
         "pre_eval",
         "pre_eval_scheme",
         "pre_eval_fin",
-        "pre_eval_base"
+        "pre_eval_base",
+        "pre_eval_input"
       ],
       "via": "tools/preeval.py",
       "modules": [

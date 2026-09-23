@@ -2153,7 +2153,9 @@
         "other_cogs_pct",
         "opex_pct",
         "base_note",
-        "safety_bills"
+        "safety_bills",
+        "input_source",
+        "missing"
       ],
       "desc": "M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py."
     },
@@ -2238,6 +2240,27 @@
         "note"
       ],
       "desc": "M7.1 · dữ liệu nền tự lấy từ POS cho từng chương trình × cửa hàng."
+    },
+    "pre_eval_input": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "field"
+      ],
+      "req": [
+        "program_id",
+        "field"
+      ],
+      "cols": [
+        "program_id",
+        "field",
+        "value",
+        "source",
+        "level",
+        "status",
+        "hint"
+      ],
+      "desc": "M7.1 · dữ liệu đầu vào ĐÃ CHUẨN HOÁ của từng chương trình theo $preeval.input_fields — mỗi trường một dòng: giá trị · nguồn (SO = sổ Pre_Analysis · DECK = file deck quý S16) · mức bắt buộc · trạng thái (OK / THIEU). Sinh bởi tools/preeval.py."
     }
   },
   "$campaign": {
@@ -2875,6 +2898,138 @@
         "badge": "neutral",
         "desc": "Thiếu cửa hàng / ngày / cơ chế — chưa tính được"
       }
-    ]
+    ],
+    "input_fields": {
+      "_doc": "Trường chuẩn của một chương trình M7.1 (cột sheet chuong_trinh của sổ Pre_Analysis_2026.xlsx). File deck theo quý (S16, Q4/2026+) được tools/pre_analysis.py chuyển sang ĐÚNG các trường này; ô deck không có thì để TRỐNG và M7.1 yêu cầu bổ sung. Người dùng bổ sung ở sổ, dòng có cùng program_id — số ở sổ luôn thắng số lấy từ deck. level: required = thiếu là không tính được · required_promo = bắt buộc trừ chương trình BRANDING (hoặc đã khai ở sheet co_che) · recommended = thiếu vẫn tính nhưng dùng mặc định · optional.",
+      "levels": [
+        {
+          "code": "required",
+          "label": "Bắt buộc",
+          "badge": "bad"
+        },
+        {
+          "code": "required_promo",
+          "label": "Bắt buộc (trừ Branding)",
+          "badge": "bad"
+        },
+        {
+          "code": "recommended",
+          "label": "Nên có — thiếu dùng mặc định",
+          "badge": "warning"
+        },
+        {
+          "code": "optional",
+          "label": "Tuỳ chọn",
+          "badge": "neutral"
+        }
+      ],
+      "fields": [
+        {
+          "code": "name",
+          "label": "Tên chương trình",
+          "level": "required"
+        },
+        {
+          "code": "brand",
+          "label": "Brand",
+          "level": "required"
+        },
+        {
+          "code": "store_scope",
+          "label": "Cửa hàng (mã dim_store, cách nhau |)",
+          "level": "required"
+        },
+        {
+          "code": "date_from",
+          "label": "Ngày bắt đầu",
+          "level": "required"
+        },
+        {
+          "code": "date_to",
+          "label": "Ngày kết thúc",
+          "level": "required"
+        },
+        {
+          "code": "dow",
+          "label": "Thứ chạy (0 = T2 … 6 = CN)",
+          "level": "optional"
+        },
+        {
+          "code": "objective",
+          "label": "Mục tiêu (TC · AOV · BRANDING)",
+          "level": "recommended"
+        },
+        {
+          "code": "lever_primary",
+          "label": "Phương án (TC_BASE · AOV_VALUE …)",
+          "level": "recommended"
+        },
+        {
+          "code": "condition",
+          "label": "Điều kiện nhận ưu đãi (trống = không điều kiện)",
+          "level": "optional"
+        },
+        {
+          "code": "benefit",
+          "label": "Loại ưu đãi",
+          "level": "required_promo"
+        },
+        {
+          "code": "benefit_value",
+          "label": "Giá trị ưu đãi (tỷ lệ / VND)",
+          "level": "optional"
+        },
+        {
+          "code": "item_codes",
+          "label": "Món chương trình (mã POS)",
+          "level": "optional"
+        },
+        {
+          "code": "gift_codes",
+          "label": "Món tặng (mã POS)",
+          "level": "optional"
+        },
+        {
+          "code": "est_bills",
+          "label": "Số hoá đơn tham gia dự kiến",
+          "level": "recommended"
+        },
+        {
+          "code": "participation_pct",
+          "label": "% TC nền tham gia (thay cho est_bills)",
+          "level": "optional"
+        },
+        {
+          "code": "cannib_pct",
+          "label": "% khách vốn sẽ đến (cannib)",
+          "level": "optional"
+        },
+        {
+          "code": "season_factor",
+          "label": "Hệ số mùa vụ",
+          "level": "optional"
+        },
+        {
+          "code": "content",
+          "label": "Nội dung / cơ chế (mô tả)",
+          "level": "optional"
+        },
+        {
+          "code": "hypothesis",
+          "label": "Giả thuyết / mục tiêu (mô tả)",
+          "level": "optional"
+        },
+        {
+          "code": "chi_phi",
+          "label": "Chi phí chương trình (sheet chi_phi)",
+          "level": "optional"
+        },
+        {
+          "code": "note",
+          "label": "Ghi chú",
+          "level": "optional"
+        }
+      ]
+    }
   }
 }

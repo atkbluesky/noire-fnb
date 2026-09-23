@@ -216,11 +216,344 @@ def read(path):
     return plan
 
 
+# ═════════════ FILE DECK THEO QUÝ (từ Q4/2026) → MẪU CHUẨN M7.1 ═════════════
+# File kế hoạch quý dựng từ deck marketing — 4 sheet, tên có tiền tố số + mã quý:
+#   `03_Q4 Master Plan`  mỗi chương trình một dòng (brand · loại · timeline · outlet · cơ chế · KPI · chi phí MKT)
+#   `04_Q4 Pre-Analysis` business case của deck (BRAND · PROGRAM · METRIC × 3 kịch bản)
+#   `05_Q4 Budget` · `06_Q4 Calendar`
+# Hệ thống KHÔNG dựng màn hình riêng cho định dạng này: `deck_programs()` chuyển từng chương trình sang
+# ĐÚNG các cột sheet `chuong_trinh` của sổ chuẩn ($preeval.input_fields), rồi tools/preeval.py đánh giá
+# như mọi chương trình khác trên M7.1. Chỉ điền ô deck ghi RÕ (ngày dd/mm, tên cửa hàng nhận ra được);
+# ô không rõ để TRỐNG, kèm gợi ý "deck ghi gì" để người dùng bổ sung ở sổ (cùng program_id).
+
+_QHDR = [
+    ("brand", r"^brand$"), ("name", r"^program"), ("type", r"^type$"), ("timeline", r"^timeline"),
+    ("outlet", r"^outlet"), ("objective", r"^objective"), ("mechanic", r"^mechanic"),
+    ("rationale", r"^source analysis"), ("kpi", r"^primary kpi"), ("mkt_cost", r"^mkt cost"), ("note", r"^note$"),
+]
+_BRANDING_RX = re.compile(r"brand|key window|guest shift|performance")
+
+
+def _sheet_like(wb, key):
+    """Sheet có tên chứa `key` (bỏ tiền tố số + mã quý: `03_Q4 Master Plan` → master plan)."""
+    return next((n for n in wb.sheetnames if key in _plain(n)), None)
+
+
+def file_format(path):
+    """'QUARTER' (file deck theo quý, từ Q4/2026) · 'LEGACY' (6 sheet loại của Q3) · None."""
+    from openpyxl import load_workbook
+    wb = load_workbook(path, read_only=True, data_only=True)
+    try:
+        if _sheet_like(wb, "master plan"):
+            return "QUARTER"
+        if any("tong hop" in _plain(n) for n in wb.sheetnames):
+            return "LEGACY"
+        return None
+    finally:
+        wb.close()
+
+
+def files_by_format():
+    """Mọi file S16 xếp theo định dạng → {'LEGACY': […], 'QUARTER': […], None: […], 'ERROR': […]}.
+    Nơi DUY NHẤT chọn file kế hoạch: chọn theo định dạng, không theo ngày sửa — file quý mới
+    nhất không được đè mất kế hoạch Q3 đang nối M7.2 (campaign.py) và pre_q3 (build_mkt.py)."""
+    from monthly_lib import l0_files
+    out = {"LEGACY": [], "QUARTER": [], None: [], "ERROR": []}
+    for f in l0_files("S16_pre_analytics"):
+        try:
+            out[file_format(f)].append(f)
+        except Exception:  # noqa: BLE001 — file hỏng / đang chép dở
+            out["ERROR"].append(f)
+    return out
+
+
+def latest_legacy():
+    """File định dạng 6 sheet loại (Q3/2026) sửa gần nhất."""
+    fs = files_by_format()["LEGACY"]
+    return max(fs, key=os.path.getmtime) if fs else None
+
+
+def _table(ws, spec, must):
+    """Bảng có dòng tiêu đề khớp `spec` → list[dict]."""
+    out, hdr = [], None
+    for r in ws.iter_rows(values_only=True):
+        r = list(r)
+        cells = [_plain(c) for c in r]
+        if hdr is None:
+            h = {}
+            for j, c in enumerate(cells):
+                for key, rx in spec:
+                    if key not in h and c and re.search(rx, c):
+                        h[key] = j
+                        break
+            if all(k in h for k in must):
+                hdr = h
+            continue
+        if any(v is not None for v in r[:max(hdr.values()) + 1]):
+            out.append({k: (r[i] if i < len(r) else None) for k, i in hdr.items()})
+    return out
+
+
+def _long_rows(ws):
+    """Bảng dạng dài có tiêu đề ở dòng bắt đầu bằng BRAND → (tiêu đề đã bỏ dấu, các dòng)."""
+    rows = list(ws.iter_rows(values_only=True))
+    hi = next((i for i, r in enumerate(rows) if r and _plain(r[0]) == "brand"), None)
+    if hi is None:
+        return [], []
+    return [_plain(c) for c in rows[hi]], [r for r in rows[hi + 1:] if r and r[0]]
+
+
+def _compact(s):
+    return re.sub(r"[^a-z0-9]", "", _plain(s))
+
+
+def _same_program(a, b):
+    """Tên ngắn ở sheet Pre-Analysis/Calendar ↔ tên đầy đủ ở Master Plan
+    (`Her Wonders 20/10` ↔ `Her Wonders – Welcome Mocktail 20/10`). → điểm 0–1."""
+    ca, cb = _compact(a), _compact(b)
+    if not ca or not cb:
+        return 0.0
+    if ca == cb:
+        return 1.0
+    if ca in cb or cb in ca:
+        return 0.95
+    ta = {t for t in re.split(r"[^a-z0-9]+", _plain(a)) if t}
+    tb = {t for t in re.split(r"[^a-z0-9]+", _plain(b)) if t}
+    return len(ta & tb) / min(len(ta), len(tb)) if ta and tb else 0.0
+
+
+def _best(name, brand, cands, floor=0.6):
+    best, score = None, floor
+    for c in cands:
+        if c["brand"] not in (brand, "ALL"):
+            continue
+        s = _same_program(name, c["name"])
+        if s > score or (s == score and best is None):
+            best, score = c, s
+    return best
+
+
+def _stores(outlet, brand):
+    """Chuỗi OUTLET của deck → (mã cửa hàng 'A|B' hoặc None, gợi ý khi không nhận ra).
+    Nhận ra: tên có alias ở dim_store (39NTMK · The Berkley · SSV · The Crest · SKC…) và cụm cả brand
+    (`2 outlets` · `NDC outlets` · `NDC` · `All NOIRE system` → các cửa hàng flagship/core của brand).
+    Chỉ nhận ra một phần (vd `ET + TM + SKC`) → để trống, không điền thiếu cửa hàng."""
+    from monthly_lib import STORE_META, store_in_text
+    raw = str(outlet or "").strip()
+    t = _plain(raw)
+    if not t:
+        return None, "deck không ghi cửa hàng"
+    if "khong chi ro" in t:
+        return None, f"deck ghi '{raw}'"
+    own = [c for c, m in STORE_META.items() if m.get("brand") == brand and m.get("tier") in ("flagship", "core")]
+    head = re.sub(r"\(.*?\)", "", t).strip()
+    if re.fullmatch(rf"(\d+ outlets?|{brand.lower()}( outlets?)?|all( noire)?( system)?)", head):
+        n = re.match(r"(\d+) outlet", head)
+        if own and (not n or int(n.group(1)) == len(own)):
+            return "|".join(own), None
+        return None, f"deck ghi '{raw}' — brand có {len(own)} cửa hàng"
+    parts = [x.strip() for x in re.split(r"\+|–|—|,|;|/|\s-\s", raw) if x.strip()]
+    codes, bad = [], []
+    for x in parts:
+        c = store_in_text(x)
+        if c:
+            codes.append(c)
+        elif x != x.lower():      # cụm mô tả viết thường (`shared decor concept`) không phải tên cửa hàng
+            bad.append(x)
+    if codes and not bad:
+        return "|".join(dict.fromkeys(codes)), None
+    return None, f"deck ghi '{raw}'" + (f" — chưa nhận ra: {', '.join(bad)}" if bad else "")
+
+
+_RANGE = re.compile(r"(\d{1,2})/(\d{1,2})\s*[–—-]\s*(\d{1,2})/(\d{1,2})")
+_RANGE_M = re.compile(r"(?<![\d/])(\d{1,2})\s*[–—-]\s*(\d{1,2})/(\d{1,2})(?![\d/])")
+_FULL = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
+
+
+def _dates(timeline, year):
+    """Timeline deck → (date_from, date_to, gợi ý). Chỉ nhận ngày ghi RÕ dd/mm; `Tháng 10`, `Q4`,
+    `Christmas Q4` → để trống."""
+    from datetime import date
+    raw = str(timeline or "").strip()
+    if not raw:
+        return None, None, "deck không ghi thời gian"
+    if not year:
+        return None, None, f"deck ghi '{raw}' — không rõ năm (tên file thiếu Q#_YYYY)"
+    try:
+        m = _RANGE.search(raw)
+        if m:
+            d0 = date(year, int(m.group(2)), int(m.group(1)))
+            d1 = date(year, int(m.group(4)), int(m.group(3)))
+        else:
+            m = _RANGE_M.search(raw)
+            if m:
+                d0 = date(year, int(m.group(3)), int(m.group(1)))
+                d1 = date(year, int(m.group(3)), int(m.group(2)))
+            else:
+                m = _FULL.search(raw)
+                if not m:
+                    return None, None, f"deck ghi '{raw}' — chưa có ngày cụ thể"
+                d0 = d1 = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    except ValueError:
+        return None, None, f"deck ghi '{raw}' — ngày không hợp lệ"
+    if d1 < d0:
+        d1 = d1.replace(year=d1.year + 1)
+    many = len(re.findall(r"\d{1,2}/\d{1,2}", raw)) > (2 if _RANGE.search(raw) else 1)
+    return d0.isoformat(), d1.isoformat(), (f"deck ghi '{raw}' — có nhiều ngày, kiểm lại" if many else None)
+
+
+def _dows(timeline):
+    """`T2–T6` · `T2,T3,T5,CN` → '0|1|2|3|4' (0 = thứ 2 … 6 = CN). Không ghi thứ → None."""
+    t = str(timeline or "")
+    out = set()
+    for a, b in re.findall(r"\bT([2-7])\s*[–—-]\s*T([2-7])\b", t):
+        out.update(range(int(a) - 2, int(b) - 1))
+    for x in re.findall(r"\b(T[2-7]|CN)\b", t):
+        out.add(6 if x == "CN" else int(x[1]) - 2)
+    return "|".join(str(x) for x in sorted(out)) or None
+
+
+def _slug(name):
+    head = re.split(r"\s[–—/-]\s|\(", str(name))[0]
+    return re.sub(r"[^A-Z0-9]", "", _plain(head).upper())[:14] or "CT"
+
+
+def _vn(x, unit):
+    """Số deck → chữ đọc được cho ghi chú: 135.683.034 VND → '135,7 tr' · 0,45 % → '45%'."""
+    u = _plain(unit)
+    if x is None:
+        return "—"
+    if u == "%":
+        return f"{x * 100:.0f}%" if abs(x) <= 1.5 else f"{x:.0f}%"
+    if u == "vnd" or abs(x) >= 1e6:
+        return f"{x / 1e6:.1f} tr".replace(".", ",")
+    s = f"{x:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+    return s + ("×" if u == "x" else f" {unit}" if unit else "")
+
+
+def deck_to_standard(path):
+    """Một file deck quý → dict(quarter, programs, costs, issues). `programs` mang đúng cột sheet
+    `chuong_trinh` của sổ chuẩn + `_hint` (deck ghi gì ở ô còn trống) + `_quarter` · `_file`."""
+    from openpyxl import load_workbook
+    b = os.path.basename(path)
+    wb = load_workbook(path, read_only=True, data_only=True)
+    try:
+        ms = _sheet_like(wb, "master plan")
+        title = str(next(wb[ms].iter_rows(values_only=True), [None])[0] or "")
+        m = re.search(r"Q([1-4])[ _.-]*(\d{4})", b, re.I) or re.search(r"Q([1-4])[ _.-]*(\d{4})", title, re.I)
+        qn, year = (int(m.group(1)), int(m.group(2))) if m else (None, None)
+        quarter = f"{year}-Q{qn}" if qn else None
+        master = _table(wb[ms], _QHDR, must=("brand", "name"))
+
+        cases = {}                                   # business case deck (Cơ sở) → ghi chú tham khảo
+        pa = _sheet_like(wb, "pre-analysis")
+        if pa:
+            h, rows = _long_rows(wb[pa])
+            base = next((j for j, c in enumerate(h) if c == "co so"), None)
+            unit = h.index("unit") if "unit" in h else None
+            for r in rows:
+                if len(r) > 2 and r[2] and base is not None and base < len(r):
+                    u = r[unit] if unit is not None and unit < len(r) else None
+                    cases.setdefault((str(r[0]).strip().upper(), str(r[1]).strip()), []).append(
+                        f"{r[2]} {_vn(_num(r[base]), u)}")
+        cal = {}
+        cs = _sheet_like(wb, "calendar")
+        if cs:
+            h, rows = _long_rows(wb[cs])
+            mcols = [(j, c) for j, c in enumerate(h) if c[:3] in ("oct", "nov", "dec", "jan", "feb", "mar",
+                                                                   "apr", "may", "jun", "jul", "aug", "sep")]
+            for r in rows:
+                marks = [f"{c[:3].title()}{'' if str(r[j]).strip() == '●' else ' ' + str(r[j]).strip()}"
+                         for j, c in mcols if j < len(r) and r[j]]
+                cal[(str(r[0]).strip().upper(), str(r[1]).strip())] = ", ".join(marks)
+    finally:
+        wb.close()
+
+    programs, costs, issues, seen, used = [], [], [], set(), set()
+    for i, row in enumerate(master, 1):
+        brand = str(row.get("brand") or "").strip().upper()
+        name = str(row.get("name") or "").strip()
+        if not brand or not name:
+            continue
+        pid = f"{brand}-{year}Q{qn}-{_slug(name)}" if qn else f"{brand}-{_slug(name)}"
+        while pid in seen:
+            pid += "2"
+        seen.add(pid)
+        hint = {}
+        stores, hint["store_scope"] = _stores(row.get("outlet"), brand)
+        d0, d1, dn = _dates(row.get("timeline"), year)
+        hint["date_from"] = hint["date_to"] = dn
+        branding = bool(_BRANDING_RX.search(_plain(row.get("type"))))
+        hint["benefit"] = f"deck ghi: {row.get('mechanic')}" if row.get("mechanic") else "deck không ghi cơ chế"
+        hint["condition"] = hint["benefit"]
+        hint["objective"] = f"deck: {row.get('objective')}" if row.get("objective") and not branding else None
+        hint["lever_primary"] = hint["objective"]
+        ck = _best(name, brand, [dict(brand=k[0], name=k[1], key=k) for k in cases if k not in used])
+        if ck:
+            used.add(ck["key"])
+            hint["est_bills"] = "deck (Cơ sở): " + " · ".join(cases[ck["key"]][:3])
+        ca = _best(name, brand, [dict(brand=k[0], name=k[1], key=k) for k in cal])
+        note = [f"Nhập tự động từ {b} (Master Plan dòng {i})", f"Loại: {row.get('type')}"]
+        if ca and cal[ca["key"]]:
+            note.append(f"Calendar: {cal[ca['key']]}")
+        if row.get("rationale"):
+            note.append(f"Cơ sở phân tích: {row.get('rationale')}")
+        if row.get("kpi"):
+            note.append(f"KPI: {row.get('kpi')}")
+        if ck:
+            note.append("Business case deck (Cơ sở): " + " · ".join(cases[ck["key"]]))
+        if row.get("note"):
+            note.append(f"Ghi chú deck: {row.get('note')}")
+        programs.append(dict(
+            program_id=pid, name=name, brand=brand, store_scope=stores, date_from=d0, date_to=d1,
+            dow=_dows(row.get("timeline")), objective="BRANDING" if branding else None, lever_primary=None,
+            content=row.get("mechanic"), hypothesis=row.get("objective"), status="NHAP",
+            note=" · ".join(str(x) for x in note), _quarter=quarter, _file=b,
+            _hint={k: v for k, v in hint.items() if v}))
+        mc = _num(row.get("mkt_cost"))
+        if mc:
+            costs.append(dict(program_id=pid, cost_type="OTHER", amount=mc, vat_pct=None,
+                              note=f"Chi phí MKT theo deck ({b})"))
+    for k in cases:
+        if k not in used:
+            issues.append(f"{b}: business case '{k[1]}' ({k[0]}) không khớp chương trình nào ở Master Plan")
+    return dict(quarter=quarter, programs=programs, costs=costs, issues=issues)
+
+
+def deck_programs():
+    """Mọi file deck quý (mỗi quý lấy file sửa gần nhất) → dict(programs, costs, issues) theo mẫu chuẩn."""
+    by_q, out = {}, dict(programs=[], costs=[], issues=[])
+    fm = files_by_format()
+    for f in fm["ERROR"]:
+        out["issues"].append(f"{os.path.basename(f)}: không mở được (hỏng hoặc đang chép dở)")
+    for f in fm["QUARTER"]:
+        try:
+            d = deck_to_standard(f)
+        except Exception as e:  # noqa: BLE001 — một file hỏng không chặn cả M7.1
+            out["issues"].append(f"{os.path.basename(f)}: không đọc được — {str(e)[:80]}")
+            continue
+        k = d["quarter"] or os.path.basename(f)
+        if k not in by_q or os.path.getmtime(f) > by_q[k][0]:
+            by_q[k] = (os.path.getmtime(f), d)
+    for _, d in sorted(by_q.values(), key=lambda x: str(x[1]["quarter"])):
+        for k in out:
+            out[k] += d[k]
+    return out
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from monthly_lib import l0_latest
-    f = l0_latest("S16_pre_analytics")
-    for p in read(f):
-        print(p["pre_id"], p["brand"], p["kind"], p["name"][:40], p.get("target_gross"), p.get("total_cost"),
-              p.get("net_contrib"), p.get("roi"))
+    for _s in (sys.stdout, sys.stderr):
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    f = latest_legacy()
+    if f:
+        print("══", os.path.basename(f), "(kế hoạch Q3 → M7.2)")
+        for p in read(f):
+            print(" ", p["pre_id"], p["brand"], p["kind"], p["name"][:40], p.get("target_gross"), p.get("roi"))
+    d = deck_programs()
+    for p in d["programs"]:
+        print(p["program_id"], "|", p["store_scope"], p["date_from"], p["date_to"], p["dow"], p["objective"], "|",
+              {k: v[:70] for k, v in p["_hint"].items() if k in ("store_scope", "date_from")})
+    for x in d["issues"]:
+        print("  !", x)
