@@ -337,6 +337,11 @@ export const ZaloOAView: React.FC = () => {
           </span>
           <h2 className="mt-0.5 font-display text-xl font-extrabold text-brand-text">
             M8.1 · Zalo Official Account
+            {source === 'api' && data?.oaName && (
+              <span className="ml-2 rounded-md border border-brand-gold/40 px-2 py-0.5 align-middle text-[11px] font-bold text-brand-gold">
+                OA: {data.oaName}
+              </span>
+            )}
           </h2>
           <p className="mt-1 text-xs text-brand-muted">
             {source === 'api'

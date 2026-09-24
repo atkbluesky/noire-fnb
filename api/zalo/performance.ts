@@ -66,6 +66,8 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
         and event_date between ${window.start}::date and ${window.end}::date
         and event_time >= (${window.start}::date::timestamp at time zone 'Asia/Bangkok')
         and event_time < ((${window.end}::date + 1)::timestamp at time zone 'Asia/Bangkok')`;
+    const [oa] = await sql<{ oa_name: string | null }[]>`select oa_name from zalo_oa_daily_snapshot
+      where oa_id = ${oaId} order by snapshot_date desc limit 1`;
     const [followers] = await sql<{ current: number | null; before: number | null }[]>`select
       (select follower_total from zalo_oa_daily_snapshot where oa_id = ${oaId}
         and snapshot_date <= ${window.end}::date order by snapshot_date desc limit 1) as current,
@@ -87,6 +89,7 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
     return json(200, {
       ok: true,
       source: 'Zalo OA OpenAPI + Webhook',
+      oaName: oa?.oa_name || null,
       period,
       window,
       metrics: {
