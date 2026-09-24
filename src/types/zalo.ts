@@ -8,6 +8,10 @@ export interface ZaloDailyMetric {
   outgoingMessages: number;
   uniqueChatUsers: number;
   conversations: number;
+  /** Webhook follow — cần migration 002. */
+  newFollowers: number;
+  /** Webhook unfollow — cần migration 002. */
+  unfollowers: number;
 }
 
 export interface ZaloPerformanceResponse {
@@ -22,6 +26,8 @@ export interface ZaloPerformanceResponse {
     outgoingMessages: number;
     uniqueChatUsers: number;
     conversations: number;
+    newFollowers: number;
+    unfollowers: number;
   };
   messageTypes: Record<string, number>;
   daily: ZaloDailyMetric[];

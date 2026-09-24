@@ -110,7 +110,10 @@ export function eventDate(timestamp: unknown): { at: Date; date: string } {
 
 const KNOWN_MESSAGE_TYPES = new Set(['text', 'image', 'audio', 'video', 'file', 'sticker', 'gif', 'location', 'link']);
 
+const FOLLOW_EVENTS = new Set(['follow', 'unfollow']);
+
 export function classifyEvent(eventName: string) {
+  if (FOLLOW_EVENTS.has(eventName)) return { direction: 'system', messageType: eventName } as const;
   const direction = eventName.startsWith('user_send_')
     ? 'incoming'
     : eventName.startsWith('oa_send_') ? 'outgoing' : 'system';
@@ -128,9 +131,15 @@ export function normalizeWebhook(payload: Record<string, unknown>, env: ZaloEnv)
   const recipient = asObject(payload.recipient);
   const message = asObject(payload.message);
   const { direction, messageType } = classifyEvent(eventName);
-  const oaId = direction === 'outgoing' ? String(sender.id ?? '') : String(recipient.id ?? '');
+  // follow/unfollow không có sender/recipient: payload mang `oa_id` + `follower.id`.
+  const isFollow = FOLLOW_EVENTS.has(eventName);
+  const oaId = isFollow
+    ? String(payload.oa_id ?? recipient.id ?? '')
+    : direction === 'outgoing' ? String(sender.id ?? '') : String(recipient.id ?? '');
   if (!oaId || (env.ZALO_OA_ID && oaId !== env.ZALO_OA_ID)) throw new Error('WEBHOOK_OA_ID_INVALID');
-  const userId = direction === 'outgoing' ? String(recipient.id ?? '') : String(sender.id ?? '');
+  const userId = isFollow
+    ? String(asObject(payload.follower).id ?? sender.id ?? '')
+    : direction === 'outgoing' ? String(recipient.id ?? '') : String(sender.id ?? '');
   const messageId = String(message.msg_id ?? '').trim();
   const { at, date } = eventDate(payload.timestamp);
   const stable = messageId || createHash('sha256').update(JSON.stringify(payload)).digest('hex');

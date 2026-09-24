@@ -116,6 +116,24 @@ export interface Campaign {
     verified: boolean | null;
   } | null;
   att: { net: number | null; tc: number | null; aov: number | null; ta: number | null; incr: number | null };
+  /** quý của kế hoạch M7.1 (nếu đã nối) — không thì quý của ngày chạy */
+  quarter: string | null;
+  /** kế hoạch M7.1 ĐÃ KHOÁ cạnh thực tế cùng công thức EBITDA */
+  m71: {
+    program_id: string; locked_at: string | null; lock_reason: string | null; decision: string | null;
+    plan: M71Side & { ebitda_low: number | null }; act: M71Side;
+  } | null;
+}
+export interface M71Side {
+  bills: number | null; part: number | null; cannib: number | null; net_incr: number | null;
+  ebitda: number | null; roi: number | null;
+}
+export interface CalibRow {
+  program_id: string; campaign_id: string; quarter: string | null; brand: string | null; lever: string | null;
+  label: string | null; locked_at: string | null; lock_reason: string | null;
+  plan_bills: number | null; act_bills: number | null; plan_part: number | null; act_part: number | null;
+  plan_cannib: number | null; act_cannib: number | null; plan_net_incr: number | null; act_net_incr: number | null;
+  plan_ebitda: number | null; act_ebitda: number | null; err_ebitda: number | null; usable: boolean; note: string | null;
 }
 
 export interface CampaignDay {
@@ -218,6 +236,12 @@ export interface PreEvalInput {
   /** deck ghi gì ở ô còn trống */
   hint: string | null;
 }
+/** M7.1 · Cách sửa — mức 1 đòn bẩy cần đạt ($preeval.fix_levers) để hoà vốn / để DUYỆT */
+export interface PreEvalFix {
+  target: 'HOA_VON' | 'DUYET'; lever: string; current: number | null; required: number | null;
+  /** mức đổi tương đối (0,2 = đổi 20%) */
+  change: number | null; feasible: boolean; best: boolean; text: string;
+}
 export interface PreEvalProgram {
   id: string; name: string; brand: string; stores: string[]; date_from: string; date_to: string; days: number | null;
   objective: string | null; lever: string | null; status: string | null; decision: string; decision_note: string | null;
@@ -230,6 +254,9 @@ export interface PreEvalProgram {
   /** mã trường bắt buộc còn trống (decision THIEU_SO) */
   missing: string[];
   inputs: PreEvalInput[];
+  fix: PreEvalFix[];
+  /** bản kế hoạch đã khoá (M7.2 so với bản này) */
+  lock: { locked_at: string; reason: string; ebitda: number | null; bills: number | null } | null;
   scn: Record<string, PreEvalScenario>;
   fin: Record<string, PreEvalFinRow[]>;
   schemes: PreEvalScheme[];
@@ -256,9 +283,13 @@ export interface CampaignData {
   preeval: {
     scenarios: { code: string; label: string; bills_mult: number; cannib_add: number; cogs_add: number }[];
     decisions: TaxItem[];
-    gates: { max_cogs_pct: number; max_promo_cost_pct_net: number; min_gm_pct: number };
+    gates: { max_cogs_pct: number; max_promo_cost_pct_net: number; min_gm_pct: number; min_roi_approve: number };
     input_fields: { code: string; label: string; level: string }[];
     input_levels: TaxItem[];
+    fix_levers: (TaxItem & { how: string; tier: number; unit: string })[];
+    fix_targets: TaxItem[];
+    calib_min_n: number;
+    calib: CalibRow[];
     programs: PreEvalProgram[];
   };
   /** tên CTKM trên POS (chữ thường) → campaign_id */

@@ -967,6 +967,17 @@ function buildMkt(tables, over) {
       month: r.month, follows: n0(r.follows), msgs: n0(r.msgs), views: n0(r.views),
       menu: n0(r.menu), content: n0(r.content), days: n0(r.days),
     })).sort((a, b) => String(a.month).localeCompare(String(b.month))),
+    // M8.1 khi OpenAPI/Webhook chưa nối: export Tổng quan theo ngày + sổ tổng follower nhập tay.
+    // Ô trống giữ null — không có tổng follower thì màn hình xin số, không suy từ luỹ kế Quan tâm.
+    oa_daily: T(tables, 'oa_daily').map((r) => ({
+      date: String(r.date).slice(0, 10), follows: n0(r.follows), msgs: n0(r.msgs), views: n0(r.views),
+      menu: n0(r.menu), content: n0(r.content),
+    })).sort((a, b) => a.date.localeCompare(b.date)),
+    oa_follower: T(tables, 'oa_follower').map((r) => ({
+      date: String(r.date).slice(0, 10),
+      follower_total: r.follower_total == null || r.follower_total === '' ? null : Number(r.follower_total),
+      unfollows: r.unfollows == null || r.unfollows === '' ? null : Number(r.unfollows),
+    })).sort((a, b) => a.date.localeCompare(b.date)),
     member_month: T(tables, 'member').map((r) => ({
       month: r.month, member: n0(r.member), oa: n0(r.oa), days: n0(r.days),
     })),
@@ -1491,6 +1502,16 @@ function buildCampaign(tables) {
         verified: r.target_verified === null || r.target_verified === undefined ? null : !!n0(r.target_verified),
       } : null,
       att: { net: num(r.att_net), tc: num(r.att_tc), aov: num(r.att_aov), ta: num(r.att_ta), incr: num(r.att_incr) },
+      quarter: r.quarter ?? null,
+      // kế hoạch M7.1 ĐÃ KHOÁ cạnh thực tế tính cùng công thức EBITDA (tools/campaign.py · plan_vs_actual)
+      m71: r.plan_program_id ? {
+        program_id: r.plan_program_id, locked_at: r.plan_locked_at ?? null, lock_reason: r.plan_lock_reason ?? null,
+        decision: r.plan_decision ?? null,
+        plan: { bills: num(r.plan_bills), part: num(r.plan_part), cannib: num(r.plan_cannib), net_incr: num(r.plan_net_incr),
+                ebitda: num(r.plan_ebitda), ebitda_low: num(r.plan_ebitda_low), roi: num(r.plan_roi) },
+        act: { bills: num(r.promo_bills), part: num(r.act_part), cannib: num(r.act_cannib), net_incr: num(r.act_net_incr_ex),
+               ebitda: num(r.act_ebitda), roi: num(r.act_roi_m71) },
+      } : null,
     };
   }).sort((a, b) => String(b.period_from).localeCompare(String(a.period_from)));
 
@@ -1523,6 +1544,18 @@ function buildCampaign(tables) {
       gates: CONTRACT.$preeval.gates,
       input_fields: CONTRACT.$preeval.input_fields.fields,
       input_levels: CONTRACT.$preeval.input_fields.levels,
+      fix_levers: CONTRACT.$preeval.fix_levers,
+      fix_targets: CONTRACT.$preeval.fix_targets,
+      calib_min_n: CONTRACT.$preeval.calib_min_n,
+      // bảng hiệu chỉnh: dự báo (bản khoá) cạnh thực tế của các chương trình M7.1 đã nối M7.2
+      calib: T(tables, 'pre_calib').map((r) => ({
+        program_id: r.program_id, campaign_id: r.campaign_id, quarter: r.quarter ?? null, brand: r.brand ?? null,
+        lever: r.lever ?? null, label: r.label ?? null, locked_at: r.locked_at ?? null, lock_reason: r.lock_reason ?? null,
+        plan_bills: num(r.plan_bills), act_bills: num(r.act_bills), plan_part: num(r.plan_part), act_part: num(r.act_part),
+        plan_cannib: num(r.plan_cannib), act_cannib: num(r.act_cannib), plan_net_incr: num(r.plan_net_incr),
+        act_net_incr: num(r.act_net_incr), plan_ebitda: num(r.plan_ebitda), act_ebitda: num(r.act_ebitda),
+        err_ebitda: num(r.err_ebitda), usable: !!n0(r.usable), note: r.note ?? null,
+      })),
       programs: Object.values(T(tables, 'pre_eval').reduce((m, r) => {
         const x = (m[r.program_id] ||= {
           id: r.program_id, name: r.name, brand: r.brand, stores: String(r.stores ?? '').split('|').filter(Boolean),
@@ -1532,7 +1565,7 @@ function buildCampaign(tables) {
           scheme_mode: r.scheme_mode ?? null, tc_base: num(r.tc_base), participation_src: r.participation_src ?? null,
           cannib_src: r.cannib_src ?? null, other_cogs_pct: num(r.other_cogs_pct), opex_pct: num(r.opex_pct),
           base_note: r.base_note ?? null, input_source: r.input_source ?? null,
-          missing: String(r.missing ?? '').split('|').filter(Boolean), scn: {}, fin: {}, schemes: [], base: [], inputs: [],
+          missing: String(r.missing ?? '').split('|').filter(Boolean), scn: {}, fin: {}, schemes: [], base: [], inputs: [], fix: [],
         });
         if (r.decision === 'THIEU_SO') return m;            // chưa tính được — không có số kịch bản
         x.scn[r.scenario] = {
@@ -1558,6 +1591,12 @@ function buildCampaign(tables) {
           cogs: num(r.cogs), cogs_pct: num(r.cogs_pct), margin_pct: num(r.margin_pct), merch: num(r.merch_cost),
           promo_cost: num(r.promo_cost), note: r.basis_note ?? null,
         }));
+        p.fix = T(tables, 'pre_eval_fix').filter((r) => r.program_id === p.id).map((r) => ({
+          target: r.target, lever: r.lever, current: num(r.current), required: num(r.required),
+          change: num(r.change), feasible: !!n0(r.feasible), best: !!n0(r.best), text: r.text ?? '',
+        }));
+        const lk = T(tables, 'pre_plan_lock').find((r) => r.program_id === p.id);
+        p.lock = lk ? { locked_at: lk.locked_at, reason: lk.lock_reason, ebitda: num(lk.ebitda), bills: num(lk.bills) } : null;
         p.inputs = T(tables, 'pre_eval_input').filter((r) => r.program_id === p.id).map((r) => ({
           field: r.field, value: r.value ?? null, source: r.source ?? null, level: r.level, status: r.status,
           hint: r.hint ?? null,

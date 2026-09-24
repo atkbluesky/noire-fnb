@@ -178,11 +178,37 @@ export interface VoucherJoin {
   by_month: { m: string; n: number; hit: number; rate: number }[];
 }
 
+/** Zalo OA theo tháng — export OA Manager › Thống kê › Tổng quan (S12). Số là LƯỢT. */
 export interface ZaloOAItem {
   month: string;
+  /** Quan tâm */
+  follows: number;
+  /** Gửi tin nhắn đến OA */
+  msgs: number;
+  /** Xem trang thông tin OA */
+  views: number;
+  /** Tương tác thanh menu */
+  menu: number;
+  /** Xem nội dung */
+  content: number;
+  days: number;
+}
+
+/** Cùng nghĩa cột với ZaloOAItem, grain ngày — nguồn M8.1 khi OpenAPI chưa kết nối. */
+export interface ZaloOADaily {
+  date: string;
   follows: number;
   msgs: number;
   views: number;
+  menu: number;
+  content: number;
+}
+
+/** Sổ nhập tay S26 — snapshot Tổng người quan tâm. null = chưa nhập. */
+export interface ZaloOAFollower {
+  date: string;
+  follower_total: number | null;
+  unfollows: number | null;
 }
 
 /** Member đăng ký mới theo tháng — lấy từ bảng theo dõi tay. */
@@ -413,6 +439,8 @@ export interface MktData {
   partner_plan: PartnerPlan[];
   partner_ingest: PartnerIngest[];
   oa: ZaloOAItem[];
+  oa_daily: ZaloOADaily[];
+  oa_follower: ZaloOAFollower[];
   member_month: MemberMonth[];
   member_stat: { total: number; months_filled: number; months_template: number };
   crm_target: { month: string; kpi: string; target: number }[];

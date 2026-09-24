@@ -29,7 +29,7 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 
 ## Dùng cho
 
-- Bảng dữ liệu: dim_campaign, campaign_target, campaign_cost, campaign_control, campaign_result, campaign_daily, campaign_unmapped, campaign_issue
+- Bảng dữ liệu: dim_campaign, campaign_target, campaign_cost, campaign_control, campaign_result, campaign_daily, campaign_unmapped, campaign_issue, pre_calib
 - Màn hình: M7, M7.1, M7.2
 - Xử lý bởi: tools/campaign.py
 

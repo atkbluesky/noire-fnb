@@ -1,10 +1,10 @@
-# Zalo OA export (legacy)
+# Zalo OA export — Thống kê Tổng quan
 
 **Mã nguồn:** `S12_zalo_oa` · **Bắt buộc:** không · **Nhịp:** một file mỗi tháng, tháng nằm trong TÊN FILE
 
 ## Thả file gì vào đây
 
-Zalo OA Manager › Thống kê › Xuất. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại.
+OA Manager › Thống kê › Tổng quan › Xuất, chọn đúng 1 tháng. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại. Là nguồn số của M8.1 khi OpenAPI/Webhook CHƯA kết nối, và là lịch sử trước ngày kết nối.
 
 - Mẫu tên file: `OA Zalo T*.xls*`
 - Ví dụ: `OA Zalo T8.2026.xls`
@@ -17,8 +17,8 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 
 ## Dùng cho
 
-- Bảng dữ liệu: oa
-- Màn hình: không dùng trực tiếp — M8.1 lấy số từ OpenAPI + Webhook
+- Bảng dữ liệu: oa, oa_daily
+- Màn hình: M8.1
 - Xử lý bởi: tools/build_month.py
 
 _File này sinh tự động từ tools/l0_registry.py — sửa ở đó, đừng sửa tay._

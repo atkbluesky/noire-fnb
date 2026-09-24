@@ -882,6 +882,109 @@ def _clean(rows):
     return out
 
 
+# ─────────────────────────── kế hoạch M7.1 (sổ chuẩn) ↔ thực tế ───────────────────────────
+PREEVAL = os.path.join(DATA_INPUT, "04_preeval.xlsx")
+LOCK = os.path.join(DATA_INPUT, "05_plan_lock.xlsx")
+
+
+def load_m71():
+    """campaign_id → kế hoạch M7.1. Nối theo cột campaign_id của sổ M7.1 (đọc bản mới nhất ở pre_eval),
+    số kế hoạch lấy ở bản ĐÃ KHOÁ (05_plan_lock) — không lấy dự báo đang tính lại."""
+    pe = read_workbook(PREEVAL, {"pre_eval"}).get("pre_eval", []) if os.path.exists(PREEVAL) else []
+    lock = {r["program_id"]: r for r in (read_workbook(LOCK, {"pre_plan_lock"}).get("pre_plan_lock", [])
+                                         if os.path.exists(LOCK) else [])}
+    out = {}
+    for r in pe:
+        cid = str(r.get("campaign_id") or "").strip()
+        if r.get("scenario") == "CO_SO" and cid:
+            out[cid] = dict(program_id=r["program_id"], quarter=r.get("quarter"), lock=lock.get(r["program_id"]))
+    return out
+
+
+def apply_m71(camps, targets, m71, plan_by):
+    """Chương trình M7.2 nối được kế hoạch M7.1 đã khoá → target doanh thu tăng thêm lấy từ đó (cùng nền
+    gồm VAT với POS). Chương trình đã có kế hoạch Q3 (pre_id) giữ cách chấm cũ — M7.1 chỉ đặt cạnh."""
+    ids = {c["campaign_id"]: c for c in camps}
+    iss = []
+    for cid, x in m71.items():
+        pid, lk = x["program_id"], x["lock"]
+        c = ids.get(cid)
+        if not c:
+            iss.append((cid, "campaign_id", "LỖI", f"M7.1 {pid} trỏ tới campaign_id chưa có ở Campaign_Tracking"))
+            continue
+        if not lk:
+            iss.append((cid, "plan_lock", "CẢNH BÁO",
+                        f"M7.1 {pid} chưa khoá kế hoạch (chưa DA_DUYET và chưa tới ngày chạy) — chưa có target để so"))
+            continue
+        if lk.get("lock_reason") == "KHOA_MUON":
+            iss.append((cid, "plan_lock", "CẢNH BÁO",
+                        f"M7.1 {pid} khoá SAU ngày bắt đầu ({lk.get('locked_at')}) — kỳ nền dự báo có thể đã chứa kỳ chạy"))
+        if c.get("pre_id") and c["pre_id"] in plan_by:
+            continue
+        old = targets.get(cid) or {}
+        if to_num(old.get("tgt_incr_net")):
+            continue                                           # target khai tay ở Campaign_Tracking thắng
+        oc, ox = to_num(lk.get("other_cogs_pct"), 0) or 0, to_num(lk.get("opex_pct"), 0) or 0
+        targets[cid] = dict(
+            campaign_id=cid, base_method="M7_1",
+            tgt_net=None, tgt_tc=None, tgt_aov=None, tgt_ta=None,
+            tgt_incr_net=(to_num(lk.get("net_incr"), 0) or 0) * pre_analysis.VAT,
+            cm_pct=(1 - oc - ox) / pre_analysis.VAT,
+            submitted=lk.get("submitted") or lk.get("locked_at"),
+            note=f"M7.1 {pid} · khoá {lk.get('locked_at')} ({lk.get('lock_reason')})")
+    return iss
+
+
+def plan_vs_actual(results, m71, camps):
+    """Đặt kế hoạch M7.1 (đã khoá) cạnh thực tế — thực tế tính bằng CÙNG công thức EBITDA của M7.1:
+        EBITDA = DT thuần tăng thêm × (1 − COGS%) − opex biến đổi − quà/vật phẩm − chi phí chương trình
+    DT tăng thêm đo ở M7.2 (thực tế − kỳ vọng, đã khử mùa vụ) đã trừ giảm giá POS → không trừ giảm giá lần nữa.
+    Quà/vật phẩm: đơn giá kế hoạch × hoá đơn thực tế (POS chưa tách giá vốn quà theo chương trình).
+    Trả về bảng hiệu chỉnh (pre_calib) — mỗi chương trình đã nối một dòng."""
+    by_c = {c["campaign_id"]: c for c in camps}
+    calib = []
+    for r in results:
+        c = by_c.get(r["campaign_id"], {})
+        x = m71.get(r["campaign_id"])
+        d = _d(r.get("period_from")) or _d(c.get("date_from"))
+        r["quarter"] = (x or {}).get("quarter") or (f"{d.year}-Q{(d.month - 1) // 3 + 1}" if d else None)
+        if not x:
+            continue
+        lk = x["lock"] or {}
+        oc, ox = to_num(lk.get("other_cogs_pct"), 0) or 0, to_num(lk.get("opex_pct"), 0) or 0
+        pb = to_num(lk.get("bills"))
+        r.update(plan_program_id=x["program_id"], plan_locked_at=lk.get("locked_at"),
+                 plan_lock_reason=lk.get("lock_reason"), plan_bills=pb, plan_part=to_num(lk.get("tc_share")),
+                 plan_cannib=to_num(lk.get("cannib_pct")), plan_net_incr=to_num(lk.get("net_incr")),
+                 plan_ebitda=to_num(lk.get("ebitda")), plan_ebitda_low=to_num(lk.get("ebitda_low")),
+                 plan_roi=to_num(lk.get("roi")), plan_decision=lk.get("decision"))
+        ok = bool(lk) and int(to_num(r.get("measurable"), 0) or 0) == 1 and r.get("label") not in ("CHUA_CHIN", "CHUA_DO")
+        ab = to_num(r.get("promo_bills"), 0) or 0
+        if int(to_num(r.get("measurable"), 0) or 0) == 1:
+            exp_tc, act_tc = to_num(r.get("exp_tc"), 0) or 0, to_num(r.get("act_tc"), 0) or 0
+            net = (to_num(r.get("incr_net"), 0) or 0) / pre_analysis.VAT
+            fixed = (to_num(r.get("cost_manual"), 0) or 0) + (to_num(r.get("cost_ads_auto"), 0) or 0)
+            gift = (to_num(lk.get("gift_per_bill"), 0) or 0) * ab
+            eb = net * (1 - oc) - max(0.0, net) * ox - gift - fixed
+            disc = ((to_num(r.get("cost_discount"), 0) or 0) + (to_num(r.get("cost_voucher"), 0) or 0)) / pre_analysis.VAT
+            r.update(act_part=_div(ab, exp_tc), act_cannib=(1 - min(1.0, max(0.0, act_tc - exp_tc) / ab)) if ab else None,
+                     act_net_incr_ex=round(net), act_ebitda=round(eb), act_roi_m71=_div(eb, disc + gift + fixed))
+        why = None if ok else ("chưa khoá kế hoạch" if not lk else r.get("reason") or
+                               {"CHUA_CHIN": "đang chạy — chưa chốt", "CHUA_DO": "chưa đo được lift"}.get(r.get("label")))
+        calib.append(dict(
+            program_id=x["program_id"], campaign_id=r["campaign_id"], quarter=r["quarter"], brand=c.get("brand"),
+            lever=lk.get("lever") or c.get("lever_primary"), objective=lk.get("objective") or c.get("objective"),
+            locked_at=lk.get("locked_at"), lock_reason=lk.get("lock_reason"), label=r.get("label"),
+            plan_bills=pb, act_bills=ab or None, plan_part=r.get("plan_part"), act_part=r.get("act_part"),
+            plan_cannib=r.get("plan_cannib"), act_cannib=r.get("act_cannib"),
+            plan_net_incr=r.get("plan_net_incr"), act_net_incr=r.get("act_net_incr_ex"),
+            plan_ebitda=r.get("plan_ebitda"), act_ebitda=r.get("act_ebitda"),
+            err_ebitda=(r["act_ebitda"] - r["plan_ebitda"]) if (r.get("act_ebitda") is not None and r.get("plan_ebitda") is not None) else None,
+            usable=1 if (ok and r.get("act_cannib") is not None and lk.get("lock_reason") != "KHOA_MUON") else 0,
+            note=why or ("khoá sau ngày bắt đầu — chỉ tham khảo, không dùng hiệu chỉnh" if lk.get("lock_reason") == "KHOA_MUON" else None)))
+    return calib
+
+
 def main():
     for _s in (sys.stdout, sys.stderr):
         try:
@@ -908,6 +1011,9 @@ def main():
     plan, plan_date = load_plan()
     plan_issues = apply_plan(camps, targets, costs, plan, plan_date)
     plan_by = {p["pre_id"]: p for p in plan}
+    m71 = load_m71()                                   # kế hoạch M7.1 đã khoá, nối qua campaign_id
+    plan_issues += apply_m71(camps, targets, m71, plan_by)
+    log(f"  kế hoạch M7.1: {len(m71)} chương trình nối campaign_id · {sum(1 for x in m71.values() if x['lock'])} đã khoá")
     log(f"  kế hoạch: {len(plan)} chương trình Pre-Analysis · {sum(1 for c in camps if c.get('pre_id'))} đã nối pre_id")
     daily, promo, ads, first, last = load_facts()
     item_map = defaultdict(list)
@@ -1031,6 +1137,7 @@ def main():
                      bills=round(u["bills"]), net=round(u["net"]), disc=round(u["disc"]))
                 for u in sorted(un.values(), key=lambda x: -x["net"])]
 
+    calib = plan_vs_actual(results, m71, camps)
     camp_month = [x for r in results for x in (r.pop("_split", None) or [])]
     write_workbook(OUT, {
         "campaign_result": results, "campaign_daily": series, "campaign_month": camp_month,
@@ -1041,6 +1148,7 @@ def main():
         "campaign_control": [dict(campaign_id=k, control_store=s) for k, v in controls.items() for s in v],
         "campaign_item": [x for v in item_map.values() for x in v],
         "pre_plan": plan_rows(plan, camps, results),
+        "pre_calib": calib,
     }, title="M7.2 · PROMOTION TRACKING — sinh tự động bởi tools/campaign.py")
     cnt = defaultdict(int)
     for r in results:

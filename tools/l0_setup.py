@@ -190,9 +190,18 @@ TEMPLATES = {
         ["Tối thiểu: sheet KPI_Thang (Tháng · Khách đăng ký).",
          "Tuỳ chọn: sheet Nguon_DangKy với cột Ngày · Member đăng ký mới · OA follow mới — để đếm số ngày có số.",
          "File CRM Dashboard đầy đủ (nhiều sheet) vẫn dùng được, miễn có hai sheet trên. Tên bắt đầu bằng CRM_Dashboard."]),
+    # Không có dòng số mẫu: chưa có số thật để làm ví dụ, và số bịa dễ bị chép nhầm vào sổ thật.
+    "_MAU_Zalo_OA_Follower.xlsx": ("Follower",
+        ["Ngày", "Tổng người quan tâm", "Bỏ quan tâm", "Ghi chú"],
+        [],
+        ["Mỗi dòng = MỘT ngày chụp số (tối thiểu ngày cuối mỗi tháng). Ngày gõ dạng 31/08/2026 hoặc 2026-08-31.",
+         "Tổng người quan tâm: OA Manager › Thống kê › Người quan tâm — con số TỔNG tại ngày đó, không phải số mới trong kỳ.",
+         "Bỏ quan tâm: số bỏ quan tâm TRONG NGÀY đó (hoặc cả kỳ nếu chỉ chụp cuối tháng — ghi rõ ở Ghi chú). Không có thì để TRỐNG.",
+         "Ô chưa có số để TRỐNG, đừng gõ 0. Lưu thành Zalo_OA_Follower_<năm>.xlsx trong thư mục này.",
+         "Khi OpenAPI getoa kết nối được, M8.1 lấy tổng follower tự động và sổ này chỉ còn là lịch sử."]),
 }
 TEMPLATE_DIR = {"_MAU_Facebook_Tong_hop.xlsx": "S18_social", "_MAU_TikTok_Tong_hop.xlsx": "S22_tiktok",
-                "_MAU_CRM_Member.xlsx": "S13_member"}
+                "_MAU_CRM_Member.xlsx": "S13_member", "_MAU_Zalo_OA_Follower.xlsx": "S26_zalo_follower"}
 
 
 def write_template(path, sheet, header, sample, notes):

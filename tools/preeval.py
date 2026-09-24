@@ -17,21 +17,20 @@ KHUNG PHIẾU = PP672 × SALES = TC × AOV. Mọi số tiền tính trên GIÁ M
 
 1) NỀN (Base) — kỳ nền 56 ngày trước ngày bắt đầu (bỏ ngày lễ; lọc đúng các thứ chạy), từng cửa hàng,
    quy về số ngày chương trình: Base = run-rate/ngày mở bán × số ngày chạy.
-2) KINH TẾ 1 HOÁ ĐƠN THAM GIA (từng scheme):
-    giá trị hoá đơn  = max(min_bill, AOV nền + món chương trình × %gọi thêm)   (GROUP_SIZE: TA × số khách)
-    giảm giá         = theo ưu đãi (PCT_OFF_BILL · PCT_OFF_ITEMS · FIXED_OFF · FIXED_PRICE · GIFT_ITEM)
-    giá vốn          = món REQUIRED + món GIFT (BOM hoặc nhập) + món khác × COGS% nền
-    quà vật phẩm     = đơn giá × (1 + VAT)
-3) SỐ HOÁ ĐƠN THAM GIA = est_bills | participation% × TC nền, không vượt stock_qty.
-4) FINANCIAL EVALUATION:
-    Có KM            = Σ hoá đơn tham gia × kinh tế 1 hoá đơn
-    Bị ăn mòn (cannib)= %cannib × hoá đơn tham gia × giá trị 1 hoá đơn NỀN (khách vốn sẽ đến)
-    Không KM         = Base − Bị ăn mòn
-    Tổng             = Không KM + Có KM          Tăng thêm = Tổng − Base
-    %Cannib (PP672)  = (Base − Không KM) ÷ Không KM
-5) EBITDA TĂNG THÊM = LN gộp tăng thêm − quà vật phẩm − chi phí chương trình − chi phí vận hành biến đổi
-   (ty_le_chi_phi × doanh thu thuần tăng thêm).
-6) 3 KỊCH BẢN ($preeval.scenarios) + điểm hoà vốn (hoá đơn cần có · %cannib tối đa) + quyết định.
+2) KINH TẾ 1 HOÁ ĐƠN THAM GIA (từng scheme) — thống nhất với sổ Q4/2026 (23/09/2026):
+    V (giá trị HĐ)   = bill_value | giá bộ món (FIXED_PRICE / NONE có món REQUIRED) | TA × min_guests
+                       | max(AOV nền; min_bill × min_bill_factor) | AOV nền            (không nhỏ hơn giá bộ món)
+    giảm giá d       = PCT_OFF_BILL V×% · PCT_OFF_ITEMS món×% · FIXED_OFF · FIXED_PRICE V − giá set (có trần)
+    quà              = giá vốn món GIFT + vật phẩm × (1 + VAT)  — chi phí, không phải doanh thu
+    giá vốn HĐ mới K = món REQUIRED (BOM) + (V − giá bộ món) × COGS% nền
+3) SỐ HOÁ ĐƠN THAM GIA B = est_bills | participation% × TC nền, không vượt stock_qty.
+4) KHÁCH MỚI B × (1 − %cannib) mang cả hoá đơn V · KHÁCH VỐN SẼ ĐẾN B × %cannib giữ hoá đơn thường,
+   đổi mức chi u × V (uplift_pct; set đồng giá mặc định u = 1 − TA × khách ÷ V) và VẪN nhận ưu đãi (cộng dồn).
+   Bảng PP672: Có KM = B hoá đơn tham gia · Không KM = Base − phần khách vốn sẽ đến · Tăng thêm = Tổng − Base.
+5) EBITDA TĂNG THÊM = DT thuần tăng thêm − giá vốn tăng thêm − quà − chi phí chương trình (chưa VAT)
+   − chi phí vận hành biến đổi (ty_le_chi_phi × DT thuần tăng thêm). ROI = EBITDA ÷ (giảm giá + quà + chi phí).
+6) 3 KỊCH BẢN ($preeval.scenarios: hệ số số hoá đơn 60/100/140%) + hoà vốn + quyết định:
+   DUYỆT (Thận trọng ≥ 0 và ROI Cơ sở ≥ gates.min_roi_approve) · CHẠY THỬ (Cơ sở ≥ 0) · SỬA CƠ CHẾ · BRANDING.
 """
 from __future__ import annotations
 
@@ -51,6 +50,7 @@ P = CONTRACT["$preeval"]
 CAMP = CONTRACT["$campaign"]
 VAT = P["vat"]
 OUT = os.path.join(DATA_INPUT, "04_preeval.xlsx")
+LOCK = os.path.join(DATA_INPUT, "05_plan_lock.xlsx")      # kế hoạch đã khoá — KHÔNG sinh lại, chỉ thêm / gỡ
 SID = "S24_preeval"
 LEVER_GROUP = {x["code"]: x.get("group") for x in CAMP["levers"]}
 
@@ -168,7 +168,7 @@ def base_window(d0, dows, first, last, bf=None, bt=None):
 
 
 QUICK_COLS = ("condition", "min_bill", "min_guests", "benefit", "benefit_value", "discount_cap",
-              "merch_name", "merch_unit_cost", "merch_vat_pct", "stock_qty", "bill_value", "item_add_pct")
+              "merch_name", "merch_unit_cost", "merch_vat_pct", "stock_qty", "bill_value")
 
 
 def _codes(text, role, pid):
@@ -209,7 +209,7 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
     dows = {int(x) for x in str(prog.get("dow") or "").replace(",", "|").split("|") if str(x).strip().isdigit()}
     issues = []
     if not stores or not d0 or not d1 or d1 < d0:
-        return None, [], [], [], [f"{pid}: thiếu cửa hàng hoặc ngày chạy"]
+        return None, [], [], [], [f"{pid}: thiếu cửa hàng hoặc ngày chạy"], []
     pdays = [d0 + timedelta(i) for i in range((d1 - d0).days + 1)]
     if dows:
         pdays = [d for d in pdays if d.weekday() in dows]
@@ -244,18 +244,20 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
                               tax_factor=round(tf, 4), disc_share=round(pdisc / gross, 4) if gross else None,
                               note=bnote + (f" · lọc thứ {sorted(dows)}" if dows else "")))
     if not B["tc"]:
-        return None, [], [], base_rows, issues + [f"{pid}: không có TC nền"]
+        return None, [], [], base_rows, issues + [f"{pid}: không có TC nền"], []
     TF = B["net"] / (B["gross"] - B["disc"]) if B["gross"] > B["disc"] else VAT
     aov_menu = B["gross"] / B["tc"]                    # giá trị menu 1 hoá đơn nền
     ta_menu = B["gross"] / B["guest"] if B["guest"] else aov_menu
-    disc_bill = B["disc"] / B["tc"]
     ocogs = _f(prog.get("other_cogs_pct")) or P["base_cogs_pct"].get(brand, P["base_cogs_pct"]["ALL"])
 
     # ── 2. KINH TẾ 1 HOÁ ĐƠN theo scheme ──
     lever = (prog.get("lever_primary") or "").upper()
+    cal = CALIB.get(lever, {})                     # thực tế các chương trình cùng phương án (bảng hiệu chỉnh)
     cannib0 = _f(prog.get("cannib_pct"))
     cannib_src = "nhập ở sổ"
-    if cannib0 is None:
+    if cannib0 is None and cal.get("cannib") is not None:
+        cannib0, cannib_src = cal["cannib"], f"hiệu chỉnh — trung vị {cal['n']} chương trình {lever} đã chạy"
+    elif cannib0 is None:
         cannib0 = P["cannib_default"].get(lever, P["cannib_default"]["_default"])
         cannib_src = f"mặc định theo phương án {lever or '(chưa chọn)'}"
     part = _f(prog.get("participation_pct"))
@@ -263,21 +265,25 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
         demand, part_src = _f(prog.get("est_bills")), "est_bills nhập ở sổ"
     elif part is not None:
         demand, part_src = part * B["tc"], f"{part:.1%} TC nền (nhập ở sổ)"
+    elif cal.get("part") is not None:
+        demand, part_src = cal["part"] * B["tc"], f"{cal['part']:.1%} TC nền (hiệu chỉnh — trung vị {cal['n']} chương trình {lever})"
     else:
         demand, part_src = P["participation_default"] * B["tc"], f"{P['participation_default']:.0%} TC nền (mặc định)"
     by_scheme = defaultdict(list)
     for it in items:
         by_scheme[str(it.get("scheme_id"))].append(it)
     n_s = len(schemes) or 1
+    u_prog = _f(prog.get("uplift_pct"))            # thay đổi chi tiêu của khách vốn sẽ đến (0,2 = +20%)
     econ = []
     for s in schemes:
         sid = str(s.get("scheme_id"))
         notes = []
-        req_v = req_c = gift_v = gift_c = 0.0
+        req_v = req_c = gift_c = 0.0
         for it in by_scheme.get(sid, []):
             q = _f(it.get("qty"), 1)
             ref = item_ref(menu, it.get("item_code")) or {}
-            price = _f(it.get("price")) or ref.get("price")
+            price = _f(it.get("price"))
+            price = ref.get("price") if price is None else price
             cogs = _f(it.get("unit_cogs")) or ref.get("cogs")
             if price is None:
                 notes.append(f"{it.get('item_code')}: chưa có giá — tính 0")
@@ -286,18 +292,29 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
                 cogs = price * ocogs
                 notes.append(f"{it.get('item_name') or it.get('item_code')}: chưa có giá vốn BOM — tạm {ocogs:.0%}")
             if str(it.get("role") or "REQUIRED").upper() == "GIFT":
-                gift_v += q * price
-                gift_c += q * cogs
+                gift_c += q * cogs                    # món tặng = chi phí quà (giá vốn), không phải doanh thu
             else:
                 req_v += q * price
                 req_c += q * cogs
         benefit = (s.get("benefit") or "NONE").upper()
         cond = (s.get("condition") or "NONE").upper()
-        ref_v = ta_menu * _f(s.get("min_guests"), 1) if cond == "GROUP_SIZE" else aov_menu
-        add = _f(s.get("item_add_pct"))
-        add = P["item_add_pct"].get(benefit, 0.0) if add is None else add
-        bill_v = _f(s.get("bill_value")) or max(_f(s.get("min_bill"), 0), ref_v + req_v * add, req_v)
+        guests = max(1.0, _f(s.get("min_guests"), 0))
+        min_bill = _f(s.get("min_bill"), 0)
+        # V — giá trị 1 hoá đơn tham gia (giá menu): nhập tay › bộ món (set / món mới) › TA × khách › ngưỡng › AOV nền
+        if _f(s.get("bill_value")):
+            bill_v, how = _f(s.get("bill_value")), "nhập ở sổ"
+        elif req_v > 0 and benefit in ("FIXED_PRICE", "NONE"):
+            bill_v, how = req_v, "giá bộ món chương trình"
+        else:
+            if _f(s.get("min_guests"), 0) > 0:
+                ref_v, how = ta_menu * guests, f"TA nền × {guests:g} khách"
+            elif min_bill > 0:
+                ref_v, how = max(aov_menu, min_bill * P["min_bill_factor"]), f"max(AOV nền; ngưỡng × {P['min_bill_factor']:g})"
+            else:
+                ref_v, how = aov_menu, "AOV nền"
+            bill_v = max(ref_v, req_v)
         val = _f(s.get("benefit_value"), 0)
+        cap = _f(s.get("discount_cap"))
         if benefit == "PCT_OFF_BILL":
             disc = bill_v * val
         elif benefit == "PCT_OFF_ITEMS":
@@ -305,34 +322,44 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
         elif benefit == "FIXED_OFF":
             disc = min(val, bill_v)
         elif benefit == "FIXED_PRICE":
-            disc = max(0.0, req_v - val)
-        elif benefit == "GIFT_ITEM":
-            disc = gift_v
+            disc = max(0.0, bill_v - val)
         else:
-            disc = 0.0
-        cap = _f(s.get("discount_cap"))
-        if cap is not None and benefit != "GIFT_ITEM":
+            disc = 0.0                                # GIFT_ITEM · GIFT_MERCH · NONE: không giảm giá, quà tính ở chi phí
+        if cap is not None:
             disc = min(disc, cap)
-        other_v = max(0.0, bill_v - req_v)
         merch = _f(s.get("merch_unit_cost"), 0) * (1 + _f(s.get("merch_vat_pct"), 0.08)) if benefit == "GIFT_MERCH" else 0.0
+        # u — khách vốn sẽ đến đổi mức chi: nhập ở sổ; set đồng giá mặc định = 1 − TA × khách ÷ V (bỏ bữa thường, gọi set)
+        if u_prog is not None:
+            u, u_src = u_prog, "nhập ở sổ"
+        elif benefit == "FIXED_PRICE" and bill_v:
+            u, u_src = 1 - ta_menu * guests / bill_v, "set: 1 − TA × khách ÷ V"
+        else:
+            u, u_src = 0.0, "0"
         share = _f(s.get("share_pct"))
         econ.append(dict(
-            s=s, sid=sid, benefit=benefit, cond=cond, req_v=req_v, req_c=req_c, gift_v=gift_v, gift_c=gift_c,
-            bill_v=bill_v, disc=disc, other_v=other_v, merch=merch, share=share if share is not None else 1 / n_s,
-            est=_f(s.get("est_bills")), stock=_f(s.get("stock_qty")),
-            note=" · ".join(notes + ["giá trị hoá đơn = max(hoá đơn tối thiểu; %s %s + món chương trình × %.0f%%)"
-                                     % ("TA × số khách" if cond == "GROUP_SIZE" else "AOV nền",
-                                        f"{ref_v:,.0f}".replace(",", "."), add * 100)])))
+            s=s, sid=sid, benefit=benefit, cond=cond, req_v=req_v, req_c=req_c, gift_c=gift_c,
+            bill_v=bill_v, disc=disc, other_v=max(0.0, bill_v - req_v), merch=merch, u=u,
+            share=share if share is not None else 1 / n_s, est=_f(s.get("est_bills")), stock=_f(s.get("stock_qty")),
+            note=" · ".join(notes + [f"giá trị hoá đơn = {how} {bill_v:,.0f}".replace(",", "."),
+                                     f"u khách sẵn có = {u:+.0%} ({u_src})"])))
 
-    fixed_cost = sum(_f(c.get("amount"), 0) * (1 + _f(c.get("vat_pct"), 0.08)) for c in costs)
+    # chi phí chương trình tính CHƯA VAT (VAT đầu vào được khấu trừ) — cùng cách sổ Q4
+    fixed_cost = sum(_f(c.get("amount"), 0) for c in costs)
     var_opex = sum(_f(o.get(brand if brand in ("NCB", "NDC", "NJFB") else "NCB"), 0)
                    for o in opex if str(o.get("type")).upper() == "VARIABLE" and int(_f(o.get("act_on_incr"), 0)) == 1)
 
-    def run(bills_mult=1.0, cannib_add=0.0, cogs_add=0.0, cannib_fix=None, bills_scale=None):
+    def run(bills_mult=1.0, cannib_add=0.0, cogs_add=0.0, cannib_fix=None, bills_scale=None,
+            promo_k=1.0, v_add=0.0, fixed_cut=0.0):
+        """Hoá đơn tham gia B = khách MỚI B × (1 − c) + khách VỐN SẼ ĐẾN B × c.
+        Khách mới mang cả hoá đơn V; khách vốn sẽ đến giữ hoá đơn thường của họ (± u × V) và vẫn nhận ưu đãi
+        — ưu đãi cộng dồn với giảm giá họ vốn có. Giảm giá · quà · vật phẩm tính trên MỌI hoá đơn tham gia.
+        promo_k · v_add · fixed_cut: núm vặn của bộ giải "Cách sửa" (hệ số chi ưu đãi · cộng thêm vào giá trị
+        hoá đơn tham gia · phần cắt chi phí cố định) — mặc định là đúng số đã nhập."""
         oc = ocogs + cogs_add
         c = cannib_fix if cannib_fix is not None else min(1.0, max(0.0, cannib0 + cannib_add))
-        tot_bills = gross_p = disc_p = cogs_p = merch_t = 0.0
-        stock = 0.0
+        W = dict(tc=0.0, gross=0.0, disc=0.0, cogs=0.0)             # hoá đơn tham gia (Có KM)
+        K = dict(tc=0.0, gross=0.0, disc=0.0, cogs=0.0)             # phần khách vốn sẽ đến rút khỏi nền
+        merch_t = gift_t = stock = 0.0
         per = []
         for e in econ:
             b = e["est"] if e["est"] is not None else demand * e["share"]
@@ -342,32 +369,37 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
             if e["stock"]:
                 stock += e["stock"]
                 b = min(b, e["stock"])
-            cogs_bill = e["req_c"] + e["gift_c"] + e["other_v"] * oc
-            tot_bills += b
-            gross_p += b * (e["bill_v"] + e["gift_v"])
-            disc_p += b * e["disc"]
-            cogs_p += b * cogs_bill
-            merch_t += b * e["merch"]
-            per.append((e, b, cogs_bill))
+            cogs_norm = e["req_c"] + e["other_v"] * oc              # hoá đơn thường (khách vốn sẽ đến)
+            cogs_bill = e["req_c"] + (e["other_v"] + v_add) * oc     # hoá đơn tham gia
+            gift_c = e["gift_c"] * promo_k
+            cb = c * b
+            W["tc"] += b
+            W["gross"] += b * (e["bill_v"] + v_add) + cb * e["bill_v"] * e["u"]
+            W["disc"] += b * e["disc"] * promo_k
+            W["cogs"] += b * cogs_bill + cb * e["bill_v"] * e["u"] * oc + b * gift_c
+            K["tc"] += cb
+            K["gross"] += cb * e["bill_v"]
+            K["cogs"] += cb * cogs_norm
+            gift_t += b * gift_c
+            merch_t += b * e["merch"] * promo_k
+            per.append((e, b, cogs_bill + gift_c))
         net = lambda g, dsc: (g - dsc) * TF / VAT          # noqa: E731
         base = dict(tc=B["tc"], gross=B["gross"], disc=B["disc"])
         base["net"] = net(base["gross"], base["disc"])
         base["cogs"] = base["net"] * oc
-        cb = c * tot_bills
-        cann = dict(tc=cb, gross=cb * aov_menu, disc=cb * disc_bill)
-        cann["net"] = net(cann["gross"], cann["disc"])
-        cann["cogs"] = cann["net"] * oc
-        withp = dict(tc=tot_bills, gross=gross_p, disc=disc_p, net=net(gross_p, disc_p), cogs=cogs_p)
+        cann = dict(K, net=net(K["gross"], K["disc"]))
+        withp = dict(W, net=net(W["gross"], W["disc"]))
         without = {k: base[k] - cann[k] for k in base}
         total = {k: without[k] + withp[k] for k in base}
         incr = {k: total[k] - base[k] for k in base}
         gp_incr = incr["net"] - incr["cogs"]
         opex_incr = max(0.0, incr["net"]) * var_opex
-        ebitda = gp_incr - merch_t - fixed_cost - opex_incr
-        spend = disc_p * TF / VAT + merch_t + fixed_cost
-        return dict(c=c, bills=tot_bills, stock=stock, base=base, cann=cann, withp=withp, without=without,
+        fixed = fixed_cost - fixed_cut
+        ebitda = gp_incr - merch_t - fixed - opex_incr
+        spend = W["disc"] * TF / VAT + gift_t + merch_t + fixed        # đầu tư TM = giảm giá + quà + vật phẩm + chi phí
+        return dict(c=c, bills=W["tc"], stock=stock, base=base, cann=cann, withp=withp, without=without,
                     total=total, incr=incr, gp_incr=gp_incr, opex=opex_incr, merch=merch_t, ebitda=ebitda,
-                    spend=spend, per=per, oc=oc)
+                    spend=spend, per=per, oc=oc, gift=gift_t)
 
     results, fin, scheme_rows = [], [], []
     for sc in P["scenarios"]:
@@ -393,6 +425,7 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
             bills_incr=round(R["bills"] * (1 - R["c"])), cannib_pct=round(R["c"], 4),
             rev_incl=round(W["net"] * VAT), net_incr=round(R["incr"]["net"]), gp_incr=round(R["gp_incr"]),
             promo_cost=round(R["spend"]), program_cost=round(fixed_cost + R["merch"]), opex_incr=round(R["opex"]),
+            gift_cost=round(R["gift"] + R["merch"]),
             ebitda_incr=round(R["ebitda"]), ebitda_pct=_div(R["ebitda"], W["net"]),
             roi=_div(R["ebitda"], R["spend"]), breakeven_bills=round(be_bills) if be_bills is not None else None,
             max_cannib=round(max_c, 4), redemption_needed=_div(R["stock"], B["tc"]) if R["stock"] else None,
@@ -420,26 +453,121 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
                 net_after = (e["bill_v"] - e["disc"]) * TF / VAT
                 scheme_rows.append(dict(
                     program_id=pid, scheme_id=e["sid"], scheme_name=e["s"].get("scheme_name"), condition=e["cond"],
-                    benefit=e["benefit"], bills=round(b), bill_value=round((e["bill_v"] + e["gift_v"]) * TF),
+                    benefit=e["benefit"], bills=round(b), bill_value=round(e["bill_v"] * TF),
                     discount=round(e["disc"] * TF), rev_after_disc=round(rev_after), ta=round(rev_after),
                     cogs=round(cogs_bill), cogs_pct=_div(cogs_bill, net_after), margin_pct=(1 - cogs_bill / net_after) if net_after else None,
-                    merch_cost=round(e["merch"]), promo_cost=round(e["disc"] * TF / VAT + e["merch"]), basis_note=e["note"]))
+                    merch_cost=round(e["merch"] + e["gift_c"]),
+                    promo_cost=round(e["disc"] * TF / VAT + e["merch"] + e["gift_c"]), basis_note=e["note"]))
 
     base_r = {r["scenario"]: r for r in results}
     eb, ec = base_r["CO_SO"]["ebitda_incr"], base_r["THAN_TRONG"]["ebitda_incr"]
+    roi_b, roi_min = base_r["CO_SO"]["roi"], P["gates"]["min_roi_approve"]
     obj = (base_r["CO_SO"]["objective"] or "").upper()
     if obj == "BRANDING":
         dec, why = "BRANDING", "mục tiêu branding — duyệt theo ngân sách và KPI tiếp cận"
-    elif eb > 0 and ec >= 0:
-        dec, why = "DUYET", "có lãi ở cả kịch bản Cơ sở và Thận trọng"
-    elif eb > 0:
-        dec, why = "CHAY_THU", ("có lãi ở Cơ sở nhưng lỗ %s ở Thận trọng — chạy thử 1–2 tuần, theo dõi số hoá đơn và %%cannib"
-                                % f"{-ec:,.0f}".replace(",", "."))
+    elif ec >= 0 and eb >= 0 and (roi_b is None or roi_b >= roi_min):
+        dec, why = "DUYET", f"lãi cả ở kịch bản Thận trọng · ROI Cơ sở ≥ {roi_min:g}".replace(".", ",")
+    elif eb >= 0:
+        dec, why = "CHAY_THU", (("lỗ %s ở Thận trọng" % f"{-ec:,.0f}".replace(",", ".")) if ec < 0 else
+                                f"ROI Cơ sở {roi_b:.2f} < {roi_min:g}".replace(".", ",")) + " — chạy thử 1–2 tuần, theo dõi số hoá đơn và %cannib"
     else:
         dec, why = "SUA_CO_CHE", "lỗ ở kịch bản Cơ sở — đổi ưu đãi / ngưỡng / chi phí rồi đánh giá lại"
     for r in results:
         r["decision"], r["decision_note"] = dec, why
-    return results, fin, scheme_rows, base_rows, issues
+    fixes = fix_levers(pid, dec, run, econ, fixed_cost, cannib0, TF, roi_min) if dec in ("SUA_CO_CHE", "CHAY_THU") else []
+    return results, fin, scheme_rows, base_rows, issues, fixes
+
+
+# ─────────────────────────── CÁCH SỬA — 5 đòn bẩy ───────────────────────────
+def _solve(g, lo, hi, rising=True, it=40):
+    """Tìm x nhỏ nhất (rising) / lớn nhất (not rising) trong [lo, hi] để g(x) ≥ 0. g đơn điệu. Không có → None."""
+    a, b = (lo, hi) if rising else (hi, lo)          # a = phía "chưa đủ", b = phía "đủ nhất"
+    if g(b) < 0:
+        return None
+    if g(a) >= 0:
+        return a
+    for _ in range(it):
+        m = (a + b) / 2
+        if g(m) >= 0:
+            b = m
+        else:
+            a = m
+    return b
+
+
+def fix_levers(pid, dec, run, econ, fixed_cost, c0, TF, roi_min):
+    """Mỗi đòn bẩy: mức cần để HOÀ VỐN (EBITDA Cơ sở ≥ 0) và để DUYỆT (Thận trọng ≥ 0 và ROI Cơ sở ≥ ngưỡng),
+    giữ nguyên mọi giả định khác. Giải bằng chính bộ tính run() — không công thức riêng."""
+    tt = next(s["bills_mult"] for s in P["scenarios"] if s["code"] == "THAN_TRONG")
+
+    def goal(target, **kw):
+        base = run(**kw)
+        if target == "HOA_VON":
+            return base["ebitda"]
+        low = run(bills_mult=tt, **kw)
+        return min(low["ebitda"], base["ebitda"] - roi_min * base["spend"])
+
+    R = run()
+    B = R["bills"] or 0
+    promo_bill = (R["spend"] - (fixed_cost)) / B if B else 0.0            # giảm giá + quà + vật phẩm / HĐ (chưa VAT)
+    v_bill = sum(e["bill_v"] for e in econ) / len(econ) if econ else 0.0
+    targets = (["HOA_VON"] if dec == "SUA_CO_CHE" else []) + ["DUYET"]
+    out = []
+    fmt = lambda x: f"{x:,.0f}".replace(",", ".")          # noqa: E731
+    for tgt in targets:
+        rows = []
+        # A · %cannib — giới hạn đối tượng để bớt tặng cho khách vốn sẽ đến
+        x = _solve(lambda c: goal(tgt, cannib_fix=c), 0.0, c0, rising=False)
+        rows.append(dict(lever="CANNIB", current=c0, required=x,
+                         change=(c0 - x) / c0 if (x is not None and c0) else None,
+                         text=(f"%cannib từ {c0:.0%} xuống ≤ {x:.0%} — chỉ áp cho khách đặt trước / nhóm mới / khung giờ yếu"
+                               if x is not None else "giảm %cannib về 0 vẫn chưa đủ")))
+        # B · chi ưu đãi / hoá đơn (giảm giá + quà + vật phẩm)
+        if promo_bill > 0:
+            k = _solve(lambda k: goal(tgt, promo_k=k), 0.0, 1.0, rising=False)
+            rows.append(dict(lever="PROMO", current=promo_bill, required=None if k is None else promo_bill * k,
+                             change=None if k is None else 1 - k,
+                             text=(f"chi ưu đãi/HĐ từ {fmt(promo_bill)} xuống ≤ {fmt(promo_bill * k)} (−{1 - k:.0%})"
+                                   if k is not None else "bỏ hẳn ưu đãi vẫn chưa đủ")))
+        # C · giá trị hoá đơn tham gia (ngưỡng hoá đơn / upsell / giá set)
+        if v_bill > 0:
+            dv = _solve(lambda d: goal(tgt, v_add=d), 0.0, 3 * v_bill)
+            rows.append(dict(lever="VALUE", current=v_bill * TF, required=None if dv is None else (v_bill + dv) * TF,
+                             change=None if dv is None else dv / v_bill,
+                             text=(f"giá trị HĐ tham gia từ {fmt(v_bill * TF)} lên ≥ {fmt((v_bill + dv) * TF)} (+{dv / v_bill:.0%})"
+                                   if dv is not None else "tăng giá trị HĐ gấp 4 lần vẫn chưa đủ")))
+        # D · chi phí cố định (ads · KOL · in ấn · decor)
+        if fixed_cost > 0:
+            cut = _solve(lambda x: goal(tgt, fixed_cut=x), 0.0, fixed_cost)
+            rows.append(dict(lever="FIXED", current=fixed_cost, required=None if cut is None else fixed_cost - cut,
+                             change=None if cut is None else cut / fixed_cost,
+                             text=(f"chi phí cố định từ {fmt(fixed_cost)} xuống ≤ {fmt(fixed_cost - cut)} (cắt {fmt(cut)})"
+                                   if cut is not None else "cắt hết chi phí cố định vẫn chưa đủ")))
+        # E · số hoá đơn tham gia (quy mô)
+        m = _solve(lambda m: goal(tgt, bills_mult=m) if tgt == "HOA_VON" else
+                   min(run(bills_mult=tt * m)["ebitda"], run(bills_mult=m)["ebitda"] - roi_min * run(bills_mult=m)["spend"]),
+                   1.0, 10.0)
+        rows.append(dict(lever="BILLS", current=B, required=None if m is None else B * m,
+                         change=None if m is None else m - 1,
+                         text=(f"hoá đơn tham gia từ {fmt(B)} lên ≥ {fmt(B * m)} (+{m - 1:.0%})"
+                               if m is not None else "tăng số hoá đơn gấp 10 vẫn chưa đạt — phải sửa lãi trên mỗi hoá đơn trước")))
+        # chọn đòn bẩy cho "Việc cần làm": theo tầng ưu tiên ($preeval.fix_levers.tier — hành động bằng tiền
+        # trước, thu hẹp đối tượng sau, kết quả phụ thuộc khách cuối), trong tầng lấy mức đổi nhỏ nhất ≤ ngưỡng
+        tier = {x["code"]: x["tier"] for x in P["fix_levers"]}
+        ok = [r for r in rows if r["change"] is not None]
+        best = None
+        for t in sorted(set(tier.values())):
+            cand = [r for r in ok if tier[r["lever"]] == t and r["change"] <= P["fix_max_change"]]
+            if cand:
+                best = min(cand, key=lambda r: r["change"])
+                break
+        if best is None and ok:
+            best = min(ok, key=lambda r: r["change"])
+        for r in rows:
+            out.append(dict(program_id=pid, target=tgt, lever=r["lever"], current=r["current"], required=r["required"],
+                            change=r["change"], feasible=1 if r["change"] is not None else 0,
+                            best=1 if r is best else 0, text=r["text"]))
+    return out
 
 
 # ─────────────────────────── đầu vào chuẩn: sổ + file deck quý ───────────────────────────
@@ -459,8 +587,13 @@ def merge_inputs(progs, costs):
     deck = pre_analysis.deck_programs()
     so = {p["program_id"]: p for p in progs}
     so_cost = {c.get("program_id") for c in costs}
-    out, extra_costs = [], []
+    out, extra_costs, covered = [], [], {}
     for d in deck["programs"]:
+        if d["program_id"] not in so:
+            s = _so_match(d, progs, pre_analysis._same_program)
+            if s:                                     # sổ đã lập chương trình này (mã riêng) → dùng sổ, bỏ bản deck
+                covered.setdefault(s["program_id"], []).append(d)
+                continue
         s = so.pop(d["program_id"], None) or {}
         m = {k: v for k, v in d.items() if not k.startswith("_")}
         src = {k: "DECK" for k, v in m.items() if not _empty(v)}
@@ -472,10 +605,32 @@ def merge_inputs(progs, costs):
         out.append(m)
         if d["program_id"] not in so_cost:
             extra_costs += [dict(c, _src="DECK") for c in deck["costs"] if c["program_id"] == d["program_id"]]
-    for p in progs:                                   # chương trình chỉ có ở sổ
+    for p in progs:                                   # chương trình ở sổ
         if p["program_id"] in so:
-            out.append(dict(p, _src={k: "SO" for k, v in p.items() if not _empty(v)}, _hint={}, _source="SO"))
+            ds = covered.get(p["program_id"], [])
+            out.append(dict(p, _src={k: "SO" for k, v in p.items() if not _empty(v)}, _hint={},
+                            _source=f"SO · khớp {ds[0]['_file']}" if ds else "SO",
+                            _quarter=ds[0]["_quarter"] if ds else None))
+    if covered:
+        log(f"  file deck quý: {sum(len(ds) for ds in covered.values())} chương trình đã có ở sổ (mã riêng) — dùng sổ")
     return out, costs + extra_costs, deck["issues"]
+
+
+def _so_match(d, progs, same):
+    """Chương trình deck đã được lập ở sổ dưới mã khác? Cùng brand (hoặc sổ ghi ALL), tên khớp ≥ 0,6
+    và — nếu cả hai có ngày — kỳ chạy chồng nhau. Trả dòng sổ khớp nhất, không có → None."""
+    best, score = None, 0.6
+    for s in progs:
+        if str(s.get("brand") or "ALL").upper() not in (d["brand"], "ALL"):
+            continue
+        sc = same(d["name"], s.get("name"))
+        if sc < score or (best is not None and sc == score):
+            continue
+        a0, a1, b0, b1 = d.get("date_from"), d.get("date_to"), s.get("date_from"), s.get("date_to")
+        if a0 and a1 and b0 and b1 and (str(b0)[:10] > str(a1)[:10] or str(a0)[:10] > str(b1)[:10]):
+            continue
+        best, score = s, sc
+    return best
 
 
 def missing_fields(prog, has_scheme):
@@ -520,6 +675,74 @@ def pending_row(prog, miss, why=None):
                 campaign_id=prog.get("campaign_id"), input_source=prog["_source"], missing="|".join(miss) or None)
 
 
+# ─────────────────────────── HIỆU CHỈNH GIẢ ĐỊNH TỪ THỰC TẾ ───────────────────────────
+CALIB = {}
+
+
+def load_calib():
+    """Bảng hiệu chỉnh (pre_calib, do tools/campaign.py ghi) → {phương án: {cannib, part, n}}.
+    Chỉ dùng dòng usable (đã chốt · đo được lift · khoá TRƯỚC ngày chạy) và khi đủ $preeval.calib_min_n
+    chương trình cùng phương án — ít hơn thì giữ mặc định ở hợp đồng."""
+    from statistics import median
+    rows = read_workbook(os.path.join(DATA_INPUT, "03_campaign.xlsx"), {"pre_calib"}).get("pre_calib", [])
+    by = defaultdict(list)
+    for r in rows:
+        if int(_f(r.get("usable"), 0)) == 1 and r.get("lever"):
+            by[str(r["lever"]).upper()].append(r)
+    out = {}
+    for lv, rs in by.items():
+        if len(rs) >= P["calib_min_n"]:
+            cs = [_f(r.get("act_cannib")) for r in rs if _f(r.get("act_cannib")) is not None]
+            ps = [_f(r.get("act_part")) for r in rs if _f(r.get("act_part")) is not None]
+            out[lv] = dict(n=len(rs), cannib=median(cs) if cs else None, part=median(ps) if ps else None)
+    return out
+
+
+# ─────────────────────────── KHOÁ KẾ HOẠCH ───────────────────────────
+def lock_plans(progs, rows, today=None):
+    """Chụp dự báo Cơ sở / Thận trọng của chương trình khi DA_DUYET hoặc tới ngày bắt đầu → 05_plan_lock.xlsx.
+    Bộ tính M7.1 chạy lại mỗi lần cập nhật với nền POS mới nhất; sau khi chương trình chạy, nền đã chứa kỳ
+    chạy nên "kế hoạch" sẽ trôi theo thực tế. M7.2 chỉ so với bản khoá này.
+    Đã khoá thì giữ nguyên; chỉ gỡ khoá khi chưa tới ngày chạy VÀ sổ không còn ghi DA_DUYET (lập lại kế hoạch)."""
+    today = today or date.today()
+    old = {r["program_id"]: r for r in (read_workbook(LOCK, {"pre_plan_lock"}).get("pre_plan_lock", [])
+                                        if os.path.exists(LOCK) else [])}
+    by = {}
+    for r in rows:
+        by.setdefault(r["program_id"], {})[r["scenario"]] = r
+    meta = {p["program_id"]: p for p in progs}
+    out, n_new, n_free = {}, 0, 0
+    for pid, sc in by.items():
+        b, t, p = sc.get("CO_SO"), sc.get("THAN_TRONG"), meta.get(pid, {})
+        d0 = _d(p.get("date_from"))
+        approved = str(p.get("status") or "").upper() == "DA_DUYET"
+        started = bool(d0 and d0 <= today)
+        if pid in old:
+            if not started and not approved:
+                n_free += 1                                       # lập lại kế hoạch trước ngày chạy
+                continue
+            out[pid] = old[pid]
+            continue
+        if not (approved or started) or not b or b.get("decision") == "THIEU_SO":
+            continue
+        reason = ("KHOA_MUON" if d0 and d0 < today else "BAT_DAU") if started else "DA_DUYET"
+        bills = b.get("bills") or 0
+        out[pid] = dict(
+            program_id=pid, quarter=b.get("quarter"), locked_at=str(today), lock_reason=reason,
+            submitted=p.get("submitted"), name=b.get("name"), brand=b.get("brand"), stores=b.get("stores"),
+            date_from=b.get("date_from"), date_to=b.get("date_to"), objective=b.get("objective"), lever=b.get("lever"),
+            decision=b.get("decision"), bills=bills, tc_base=b.get("tc_base"), tc_share=b.get("tc_share"),
+            cannib_pct=b.get("cannib_pct"), net_incr=b.get("net_incr"), rev_incl=b.get("rev_incl"),
+            ebitda=b.get("ebitda_incr"), ebitda_low=t.get("ebitda_incr") if t else None, roi=b.get("roi"),
+            promo_cost=b.get("promo_cost"), program_cost=b.get("program_cost"),
+            gift_per_bill=_div(b.get("gift_cost") or 0, bills), other_cogs_pct=b.get("other_cogs_pct"),
+            opex_pct=b.get("opex_pct"))
+        n_new += 1
+    write_workbook(LOCK, {"pre_plan_lock": sorted(out.values(), key=lambda r: (str(r["quarter"]), r["program_id"]))},
+                   title="M7.1 · KẾ HOẠCH ĐÃ KHOÁ — M7.2 so thực tế với bản này. Sinh bởi tools/preeval.py, không sửa tay.")
+    log(f"  khoá kế hoạch: {len(out)} chương trình ({n_new} mới khoá · {n_free} gỡ khoá để lập lại)")
+
+
 def main():
     for _s in (sys.stdout, sys.stderr):
         try:
@@ -539,6 +762,9 @@ def main():
                              "pre_eval_input": []}, title="M7.1 · PRE-ANALYTICS — chưa có đầu vào")
         return 0
     daily, promo, menu, first, last = load_facts()
+    CALIB.update(load_calib())
+    if CALIB:
+        log("  hiệu chỉnh từ thực tế: " + " · ".join(f"{k} {v['n']} CT" for k, v in CALIB.items()))
     out = defaultdict(list)
     for p in progs:
         pid = p["program_id"]
@@ -549,7 +775,7 @@ def main():
         if miss:
             out["pre_eval"].append(pending_row(p, miss))
             continue
-        res, fin, sc_rows, base, iss = evaluate(
+        res, fin, sc_rows, base, iss, fx = evaluate(
             p, sch, [i for i in items if i.get("program_id") == pid], cst, opex, daily, promo, menu, first, last)
         issues += iss
         if not res:
@@ -564,10 +790,13 @@ def main():
         out["pre_eval_fin"] += fin
         out["pre_eval_scheme"] += sc_rows
         out["pre_eval_base"] += base
+        out["pre_eval_fix"] += fx
     write_workbook(OUT, dict(out), title="M7.1 · PRE-ANALYTICS — sinh tự động bởi tools/preeval.py")
+    lock_plans(progs, out["pre_eval"])
     base = [r for r in out["pre_eval"] if r["scenario"] == "CO_SO"]
-    n_deck = sum(1 for p in progs if p["_source"] != "SO")
-    log(f"  sổ: {os.path.basename(path) if path else '—'} · {len(progs)} chương trình ({n_deck} từ file deck quý)")
+    n_deck = sum(1 for p in progs if p["_source"].startswith("DECK"))
+    n_match = sum(1 for p in progs if p["_source"].startswith("SO · khớp"))
+    log(f"  sổ: {os.path.basename(path) if path else '—'} · {len(progs)} chương trình · {n_match} khớp file deck quý · {n_deck} chỉ có ở file deck")
     for r in base:
         if r["decision"] == "THIEU_SO":
             log(f"   {r['program_id']:<26} THIEU_SO    {r['decision_note']}")
