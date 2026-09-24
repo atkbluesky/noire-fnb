@@ -43,8 +43,11 @@ export async function handleZaloWebhook(req: Request, env: ZaloEnv = process.env
     });
     return json(200, { ok: true, inserted, duplicate: !inserted });
   } catch (error) {
-    console.error('[zalo-webhook]', error);
     const message = error instanceof Error ? error.message : 'UNKNOWN';
+    // Một App liên kết nhiều OA (vd Dining + Bistro) thì webhook nhận event của mọi OA.
+    // Event không thuộc ZALO_OA_ID: trả 200 để Zalo không gửi lại, không lưu gì.
+    if (message === 'WEBHOOK_OA_ID_INVALID') return json(200, { ok: true, ignored: 'OA_NOT_TRACKED' });
+    console.error('[zalo-webhook]', error);
     if (message === 'DATABASE_URL_NOT_CONFIGURED') return json(503, { ok: false, code: 'NOT_CONFIGURED' });
     return json(500, { ok: false, error: 'Không lưu được webhook' });
   }

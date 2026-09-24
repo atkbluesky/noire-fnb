@@ -17,6 +17,8 @@ export interface ZaloDailyMetric {
 export interface ZaloPerformanceResponse {
   ok: true;
   source: string;
+  /** Tên OA từ snapshot getoa gần nhất — để biết đang xem OA nào (Dining/Bistro…). */
+  oaName: string | null;
   period: ZaloPeriod;
   window: { start: string; end: string };
   metrics: {
