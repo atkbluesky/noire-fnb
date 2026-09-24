@@ -37,7 +37,7 @@ const statusVariant = (s: string | null) =>
 
 const Flags: React.FC<{ flags: string[] }> = ({ flags }) =>
   flags.length ? (
-    <div className="space-y-1 py-0.5">
+    <div className="space-y-1 py-0.5 whitespace-normal">
       {flags.map(f => (
         <div key={f} className="text-[10px] text-status-warning leading-tight flex items-start gap-1">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-warning flex-shrink-0 mt-1" />
@@ -137,8 +137,7 @@ export const PartnershipView: React.FC = () => {
   /* Tên file CSV mang kỳ lọc: mở file ra là biết số của tháng nào, không lẫn với lần xuất trước. */
   const csvPeriod = ms.length ? (ms.length === 1 ? ms[0] : `${ms[0]}_${ms[ms.length - 1]}`) : 'khong_ky';
 
-  /* Cổng chuẩn hoá đầu vào — file lạ đã nạp vào schema chuẩn (tools/l0_ingest.py). */
-  const ingest = MKT_DATA.partner_ingest || [];
+
 
   const ranked = active.slice().sort((a, b) => a.t.net - b.t.net);
   const rankOption: EChartsOption = {
@@ -207,11 +206,12 @@ export const PartnershipView: React.FC = () => {
   /* ── Cột dùng chung: Đối tác và Kỳ hạn tách riêng, Doanh thu và AOV tách riêng ── */
   const colPartner: Column<Row> = {
     key: 'name', header: 'ĐỐI TÁC',
+    width: '180px',
     exportValue: r => ({ 'Mã ĐT': r.code, 'Đối tác': r.name, 'Kênh': r.channel, 'Loại': r.kind ?? '',
       'Brand áp dụng': r.brand ?? '', 'Cửa hàng áp dụng': r.stores ?? '', 'Nguồn số': r.source,
       'Người phụ trách': r.owner ?? '', 'Ghi chú': r.note ?? '' }),
     render: r => (
-      <div className="py-1 min-w-[120px]">
+      <div className="py-1 min-w-[120px] max-w-[200px] whitespace-normal break-words">
         <div className="font-bold text-[13px] leading-tight text-brand-text">{r.name}</div>
       </div>
     ),
@@ -219,16 +219,17 @@ export const PartnershipView: React.FC = () => {
 
   const colTerm: Column<Row> = {
     key: 'term', header: 'KỲ HẠN',
+    width: '125px',
     exportValue: r => ({ 'Trạng thái': r.status ?? '', 'Bắt đầu HĐ': r.start ?? '', 'Kết thúc HĐ': r.end ?? '' }),
     render: r => {
       const validStart = r.start && r.start !== '—' && r.start !== '-' ? r.start : null;
       const validEnd = r.end && r.end !== '—' && r.end !== '-' ? r.end : null;
-      const hasDates = validStart || validEnd;
+      const dateText = validStart && validEnd ? `${validStart} → ${validEnd}` : validStart ? `Từ ${validStart}` : validEnd ? `Đến ${validEnd}` : null;
       return (
-        <div className="space-y-1 py-1 min-w-[110px]">
+        <div className="space-y-1 py-1 min-w-[105px] whitespace-normal">
           <StatusBadge label={r.status ?? 'Chưa khai'} variant={statusVariant(r.status)} />
-          {hasDates ? (
-            <div className="font-mono text-[10px] text-brand-faint">{validStart ?? '…'} → {validEnd ?? '…'}</div>
+          {dateText ? (
+            <div className="font-mono text-[10px] text-brand-faint">{dateText}</div>
           ) : (
             <div className="text-[10px] text-brand-faint italic">—</div>
           )}
@@ -239,6 +240,7 @@ export const PartnershipView: React.FC = () => {
 
   const colOffer: Column<Row> = {
     key: 'offer', header: 'CHƯƠNG TRÌNH · CƠ CHẾ ƯU ĐÃI',
+    width: '280px',
     exportValue: r => ({
       'Số chương trình': r.programs.length,
       'Chương trình · ưu đãi': r.programs.map(g =>
@@ -248,25 +250,33 @@ export const PartnershipView: React.FC = () => {
       'Tên CTKM trên POS': r.programs.map(g => g.pos_name).filter(Boolean).join(' · '),
     }),
     render: r => r.programs.length ? (
-      <div className="max-w-[340px] min-w-[200px] space-y-1.5 py-1">
-        {r.programs.map(g => {
+      <div className="max-w-[300px] min-w-[200px] space-y-2 py-1 whitespace-normal break-words">
+        {r.programs.map((g, idx) => {
           const validStart = g.start && g.start !== '—' && g.start !== '-' ? g.start : null;
           const validEnd = g.end && g.end !== '—' && g.end !== '-' ? g.end : null;
           const hasDates = validStart || validEnd;
-          const dateStr = hasDates ? `${validStart ?? '…'} → ${validEnd ?? '…'}` : '';
+          const dateStr = validStart && validEnd ? `${validStart} → ${validEnd}` : validStart ? `Từ ${validStart}` : validEnd ? `Đến ${validEnd}` : '';
           return (
-            <div key={g.prog} className="text-[11px] leading-snug">
-              <div className="flex items-baseline gap-1.5 flex-wrap">
+            <div key={g.prog} className={`text-[11px] leading-snug ${idx > 0 ? 'pt-1.5 border-t border-brand-border/30' : ''}`}>
+              <div className="text-brand-text font-medium break-words">
                 {g.brand && (
-                  <span className="inline-block rounded bg-brand-gold/15 border border-brand-gold/30 px-1 py-0.2 text-[9px] font-semibold text-brand-gold uppercase tracking-wider">
+                  <span className={`inline-block mr-1.5 px-1 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider align-middle ${
+                    g.brand === 'TẤT CẢ'
+                      ? 'bg-brand-surface border border-brand-border text-brand-muted'
+                      : 'bg-brand-gold/15 border border-brand-gold/30 text-brand-gold'
+                  }`}>
                     {g.brand}
                   </span>
                 )}
-                <span className="text-brand-text font-medium">{offerText(g)}</span>
+                <span>{offerText(g)}</span>
               </div>
               {(g.mech || hasDates || g.condition) && (
-                <div className="text-[10px] text-brand-faint mt-0.5">
-                  {[g.mech, dateStr, g.condition].filter(Boolean).join(' · ')}
+                <div className="text-[10px] text-brand-muted mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  {g.mech && <span className="text-brand-muted font-normal">{g.mech}</span>}
+                  {g.mech && (dateStr || g.condition) && <span className="text-brand-faint">·</span>}
+                  {dateStr && <span className="font-mono text-brand-faint">{dateStr}</span>}
+                  {dateStr && g.condition && <span className="text-brand-faint">·</span>}
+                  {g.condition && <span className="text-brand-faint">{g.condition}</span>}
                 </div>
               )}
             </div>
@@ -348,9 +358,10 @@ export const PartnershipView: React.FC = () => {
 
   const colFlags: Column<Row> = {
     key: 'flags', header: 'CẦN XỬ LÝ',
+    width: '120px',
     exportValue: r => ({ 'Cần xử lý': r.flags.join(' · '), 'Cách nhận số': r.bases.join(' · '),
       'Tháng đầu': r.first ?? '', 'Tháng cuối': r.last ?? '' }),
-    render: r => <div className="max-w-[180px] min-w-[90px]"><Flags flags={r.flags} /></div>,
+    render: r => <div className="max-w-[160px] min-w-[70px] whitespace-normal"><Flags flags={r.flags} /></div>,
   };
 
   /* ── AGGREGATOR — 8 cột: Đối tác, Kỳ hạn, Cơ chế, Hoa hồng/phí, Booking/HĐ/khách, DOANH THU, AOV, Chi phí, Cần xử lý ── */
@@ -360,12 +371,13 @@ export const PartnershipView: React.FC = () => {
     colOffer,
     {
       key: 'terms', header: 'HOA HỒNG · PHÍ HĐ',
+      width: '150px',
       exportValue: r => ({ 'Hoa hồng nền tảng (%)': r.commission_pct ?? '', 'Phí cố định/tháng (đ)': r.fee_month ?? '',
         'Phí theo': r.fee_unit ?? '', 'Phí mỗi booking/khách (đ)': r.fee_unit_amount ?? '',
         'Ai tài trợ ưu đãi': r.sponsor ?? '', '% NOIRE chịu ưu đãi': r.noire_share,
         'Media quy đổi (đ)': r.media ?? '' }),
       render: r => (
-        <div className="space-y-0.5 text-[11px] leading-tight py-1 min-w-[100px]">
+        <div className="space-y-0.5 text-[11px] leading-tight py-1 min-w-[100px] whitespace-normal">
           {r.commission_pct ? (
             <div className="font-semibold text-brand-text">HH {formatPercent(r.commission_pct, 1)}</div>
           ) : null}
@@ -411,11 +423,12 @@ export const PartnershipView: React.FC = () => {
     colOffer,
     {
       key: 'terms', header: 'PHÍ HĐ · CHIẾT KHẤU',
+      width: '160px',
       exportValue: r => ({ 'Phí hợp tác (đ)': r.fee ?? '', 'Kỳ tính phí': r.fee_period ?? '',
         'Chiết khấu cho đối tác (%)': r.commission_pct ?? '', '% NOIRE chịu ưu đãi': r.noire_share,
         'Media quy đổi (đ)': r.media ?? '' }),
       render: r => (
-        <div className="space-y-0.5 text-[11px] leading-tight py-1 min-w-[110px]">
+        <div className="space-y-0.5 text-[11px] leading-tight py-1 min-w-[110px] whitespace-normal">
           <div className="font-medium text-brand-text">
             {r.fee ? `${formatVND(r.fee)}${r.fee_period ? ` · ${r.fee_period.toLowerCase()}` : ''}` : 'Không phí HĐ'}
           </div>
@@ -520,7 +533,7 @@ export const PartnershipView: React.FC = () => {
         label={meta?.short ?? ch}
         subLabel={meta?.label}
         value={formatVND(t.net)}
-        customDeltaText={`${formatNumber(t.bills)} HĐ · ${T.net ? formatPercent(t.net / T.net, 0) : '—'} đối tác${t.net_self ? ` · ${formatVND(t.net_self)} tự thống kê` : ''}`}
+        customDeltaText={`${formatNumber(t.bills)} HĐ · ${T.net ? formatPercent(t.net / T.net, 0) : '—'} đối tác${t.net_self ? ` · ${formatVND(t.net_self)} ngoài POS` : ''}`}
       />
     );
   };
@@ -533,7 +546,7 @@ export const PartnershipView: React.FC = () => {
         <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">M9 · Partnership — Aggregator + Partner</h2>
         <p className="text-xs text-brand-muted mt-1">
           {CHANNELS.map(c => `${c.short}: ${c.label.split('·').slice(1).join('·').trim() || c.label}`).join(' — ')}.
-          {' '}Doanh thu = Tổng tiền hoá đơn (cùng cách tính Net Sales). Cùng một bảng số với thẻ “Đối tác” ở M7.
+          {' '}Theo dõi hiệu quả doanh thu, chi phí ưu đãi và hoa hồng đối tác theo thời gian thực.
         </p>
       </div>
 
@@ -549,17 +562,17 @@ export const PartnershipView: React.FC = () => {
         {CHANNELS.map(c => chCard(c.code))}
         <MetricCard
           label="Chi Phí Đối Tác"
-          subLabel="Ưu đãi NOIRE chịu + phí"
+          subLabel="Ưu đãi NOIRE chịu + phí hợp tác"
           value={formatVND(cost(T))}
           variant={T.net && cost(T) / T.net > 0.3 ? 'warning' : 'default'}
-          customDeltaText={`${T.net ? formatPercent(cost(T) / T.net) : '—'} DT đối tác · ưu đãi ${formatVND(T.cost)} · phí ${formatVND(T.fee)}${T.fee_est ? ` (ước tính ${formatVND(T.fee_est)})` : ''}`}
+          customDeltaText={`${T.net ? formatPercent(cost(T) / T.net) : '—'} DT đối tác · Ưu đãi ${formatVND(T.cost)} · Phí ${formatVND(T.fee)}${T.fee_est ? ` (ước tính ${formatVND(T.fee_est)})` : ''}`}
         />
         <MetricCard
           label="Mã eVoucher Đối Tác"
-          subLabel="Phát → dùng trong kỳ"
+          subLabel="Phát → Dùng trong kỳ"
           value={vIssued || vUsed ? `${formatNumber(vUsed)} / ${formatNumber(vIssued)}` : '—'}
           variant={vIssued && vUsed / vIssued < 0.05 ? 'warning' : 'default'}
-          customDeltaText={vIssued ? `tỷ lệ dùng ${formatPercent(vUsed / vIssued, 1)} · ${active.length}/${all.length} đối tác phát sinh` : `${active.length}/${all.length} đối tác phát sinh`}
+          customDeltaText={vIssued ? `Tỷ lệ dùng ${formatPercent(vUsed / vIssued, 1)} · ${active.length}/${all.length} đối tác phát sinh` : `${active.length}/${all.length} đối tác phát sinh`}
         />
       </div>
 
@@ -630,26 +643,8 @@ export const PartnershipView: React.FC = () => {
           : <p className="py-6 text-center text-xs text-brand-muted">Chưa có log eVoucher</p>}
       </Card>
 
-      {ingest.length > 0 && (
-        <div className="rounded-lg border border-brand-border/70 bg-brand-surface/40 p-3 text-[10px] leading-relaxed text-brand-faint">
-          <span className="font-semibold text-brand-muted">Cổng chuẩn hoá đầu vào</span>
-          {' '}— file trong thư mục nguồn không đúng mẫu chuẩn được nạp vào đúng cột chuẩn; file chuẩn luôn thắng từng ô:
-          <ul className="mt-1 space-y-1">
-            {ingest.map(r => (
-              <li key={`${r.source}|${r.file}`}>
-                <span className="font-mono text-brand-muted">{r.file}</span>
-                {r.adapter ? <> → {r.note}</> : <span className="text-status-warning"> → chưa có bộ chuyển, file KHÔNG được đọc</span>}
-                {r.applied && <div className="pl-3 text-brand-muted">đã điền: {r.applied}</div>}
-                {r.miss && <div className="pl-3 text-status-warning">cần bổ sung: {r.miss}</div>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <p className="text-[10px] text-brand-faint">
-        Mẫu số % DT chuỗi: {formatVND(chainNet)} ({ms.length ? `${formatMonthLabel(ms[0])} → ${formatMonthLabel(ms[ms.length - 1])}` : '—'} · theo brand và phạm vi cửa hàng đang lọc).
-        {' '}Nhập liệu: danh mục L0_input/05_DOI_TAC/01_Danh_Muc/NOIRE_Doi_Tac_Partner_Aggregator.xlsx · số aggregator theo tháng 05_DOI_TAC/03_Aggregator/NOIRE_Aggregator_Theo_Thang.xlsx · log eVoucher 05_DOI_TAC/02_eVoucher_Doi_Tac.
+        * Tỷ lệ % DT chuỗi được tính trên tổng doanh thu chuỗi {formatVND(chainNet)} ({ms.length ? `${formatMonthLabel(ms[0])} → ${formatMonthLabel(ms[ms.length - 1])}` : '—'} theo phạm vi đang lọc).
       </p>
     </div>
   );

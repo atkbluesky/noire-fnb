@@ -39,7 +39,8 @@ cứ thả file là hệ thống tự cập nhật sau khi file chép xong.
 | `03_MARKETING/08_Bao_Cao_MKT_Thang` | Báo cáo marketing tháng (Promotion-AGG) |  | `*Promotion AGG*.xlsx` |
 | `03_MARKETING/07_Campaign_Tracking` | M7 · Danh mục chương trình (master chung M7 · M7.1 · M7.2) |  | `Campaign_Tracking*.xlsx` |
 | `04_CRM/01_Voucher_iPOS` | Nhật ký voucher iPOS |  | `exportVoucherLogOfCampaign_*.xlsx` |
-| `04_CRM/02_Zalo_OA` | Zalo OA export (legacy) |  | `OA Zalo T*.xls*` |
+| `04_CRM/02_Zalo_OA` | Zalo OA export — Thống kê Tổng quan |  | `OA Zalo T*.xls*` |
+| `04_CRM/05_Zalo_OA_Follower` | Zalo OA · Tổng người quan tâm (nhập tay) |  | `Zalo_OA_Follower*.xlsx` |
 | `04_CRM/03_Member` | Member đăng ký (CRM Dashboard đã làm sạch) |  | `CRM_Dashboard*.xlsx | member_actual*.xlsx` |
 | `04_CRM/04_KPI_CRM` | KPI CRM theo quý |  | `*KPI CRM*.xlsx` |
 | `05_DOI_TAC/01_Danh_Muc` | Danh mục đối tác — Partner + Aggregator |  | `NOIRE_Doi_Tac*.xlsx` |

@@ -31,7 +31,7 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 
 ## Dùng cho
 
-- Bảng dữ liệu: channel, daypart, identify, fact_promo_day, nature, recon, heat, zone, staff, payment, dwell, repeat
+- Bảng dữ liệu: channel, daypart, identify, fact_promo_day, nature, recon, daily_party, heat, zone, staff, payment, dwell, repeat
 - Màn hình: M1, M3, M7, M7.2, M8
 - Xử lý bởi: tools/build_month.py · build_hub.py
 

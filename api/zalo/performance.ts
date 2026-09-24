@@ -50,9 +50,11 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
       outgoing_messages: number;
       unique_chat_users: number;
       conversations: number;
+      new_followers: number;
+      unfollowers: number;
       message_types: Record<string, number>;
     }[]>`select metric_date::text, follower_total, follower_net, incoming_messages,
-        outgoing_messages, unique_chat_users, conversations, message_types
+        outgoing_messages, unique_chat_users, conversations, new_followers, unfollowers, message_types
       from zalo_oa_daily_metric
       where oa_id = ${oaId} and metric_date between ${window.start}::date and ${window.end}::date
       order by metric_date`;
@@ -94,6 +96,8 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
         outgoingMessages: rows.reduce((sum, row) => sum + num(row.outgoing_messages), 0),
         uniqueChatUsers: num(rangeUnique?.n),
         conversations: rows.reduce((sum, row) => sum + num(row.conversations), 0),
+        newFollowers: rows.reduce((sum, row) => sum + num(row.new_followers), 0),
+        unfollowers: rows.reduce((sum, row) => sum + num(row.unfollowers), 0),
       },
       messageTypes,
       daily: rows.map(row => ({
@@ -104,6 +108,8 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
         outgoingMessages: num(row.outgoing_messages),
         uniqueChatUsers: num(row.unique_chat_users),
         conversations: num(row.conversations),
+        newFollowers: num(row.new_followers),
+        unfollowers: num(row.unfollowers),
       })),
       freshness,
       definitions: {

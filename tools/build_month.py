@@ -13,7 +13,7 @@ nên chạy lại không xoá mất phần nhập tay.
 
 NGUỒN ĐỌC: L0_input/ theo sổ đăng ký data_sources.json (xem tools/l0_registry.py).
   python tools/build_month.py 2026-08 --parts=meta,oa   chỉ dựng lại vài phần
-  Phần hợp lệ: tracking · pos · meta · google · social · oa · member · promotion ·
+  Phần hợp lệ: tracking · pos · meta · google · social · oa · oa_follower · member · promotion ·
                booking · partnership
 Thường không cần gọi trực tiếp — update.py tự chọn tháng + phần cần dựng.
 """
@@ -673,11 +673,66 @@ def read_oa(month):
     if not idx:
         warn(f"{os.path.basename(hit)}: không nhận ra cột nào")
         return {}
-    rec = {"month": month, "days": len(data)}
-    for k, j in idx.items():
-        rec[k] = round(sum(to_num(r[j], 0) or 0 for r in data if len(r) > j))
+    # Giữ grain NGÀY (`oa_daily`) cho M8.1 — bản cũ chỉ ghi tổng tháng nên màn hình
+    # không vẽ được trend/7D. Cột ngày của export là `dd/mm`, năm lấy từ tháng của file.
+    year = month[:4]
+    daily = []
+    for r in data:
+        m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})", str(r[0] if r else ""))
+        if not m:
+            continue
+        d = f"{year}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+        if d[:7] != month:
+            continue
+        row = {"date": d}
+        for k, j in idx.items():
+            row[k] = round(to_num(r[j], 0) or 0) if len(r) > j else None
+        daily.append(row)
+    rec = {"month": month, "days": len(daily) or len(data)}
+    for k in idx:
+        rec[k] = sum(r[k] or 0 for r in daily) if daily else \
+            round(sum(to_num(r[idx[k]], 0) or 0 for r in data if len(r) > idx[k]))
     log(f"      Zalo OA: {rec['days']} ngày · quan tâm {rec.get('follows', 0)}")
-    return {"oa": [rec]}
+    return {"oa": [rec], "oa_daily": daily} if daily else {"oa": [rec]}
+
+
+def read_oa_follower(month):
+    """Sổ nhập tay `Zalo_OA_Follower*.xlsx` — Tổng người quan tâm (snapshot) và Bỏ quan tâm.
+    Export OA Manager › Tổng quan KHÔNG có hai trường này; OpenAPI `getoa` thì chưa nối được.
+    Ô trống = chưa nhập, KHÔNG phải 0 — không suy tổng follower từ luỹ kế `Quan tâm`."""
+    path = l0_latest("S26_zalo_follower")
+    if not path:
+        return {}
+    rows = sheet_rows(path, "Follower") if "Follower" in _sheet_names(path) else sheet_rows(path)
+    c0 = rows[0] if rows else {}
+    k_d = col(c0, exact="Ngày") or col(c0, "ngày", "date")
+    k_t = col(c0, "tổng người quan tâm", "tổng follower")
+    k_u = col(c0, "bỏ quan tâm")
+    out = []
+    for r in rows:
+        d = date_of(r.get(k_d)) if k_d else None
+        if not d or d[:7] != month:
+            continue
+        tot = to_num(r.get(k_t)) if k_t else None
+        unf = to_num(r.get(k_u)) if k_u else None
+        if tot is None and unf is None:
+            continue
+        out.append({"date": d, "follower_total": None if tot is None else round(tot),
+                    "unfollows": None if unf is None else round(unf)})
+    if not out:
+        return {}
+    last = max((r for r in out if r["follower_total"] is not None), key=lambda r: r["date"], default=None)
+    note = "chưa có tổng" if not last else "tổng {} ngày {}".format(last["follower_total"], last["date"])
+    log(f"      Zalo follower: {len(out)} dòng · {note}")
+    return {"oa_follower": out}
+
+
+def _sheet_names(path):
+    from openpyxl import load_workbook
+    wb = load_workbook(path, read_only=True)
+    names = wb.sheetnames
+    wb.close()
+    return names
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1447,6 +1502,7 @@ BUILDERS = [
     ("google", "Google Ads", read_google_ads, ["S09_ads_google"]),
     ("social", "Social · Facebook + TikTok", read_social, ["S18_social", "S22_tiktok"]),
     ("oa", "Zalo OA", read_oa, ["S12_zalo_oa"]),
+    ("oa_follower", "Zalo OA · tổng người quan tâm", read_oa_follower, ["S26_zalo_follower"]),
     ("member", "Member đăng ký", read_member, ["S13_member"]),
     ("promotion", "Chi phí ngoài media (báo cáo MKT)", read_promotion, ["S25_mkt_report"]),
     ("booking", "Booking tiệc", read_booking, ["S07_lead"]),
@@ -1462,7 +1518,8 @@ PART_SHEETS = {
     "meta": ["ads_month", "ads_brand", "ads_objective", "ads_campaign_detail"],
     "google": ["ads_google", "gads_channel", "gads_kw"],
     "social": ["social_month"],
-    "oa": ["oa"],
+    "oa": ["oa", "oa_daily"],
+    "oa_follower": ["oa_follower"],
     "member": ["member"],
     "promotion": ["budget_nonmedia"],
     "booking": ["booking"],

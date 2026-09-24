@@ -30,6 +30,21 @@ chương trình ALL → NJFB T8 hiện 4,09 tỷ. Số đúng (POS): **269,0 tr 
 **Đối soát T1–T9/2026:** tổng hoá đơn + Tổng tiền CTKM trên màn hình = `fact_promo_day` (bỏ INTERNAL) khớp từng đồng mỗi tháng,
 trừ 3 mã giảm tay đã để CANCELLED (không phải chương trình): *Chiết khấu trực tiếp* · *Mã Xử Lý Tình Huống KH (FOC 100%)* · *Giảm giá trực tiếp* — tổng 5 hoá đơn, 368K.
 
+## ⓪b Kế hoạch M7.1 làm chuẩn so sánh · lọc theo quý *(23/09/2026)*
+
+| Câu hỏi | Trả lời trong hệ thống |
+|---|---|
+| Kế hoạch lấy ở đâu? | Bản **đã khoá** của M7.1 (`data_input/05_plan_lock.xlsx`) — chụp khi DA_DUYET hoặc tới ngày chạy, không trôi theo nền POS |
+| Nối bằng gì? | Cột `campaign_id` ở sổ M7.1 (`Pre_Analysis_2026.xlsx`) = `campaign_id` ở `Campaign_Tracking` |
+| Target? | DT tăng thêm kế hoạch (quy về gồm VAT như POS). Kế hoạch Q3 cũ (`pre_id`) giữ cách chấm cũ; target khai tay thắng |
+| Thực tế? | POS (Tên CTKM / món LTO) + ads tự động + chi phí `campaign_cost.actual`; EBITDA **cùng công thức M7.1** |
+| Quý? | Quý của kế hoạch M7.1; chưa nối thì quý của ngày chạy — chip **Quý** trên màn hình |
+| Sau khi chạy? | Mỗi chương trình đã nối ghi 1 dòng `pre_calib` → M7.1 hiệu chỉnh %cannib · %tham gia mặc định (xem M7_1 §0.11) |
+
+Chi tiết từng chương trình có khối **Kế hoạch M7.1 ↔ Thực tế** (HĐ · %tham gia · %cannib · DT tăng thêm · EBITDA · ROI).
+Dữ liệu thực tế còn phải nhập tay: Tên CTKM trên POS cho mọi chương trình (món tặng = dòng giảm 100%, vật phẩm = mã hàng 0đ),
+chi phí ngoài POS ở `campaign_cost.actual`, `campaign_id` ở sổ M7.1.
+
 ## 0. Vì sao phải tách M7.2 ra khỏi M7
 
 M7 hiện trả lời đúng **một** câu: *“tiền ưu đãi đang chảy vào đâu”*. Nó phân loại 4 bản chất,

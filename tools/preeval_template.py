@@ -64,6 +64,7 @@ PROGRAM_COLS = [
     ("participation_pct", "% hoá đơn cửa hàng tham gia (0–1). Trống = 3%. Tra CTKM tương tự ở NEN_CTKM."),
     ("est_bills", "Tổng hoá đơn tham gia dự kiến (ghi đè participation_pct)."),
     ("cannib_pct", "% hoá đơn tham gia mà KHÔNG có chương trình khách vẫn đến (0–1). Trống = mặc định theo phương án."),
+    ("uplift_pct", "Khách vốn sẽ đến đổi mức chi khi tham gia (0,2 = chi thêm 20% giá trị hoá đơn; âm = chi ít hơn). Trống = 0; set đồng giá = 1 − TA × khách ÷ giá set."),
     ("other_cogs_pct", "Giá vốn % của các món khác trong hoá đơn. Trống = mặc định theo brand (Kế toán khoá)."),
     ("note", "Ghi chú."),
 ]
@@ -83,8 +84,7 @@ SCHEME_COLS = [
     ("stock_qty", "Số lượng quà / suất giới hạn — hoá đơn tham gia không vượt quá số này."),
     ("share_pct", "Tỷ trọng nhu cầu của scheme trong chương trình (0–1). Trống = chia đều."),
     ("est_bills", "Hoá đơn dự kiến riêng scheme (ghi đè)."),
-    ("bill_value", "Giá trị menu 1 hoá đơn tham gia (ghi đè). Trống = max(min_bill, AOV nền + phần món gọi thêm)."),
-    ("item_add_pct", "Phần giá trị món chương trình là GỌI THÊM (0–1). Trống = mặc định theo ưu đãi."),
+    ("bill_value", "Giá trị menu 1 hoá đơn tham gia (ghi đè). Trống = giá bộ món (set đồng giá / món mới) · TA × min_guests · max(AOV nền; min_bill × 1,2) · AOV nền."),
     ("note", "Ghi chú."),
 ]
 ITEM_COLS = [

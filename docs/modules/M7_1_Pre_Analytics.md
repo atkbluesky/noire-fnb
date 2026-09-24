@@ -50,42 +50,48 @@ chương trình và báo lãi 59,9 tr — không tách khách vốn sẽ đến.
 
 Tạo sổ: `python tools/preeval_template.py` · làm mới dữ liệu nền: `--refresh`.
 
-### 0.3 Công thức (tools/preeval.py)
+### 0.3 Công thức (tools/preeval.py) — thống nhất với sổ Q4/2026 *(23/09/2026)*
 
-Mọi tiền tính trên **giá menu** (POS "Thanh toán trước giảm giá") rồi quy đổi bằng **hệ số thuế/phí đo từ POS
-của chính cửa hàng đó** (NDC_NTMK 1,13 · NCB 1,00 vì giá đã gồm VAT): `Tổng tiền = (menu − giảm) × hệ số` ·
-`Doanh thu thuần = Tổng tiền ÷ 1,08`.
+Mọi tiền tính trên **giá menu** rồi quy đổi bằng **hệ số thuế/phí đo từ POS** của chính cửa hàng đó
+(NDC_NTMK 1,13 · NCB 1,00): `Tổng tiền = (menu − giảm) × hệ số` · `Doanh thu thuần = Tổng tiền ÷ 1,08`.
 
 ```
-1 BASE        56 ngày trước ngày bắt đầu (bỏ lễ, lọc đúng thứ chạy) → run-rate/ngày × số ngày chạy
-2 1 HOÁ ĐƠN   giá trị = max(min_bill ; AOV nền + món CT × %gọi thêm)      GROUP_SIZE: TA × số khách
-              giảm    = theo benefit     giá vốn = món CT (BOM) + món tặng + món khác × COGS% nền
-              quà     = đơn giá × (1+VAT)
-3 SỐ HOÁ ĐƠN  est_bills | participation% × TC nền   — không vượt stock_qty
-4 FINANCIAL   Có KM     = Σ hoá đơn × kinh tế 1 hoá đơn
-  EVALUATION  Ăn mòn    = %cannib × hoá đơn tham gia × giá trị 1 hoá đơn NỀN
-              Không KM  = Base − Ăn mòn          Tổng = Không KM + Có KM          Tăng thêm = Tổng − Base
-              %Cannib   = (Base − Không KM) ÷ Không KM                            (đúng định nghĩa PP672)
-5 EBITDA      LN gộp tăng thêm − quà − chi phí chương trình − Σ ty_le_chi_phi(VARIABLE) × DT thuần tăng thêm
-6 KỊCH BẢN    Thận trọng: hoá đơn ×0,7 · cannib +15pp · COGS +2pp   Cơ sở   Lạc quan: ×1,3 · cannib −10pp
-  HOÀ VỐN     số hoá đơn cần để EBITDA = 0 · %cannib tối đa còn hoà vốn · % TC cần tham gia để hết quà · số ngày hết quà
-7 QUYẾT ĐỊNH  DUYỆT CHẠY (Cơ sở > 0 & Thận trọng ≥ 0) · CHẠY THỬ CÓ ĐIỀU KIỆN (Cơ sở > 0) · SỬA CƠ CHẾ · BRANDING
+1 BASE        56 ngày trước ngày bắt đầu (bỏ lễ, lọc đúng thứ chạy) → run-rate/ngày × số ngày chạy × season_factor
+2 1 HOÁ ĐƠN   V = bill_value | giá bộ món (set FIXED_PRICE / món mới NONE) | TA × min_guests
+                | max(AOV nền; min_bill × 1,2) | AOV nền                       (không nhỏ hơn giá bộ món)
+              giảm d = V×% | món×% | số tiền | V − giá set          quà = GV món tặng + vật phẩm × (1+VAT)
+              giá vốn HĐ mới K = món REQUIRED (BOM) + (V − giá bộ món) × COGS% nền
+3 SỐ HOÁ ĐƠN  B = est_bills | participation% × TC nền — không vượt stock_qty
+4 KHÁCH       mới      B × (1 − %cannib) → mang cả hoá đơn V, giá vốn K
+              vốn có   B × %cannib       → giữ hoá đơn thường, đổi mức chi u × V (uplift_pct;
+                                           set đồng giá mặc định u = 1 − TA × khách ÷ V), VẪN nhận ưu đãi (cộng dồn)
+  FINANCIAL   Có KM = B hoá đơn tham gia · Không KM = Base − phần khách vốn có · Tăng thêm = Tổng − Base
+5 EBITDA      DT thuần tăng thêm − GV tăng thêm − quà − chi phí chương trình (CHƯA VAT) − opex biến đổi
+              ROI = EBITDA ÷ (giảm giá + quà + chi phí)
+6 KỊCH BẢN    Thận trọng 60% · Cơ sở 100% · Lạc quan 140% số hoá đơn tham gia ($preeval.scenarios)
+  HOÀ VỐN     số hoá đơn cần để EBITDA = 0 · %cannib tối đa còn hoà vốn · % TC cần tham gia để hết quà
+7 QUYẾT ĐỊNH  DUYỆT (Thận trọng ≥ 0 và ROI Cơ sở ≥ 0,3) · CHẠY THỬ (Cơ sở ≥ 0) · SỬA CƠ CHẾ · BRANDING · THIẾU DỮ LIỆU
   CỔNG        %COGS hoá đơn tham gia > 40% · chi phí KM > 30% doanh thu thuần → cảnh báo cần bằng chứng incremental
 ```
 
-Mặc định (ghi đè từng chương trình được) ở `data_contract.json → $preeval`: %cannib theo phương án
-(Customer Base 30% · Frequently 50% · Party Size 40% · Day-part 30% · Menu Item Sold/Value 60% · Pricing 70%),
-%gọi thêm theo ưu đãi (món mới/quà merch 50% · combo/giảm giá 0%), COGS món khác theo brand (NCB 32% · NDC 33% · NJFB 35%).
+**Vì sao đổi (23/09/2026).** Bản cũ coi khách vốn sẽ đến dùng ưu đãi với giá trị hoá đơn **trung bình cả ngày**
+và **không cộng dồn** ưu đãi. Chương trình theo khung giờ / phân khúc (Set Lunch 199K, Khung Sáng, dessert LTO) vì
+vậy lệch rất xa: Set Lunch −277 tr so với +66 tr ở sổ. Team Brand dựng lại mô hình ở sổ Q4 (`Q4_DANH_GIA`), và bộ
+tính được nâng theo đúng 3 giả định đó. Sau khi đổi, quyết định khớp sổ 27/30 chương trình (28/30 khi chuyển u vào
+cột `uplift_pct`); phần chênh độ lớn còn lại chủ yếu do hệ số thuế/phí POS (sổ bỏ qua) và kỳ nền 56 ngày (sổ dùng Q3).
 
-### 0.4 Năm mẫu — mỗi cơ chế một cách phân tích
+Mặc định (ghi đè từng chương trình được) ở `data_contract.json → $preeval`: %cannib theo phương án · COGS món khác
+theo brand · `min_bill_factor` 1,2 · `gates.min_roi_approve` 0,3 · kịch bản 60/100/140%.
+
+### 0.4 Năm mẫu — mỗi cơ chế một cách phân tích *(số theo mô hình 23/09/2026 · Cơ sở / Thận trọng)*
 
 | Mẫu | Cơ chế | Điểm phân tích riêng | Kết quả |
 |---|---|---|---|
-| **LTO Summer Crush** | 3 món LTO + 2 scheme quà merch có giới hạn 300+300 | món lẻ tỷ lệ 0,667/0,333 · giá vốn nhập (chưa có BOM) · giới hạn quà · số ngày hết quà | CHẠY THỬ · EBITDA +15,6 tr / −8,3 tr |
-| **Pre-booking 15%** | giảm 15% toàn hoá đơn | %cannib 80% (kế hoạch chỉ +20%) · cổng chi phí KM > 30% DT | SỬA CƠ CHẾ · −2,7 tr |
-| **The Monday Treat** | tặng dessert, chỉ thứ 2 | `dow = 0` → kỳ nền & số ngày chỉ lấy thứ 2 · món tặng lấy giá vốn BOM | DUYỆT · +2,7 tr |
-| **20/10 Set 2 người 899K** *(ý tưởng Q4, 1 dòng)* | FIXED_PRICE, `item_codes` 4 món | cơ chế nhanh — không cần `co_che`/`mon` · `season_factor` 1,1 | DUYỆT · +15,1 tr / +8,1 tr |
-| **Giáng sinh bill ≥300K tặng bánh** *(ý tưởng Q4, 1 dòng)* | MIN_BILL + GIFT_ITEM | `gift_codes` · `season_factor` 1,15 · vượt 2 cổng (COGS 47%, chi KM 33%) | CHẠY THỬ · +9,6 tr / −3,8 tr |
+| **LTO Summer Crush** | 3 món LTO + 2 scheme quà merch có giới hạn 300+300 | món lẻ tỷ lệ 0,667/0,333 · giá vốn nhập (chưa có BOM) · giới hạn quà · số ngày hết quà | SỬA CƠ CHẾ · −11,5 tr / −14,8 tr *(mô hình 23/09: khách sẵn có mua thêm ly LTO phải nhập ở `uplift_pct` — sổ mẫu chưa có)* |
+| **Pre-booking 15%** | giảm 15% toàn hoá đơn | %cannib 80% (kế hoạch chỉ +20%) · cổng chi phí KM > 30% DT | SỬA CƠ CHẾ · −3,5 tr |
+| **The Monday Treat** | tặng dessert, chỉ thứ 2 | `dow = 0` → kỳ nền & số ngày chỉ lấy thứ 2 · món tặng lấy giá vốn BOM | DUYỆT · +2,7 tr / +1,6 tr |
+| **20/10 Set 2 người 899K** *(ý tưởng Q4, 1 dòng)* | FIXED_PRICE, `item_codes` 4 món | cơ chế nhanh — không cần `co_che`/`mon` · `season_factor` 1,1 | DUYỆT · +21,0 tr / +11,8 tr |
+| **Giáng sinh bill ≥300K tặng bánh** *(ý tưởng Q4, 1 dòng)* | MIN_BILL + GIFT_ITEM | `gift_codes` · `season_factor` 1,15 · vượt cổng COGS 45% | DUYỆT · +14,8 tr / +6,9 tr |
 
 **Kiểm chứng với thực tế (LTO Summer Crush):** giá trị hoá đơn dự báo 456K vs thực tế 511K; 600 hoá đơn
 (giới hạn quà) vs 777 hoá đơn có ly LTO (chỉ 307 nhận quà) — mô hình đúng hướng về AOV, số hoá đơn phụ thuộc giả định tham gia.
@@ -166,6 +172,47 @@ deck. Hệ thống KHÔNG ghi vào thư mục `05_Promotion_Ke_Hoach`.
 thiếu `benefit`; NCB thiếu thêm ngày — deck chỉ ghi `Tháng 10` / `Q4`; cửa hàng `Metropole` · `Galleria` chưa có alias ở dim_store).
 `ET` (Empress Tower) và `TM` (The Mett) thêm vào `alias_re` của dim_store ngày 23/09/2026 theo xác nhận của team. File Q3 (6 sheet loại) vẫn chỉ cấp target cho M7.2 và khối tham khảo cuối trang;
 chọn file theo định dạng (`files_by_format`), không theo ngày sửa.
+
+### 0.9 Cách sửa — 5 đòn bẩy *(23/09/2026)*
+
+Chương trình **SỬA CƠ CHẾ / CHẠY THỬ** được bộ tính giải ngược (tools/preeval.py · `fix_levers`, dùng chính `run()`,
+không công thức riêng): mỗi đòn bẩy cần đạt mức nào để **hoà vốn** (EBITDA Cơ sở ≥ 0) và để **DUYỆT** (Thận trọng ≥ 0
+và ROI Cơ sở ≥ 0,3), giữ nguyên các giả định khác → bảng `pre_eval_fix`, mục **C2** của phiếu.
+
+| Đòn bẩy | Tầng | Cách làm |
+|---|---|---|
+| B · Giảm chi ưu đãi / HĐ | 1 — hành động bằng tiền | hạ % · trần giảm · đổi % sang quà giá vốn thấp · giới hạn số quà |
+| D · Cắt chi phí cố định | 1 | giảm ads / KOL / in ấn / decor · gộp chương trình · thuần nhận diện → BRANDING |
+| A · Giảm %cannib | 2 — thu hẹp đối tượng | chỉ đặt trước / nhóm mới / ngày-khung giờ yếu / khách mới |
+| C · Tăng giá trị HĐ tham gia | 3 — phụ thuộc khách | ngưỡng ≥ AOV × 1,2 · bắt buộc kèm món · giá set > TA × khách |
+| E · Tăng số HĐ tham gia | 3 | mở rộng cửa hàng / ngày chạy — chỉ khi mỗi HĐ đã có lãi |
+
+**Việc cần làm** ghi đòn bẩy ở tầng thấp nhất có mức đổi ≤ 50% (`$preeval.fix_max_change`), trong tầng lấy mức đổi nhỏ
+nhất; không có thì lấy mức đổi nhỏ nhất bất kỳ. Ví dụ Winter Nights: hoà vốn = cắt chi phí cố định 194 → 102 tr;
+DUYỆT = %cannib 90% → ≤ 68%.
+
+### 0.10 Khoá kế hoạch → M7.2 *(23/09/2026)*
+
+Bộ tính chạy lại mỗi lần cập nhật với nền POS mới nhất — sau khi chương trình chạy, nền đã chứa kỳ chạy nên "kế hoạch"
+sẽ trôi theo thực tế. Vì vậy **khoá**: khi sổ ghi `status = DA_DUYET` hoặc tới `date_from`, dự báo Cơ sở / Thận trọng
+được chụp vào `data_input/05_plan_lock.xlsx` (`pre_plan_lock`) và **giữ nguyên** các lần cập nhật sau. Gỡ khoá chỉ khi
+chưa tới ngày chạy và sổ không còn DA_DUYET (lập lại kế hoạch). `lock_reason`: DA_DUYET · BAT_DAU · KHOA_MUON
+(khoá sau ngày chạy — chỉ tham khảo).
+
+Nối M7.2: cột `campaign_id` của sổ ↔ `Campaign_Tracking`. M7.2 lấy **target DT tăng thêm** từ bản khoá (chương trình đã có
+kế hoạch Q3 `pre_id` giữ cách chấm cũ; target khai tay ở `campaign_target` thắng) và tính **EBITDA thực tế cùng công thức**:
+`DT tăng thêm đo ở M7.2 ÷ 1,08 × (1 − COGS%) − opex − quà (đơn giá kế hoạch × HĐ thực tế) − chi phí (thực tế | kế hoạch)`.
+Quý của chương trình M7.2 = quý kế hoạch M7.1; chưa nối thì quý của ngày chạy (bộ lọc Quý trên M7.2). Phiếu M7.1 mục **F**
+và phần Chi tiết M7.2 cùng hiện khối **Kế hoạch M7.1 ↔ Thực tế**.
+
+### 0.11 Bảng hiệu chỉnh *(23/09/2026)*
+
+`tools/campaign.py` ghi `pre_calib` — mỗi chương trình M7.1 đã nối một dòng: HĐ · %tham gia · %cannib · DT tăng thêm ·
+EBITDA kế hoạch (khoá) cạnh thực tế. %cannib thực tế = 1 − HĐ tăng thêm của cửa hàng (đã khử mùa vụ) ÷ HĐ tham gia.
+Dòng **dùng được** = đã chốt · đo được lift · khoá TRƯỚC ngày chạy. Phương án nào có ≥ 3 dòng dùng được
+(`$preeval.calib_min_n`) thì tools/preeval.py thay %cannib và %tham gia **mặc định** (ô sổ để trống) bằng trung vị
+thực tế — nguồn ghi ở mục E của phiếu. `CAP_NHAT.bat` chạy M7.1 → M7.2 → M7.1 để vòng này khép trong một lần.
+Hiện (23/09): 3 dòng, 0 dùng được (2 khoá muộn · 1 chưa khoá) — giả định vẫn theo hợp đồng.
 
 ---
 ## 1. Vị trí kiến trúc — vì sao không phải tầng L5

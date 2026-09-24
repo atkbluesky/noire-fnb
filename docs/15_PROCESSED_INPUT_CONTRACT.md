@@ -169,6 +169,8 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `voucher_month` | _m_ · _brand_ · used · rev · disc | m + brand | — |
 | `voucher_join` | _m_ · n · hit | m | rate |
 | `oa` | _month_ · follows · msgs · views · menu · content · days | month | — |
+| `oa_daily` | **date** · follows · msgs · views · menu · content | date | — |
+| `oa_follower` | **date** · follower_total · unfollows | date | — |
 | `member` | _month_ · member · oa · days | month | — |
 | `social_month` | **month** · **platform** · **brand** · _page_ · code · followers · follows · unfollows · reach · impr · views · profile_views · clicks · contacts · msgs · likes · comments · shares · saves · engage · posts · spend · days | month + platform + brand + page | net_follow · er · reach_rate · per_post · cpm · audience · unit |
 | `social_post` | _date_ · _platform_ · _brand_ · _page_ · format · _title_ · reach · views · impr · likes · comments · shares · saves · clicks · watch_avg · spend · link | date + platform + brand + page + title | engage · audience · er · unit |
@@ -202,6 +204,8 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 - **`voucher_month`** — Voucher đã dùng theo tháng × brand.
 - **`voucher_join`** — Tỷ lệ voucher khớp được với hoá đơn trong cùng tháng.
 - **`oa`** — Zalo OA. follows = Quan tâm · views = Xem trang thông tin OA · menu = Tương tác thanh menu · content = Xem nội dung.
+- **`oa_daily`** — Zalo OA theo NGÀY — export OA Manager › Thống kê › Tổng quan (S12). Cùng nghĩa cột với `oa`; M8.1 dùng khi OpenAPI/Webhook chưa kết nối. Số là LƯỢT hành động, không phải người duy nhất.
+- **`oa_follower`** — Zalo OA · Tổng người quan tâm (snapshot tại ngày) + Bỏ quan tâm — sổ nhập tay S26 chép từ OA Manager. Ô trống = chưa nhập; KHÔNG suy tổng từ luỹ kế `follows`.
 - **`member`** — Member đăng ký mới & OA follow mới theo tháng (số toàn chuỗi).
 - **`social_month`** — Fanpage & TikTok. Facebook điền reach · TikTok điền views — KHÔNG gộp hai cột. platform ∈ FACEBOOK|TIKTOK|INSTAGRAM|YOUTUBE|ZALO code = mã fanpage (NCB · NDC · NJFB · NEC). contacts = Tổng số người liên hệ, msgs = Lượt bắt đầu cuộc trò chuyện qua tin nhắn (Facebook, cả tự nhiên lẫn trả phí).
 - **`social_post`** — Bài đăng / video. watch_avg tính bằng GIÂY.
@@ -229,17 +233,20 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 | `campaigns` | _name_ · _nature_ · _brand_ · rev · bills | name + nature + brand | — |
 | `voucher_prog` | _prog_ · _brand_ · issued · used · rev · disc | prog + brand | rate |
 | `social_format` | _platform_ · _format_ · posts · reach · views · engage | platform + format | er |
-| `campaign_result` | **campaign_id** · demo · label · measurable · reason · days_run · period_from · period_to · stores · overlap · ramp_warning · base_to · base_from · control_stores · control_factor · act_net · act_tc · act_guest · exp_net · exp_tc · exp_guest · incr_net · lift_pct · d_tc · d_aov · d_party · d_ta · d_mix · driver · lever_note · promo_bills · promo_guests · promo_net · cost_discount · cost_voucher · cost_manual · cost_ads_auto · cost_total · cost_planned_used · cm_pct · flow_through · roi · breakeven_lift · target_verified · att_net · att_tc · att_aov · att_ta · att_incr · eval_scope · eval_note · promo_disc · promo_voucher · noire_share · plan_sales · base_sales · plan_tc · act_sales · promo_share · store_incr_net · store_lift_pct · store_flow_through · cost_promo_actual · cost_fixed_actual · breakeven_sales · objective · cadence · recur_dow · plan_group · plan_primary · promo_gross · promo_sales · store_net · revenue_basis · lto_qty · lto_rev · lto_items · store_tc | campaign_id | — |
+| `campaign_result` | **campaign_id** · demo · label · measurable · reason · days_run · period_from · period_to · stores · overlap · ramp_warning · base_to · base_from · control_stores · control_factor · act_net · act_tc · act_guest · exp_net · exp_tc · exp_guest · incr_net · lift_pct · d_tc · d_aov · d_party · d_ta · d_mix · driver · lever_note · promo_bills · promo_guests · promo_net · cost_discount · cost_voucher · cost_manual · cost_ads_auto · cost_total · cost_planned_used · cm_pct · flow_through · roi · breakeven_lift · target_verified · att_net · att_tc · att_aov · att_ta · att_incr · eval_scope · eval_note · promo_disc · promo_voucher · noire_share · plan_sales · base_sales · plan_tc · act_sales · promo_share · store_incr_net · store_lift_pct · store_flow_through · cost_promo_actual · cost_fixed_actual · breakeven_sales · objective · cadence · recur_dow · plan_group · plan_primary · promo_gross · promo_sales · store_net · revenue_basis · lto_qty · lto_rev · lto_items · store_tc · quarter · plan_program_id · plan_locked_at · plan_lock_reason · plan_bills · plan_part · plan_cannib · plan_net_incr · plan_ebitda · plan_ebitda_low · plan_roi · plan_decision · act_part · act_cannib · act_net_incr_ex · act_ebitda · act_roi_m71 | campaign_id | — |
 | `campaign_daily` | **campaign_id** · **date** · in_period · act_net · exp_net · promo_bills | campaign_id + date | — |
 | `campaign_month` | **campaign_id** · **month** · **store** · bills · guests · net · gross · disc · voucher · dup_bills · dup_guests · dup_net | campaign_id + month + store | — |
 | `campaign_unmapped` | **name_pos** · nature · _brand_ · first · last · days · bills · net · disc | name_pos + brand | — |
 | `campaign_issue` | **campaign_id** · **field** · level · **msg** | campaign_id + field | — |
 | `pre_plan` | **pre_id** · campaign_id · **name** · brand · kind · plan_status · est_tc · base_gross · growth · target_gross · incr_gross · target_aov · cogs_pct · cm_pct · promo_cost · fixed_cost · total_cost · net_contrib · roi · breakeven_incr · assessment · driver · source_file · label · period_from · period_to · act_net · act_tc · incr_net · cost_total · flow_through · roi_actual · act_promo_net · act_promo_bills | pre_id | — |
-| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id · quarter · season_factor · scheme_mode · tc_base · tc_share · participation_src · cannib_src · other_cogs_pct · opex_pct · base_note · safety_bills · input_source · missing | program_id + scenario | — |
+| `pre_calib` | **program_id** · **campaign_id** · quarter · brand · lever · objective · locked_at · lock_reason · label · plan_bills · act_bills · plan_part · act_part · plan_cannib · act_cannib · plan_net_incr · act_net_incr · plan_ebitda · act_ebitda · err_ebitda · usable · note | program_id | — |
+| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id · quarter · season_factor · scheme_mode · tc_base · tc_share · participation_src · cannib_src · other_cogs_pct · opex_pct · base_note · safety_bills · input_source · missing · gift_cost | program_id + scenario | — |
 | `pre_eval_scheme` | **program_id** · _scheme_id_ · scheme_name · condition · benefit · bills · bill_value · discount · rev_after_disc · ta · cogs · cogs_pct · margin_pct · merch_cost · promo_cost · basis_note | program_id + scheme_id | — |
 | `pre_eval_fin` | **program_id** · _scenario_ · _row_ · label · base · without · with_promo · total · cannib_pct · incr · incr_pct | program_id + scenario + row | — |
 | `pre_eval_base` | **program_id** · _store_ · base_from · base_to · base_days · net_incl · tc · guests · aov_incl · ta_incl · tc_day · net_day · tax_factor · disc_share · note | program_id + store | — |
 | `pre_eval_input` | **program_id** · **field** · value · source · level · status · hint | program_id + field | — |
+| `pre_eval_fix` | **program_id** · _target_ · **lever** · current · required · change · feasible · best · text | program_id + target + lever | — |
+| `pre_plan_lock` | **program_id** · quarter · locked_at · lock_reason · submitted · name · brand · stores · date_from · date_to · objective · lever · decision · bills · tc_base · tc_share · cannib_pct · net_incr · rev_incl · ebitda · ebitda_low · roi · promo_cost · program_cost · gift_per_bill · other_cogs_pct · opex_pct | program_id | — |
 
 - **`product`** — Bảng món LUỸ KẾ toàn kỳ. Nếu cắt top-N thì bắt buộc khai tổng thật ở _stats.
 - **`category`** — Cơ cấu theo Loại món — tính trên TOÀN BỘ SKU, không chỉ phần đã cắt.
@@ -259,11 +266,14 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 - **`campaign_unmapped`** — M7.2 · tên CTKM trên POS (COMMERCIAL/LOYALTY/PARTNER) chưa gắn vào chương trình nào.
 - **`campaign_issue`** — M7.2 · lỗi khai báo trong file Campaign Tracking.
 - **`pre_plan`** — M7.1 · kế hoạch từng chương trình đọc thẳng file Pre-Analysis (S16) + kết quả thực tế nối qua campaign_id (M7.2). Sinh bởi tools/campaign.py.
+- **`pre_calib`** — Bảng hiệu chỉnh M7.1 ← M7.2 — mỗi chương trình M7.1 đã nối campaign_id một dòng: dự báo (bản khoá) cạnh thực tế cùng công thức. usable = 1 khi đã chốt, đo được lift và khoá TRƯỚC ngày chạy → tools/preeval.py dùng trung vị %cannib · %tham gia thực tế theo phương án làm giả định mặc định ($preeval.calib_min_n). Sinh bởi tools/campaign.py.
 - **`pre_eval`** — M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py.
 - **`pre_eval_scheme`** — M7.1 · Program's details — kinh tế học 1 hoá đơn theo từng scheme (Cơ sở).
 - **`pre_eval_fin`** — M7.1 · Financial evaluation (khung PP672): hàng Gross/Discount/Net/COGS/GP × cột Base · Không KM · Có KM · Tổng · %Cannib · Tăng thêm.
 - **`pre_eval_base`** — M7.1 · dữ liệu nền tự lấy từ POS cho từng chương trình × cửa hàng.
 - **`pre_eval_input`** — M7.1 · dữ liệu đầu vào ĐÃ CHUẨN HOÁ của từng chương trình theo $preeval.input_fields — mỗi trường một dòng: giá trị · nguồn (SO = sổ Pre_Analysis · DECK = file deck quý S16) · mức bắt buộc · trạng thái (OK / THIEU). Sinh bởi tools/preeval.py.
+- **`pre_eval_fix`** — M7.1 · Cách sửa — với chương trình SỬA CƠ CHẾ / CHẠY THỬ: mức mỗi đòn bẩy ($preeval.fix_levers) cần đạt để hoà vốn và để DUYỆT, giữ nguyên các giả định khác; best = đòn bẩy phải đổi ít nhất. Giải bằng chính bộ tính của tools/preeval.py.
+- **`pre_plan_lock`** — M7.1 · kế hoạch ĐÃ KHOÁ (data_input/05_plan_lock.xlsx) — dự báo Cơ sở/Thận trọng chụp khi chương trình DA_DUYET hoặc tới ngày bắt đầu. M7.2 chỉ so thực tế với bản này. lock_reason: DA_DUYET · BAT_DAU · KHOA_MUON (khoá sau ngày bắt đầu — kỳ nền có thể đã chứa kỳ chạy). Sinh bởi tools/preeval.py, giữ nguyên qua các lần cập nhật.
 
 ### TẦNG D · `_stats` — đặt ở file nào cũng được
 

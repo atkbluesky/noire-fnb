@@ -1374,6 +1374,41 @@
       ],
       "desc": "Zalo OA. follows = Quan tâm · views = Xem trang thông tin OA · menu = Tương tác thanh menu · content = Xem nội dung."
     },
+    "oa_daily": {
+      "tier": "monthly",
+      "monthCol": "date",
+      "key": [
+        "date"
+      ],
+      "req": [
+        "date"
+      ],
+      "cols": [
+        "date",
+        "follows",
+        "msgs",
+        "views",
+        "menu",
+        "content"
+      ],
+      "desc": "Zalo OA theo NGÀY — export OA Manager › Thống kê › Tổng quan (S12). Cùng nghĩa cột với `oa`; M8.1 dùng khi OpenAPI/Webhook chưa kết nối. Số là LƯỢT hành động, không phải người duy nhất."
+    },
+    "oa_follower": {
+      "tier": "monthly",
+      "monthCol": "date",
+      "key": [
+        "date"
+      ],
+      "req": [
+        "date"
+      ],
+      "cols": [
+        "date",
+        "follower_total",
+        "unfollows"
+      ],
+      "desc": "Zalo OA · Tổng người quan tâm (snapshot tại ngày) + Bỏ quan tâm — sổ nhập tay S26 chép từ OA Manager. Ô trống = chưa nhập; KHÔNG suy tổng từ luỹ kế `follows`."
+    },
     "member": {
       "tier": "monthly",
       "monthCol": "month",
@@ -1982,7 +2017,24 @@
         "lto_qty",
         "lto_rev",
         "lto_items",
-        "store_tc"
+        "store_tc",
+        "quarter",
+        "plan_program_id",
+        "plan_locked_at",
+        "plan_lock_reason",
+        "plan_bills",
+        "plan_part",
+        "plan_cannib",
+        "plan_net_incr",
+        "plan_ebitda",
+        "plan_ebitda_low",
+        "plan_roi",
+        "plan_decision",
+        "act_part",
+        "act_cannib",
+        "act_net_incr_ex",
+        "act_ebitda",
+        "act_roi_m71"
       ],
       "desc": "M7.2 · kết quả đo mỗi chương trình (tools/campaign.py tính)."
     },
@@ -2122,6 +2174,41 @@
       ],
       "desc": "M7.1 · kế hoạch từng chương trình đọc thẳng file Pre-Analysis (S16) + kết quả thực tế nối qua campaign_id (M7.2). Sinh bởi tools/campaign.py."
     },
+    "pre_calib": {
+      "tier": "snapshot",
+      "key": [
+        "program_id"
+      ],
+      "req": [
+        "program_id",
+        "campaign_id"
+      ],
+      "cols": [
+        "program_id",
+        "campaign_id",
+        "quarter",
+        "brand",
+        "lever",
+        "objective",
+        "locked_at",
+        "lock_reason",
+        "label",
+        "plan_bills",
+        "act_bills",
+        "plan_part",
+        "act_part",
+        "plan_cannib",
+        "act_cannib",
+        "plan_net_incr",
+        "act_net_incr",
+        "plan_ebitda",
+        "act_ebitda",
+        "err_ebitda",
+        "usable",
+        "note"
+      ],
+      "desc": "Bảng hiệu chỉnh M7.1 ← M7.2 — mỗi chương trình M7.1 đã nối campaign_id một dòng: dự báo (bản khoá) cạnh thực tế cùng công thức. usable = 1 khi đã chốt, đo được lift và khoá TRƯỚC ngày chạy → tools/preeval.py dùng trung vị %cannib · %tham gia thực tế theo phương án làm giả định mặc định ($preeval.calib_min_n). Sinh bởi tools/campaign.py."
+    },
     "pre_eval": {
       "tier": "snapshot",
       "key": [
@@ -2175,7 +2262,8 @@
         "base_note",
         "safety_bills",
         "input_source",
-        "missing"
+        "missing",
+        "gift_cost"
       ],
       "desc": "M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py."
     },
@@ -2281,6 +2369,69 @@
         "hint"
       ],
       "desc": "M7.1 · dữ liệu đầu vào ĐÃ CHUẨN HOÁ của từng chương trình theo $preeval.input_fields — mỗi trường một dòng: giá trị · nguồn (SO = sổ Pre_Analysis · DECK = file deck quý S16) · mức bắt buộc · trạng thái (OK / THIEU). Sinh bởi tools/preeval.py."
+    },
+    "pre_eval_fix": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "target",
+        "lever"
+      ],
+      "req": [
+        "program_id",
+        "lever"
+      ],
+      "cols": [
+        "program_id",
+        "target",
+        "lever",
+        "current",
+        "required",
+        "change",
+        "feasible",
+        "best",
+        "text"
+      ],
+      "desc": "M7.1 · Cách sửa — với chương trình SỬA CƠ CHẾ / CHẠY THỬ: mức mỗi đòn bẩy ($preeval.fix_levers) cần đạt để hoà vốn và để DUYỆT, giữ nguyên các giả định khác; best = đòn bẩy phải đổi ít nhất. Giải bằng chính bộ tính của tools/preeval.py."
+    },
+    "pre_plan_lock": {
+      "tier": "snapshot",
+      "key": [
+        "program_id"
+      ],
+      "req": [
+        "program_id"
+      ],
+      "cols": [
+        "program_id",
+        "quarter",
+        "locked_at",
+        "lock_reason",
+        "submitted",
+        "name",
+        "brand",
+        "stores",
+        "date_from",
+        "date_to",
+        "objective",
+        "lever",
+        "decision",
+        "bills",
+        "tc_base",
+        "tc_share",
+        "cannib_pct",
+        "net_incr",
+        "rev_incl",
+        "ebitda",
+        "ebitda_low",
+        "roi",
+        "promo_cost",
+        "program_cost",
+        "gift_per_bill",
+        "other_cogs_pct",
+        "opex_pct"
+      ],
+      "desc": "M7.1 · kế hoạch ĐÃ KHOÁ (data_input/05_plan_lock.xlsx) — dự báo Cơ sở/Thận trọng chụp khi chương trình DA_DUYET hoặc tới ngày bắt đầu. M7.2 chỉ so thực tế với bản này. lock_reason: DA_DUYET · BAT_DAU · KHOA_MUON (khoá sau ngày bắt đầu — kỳ nền có thể đã chứa kỳ chạy). Sinh bởi tools/preeval.py, giữ nguyên qua các lần cập nhật."
     }
   },
   "$campaign": {
@@ -2756,7 +2907,7 @@
     "lto_group_rx": "LTO"
   },
   "$preeval": {
-    "_doc": "M7.1 · Pre-Analytics — mô hình đánh giá chương trình TRƯỚC khi chạy. Khung PP672 (Program's Details + Financial Evaluation + chi phí vận hành → EBITDA tăng thêm) × SALES = TC × AOV (TC_AOV_FnB_Marketing.pdf). Tham số ở đây là MẶC ĐỊNH; từng chương trình ghi đè ở Pre_Analysis_2026.xlsx.",
+    "_doc": "M7.1 · Pre-Analytics — mô hình đánh giá chương trình TRƯỚC khi chạy. Khung PP672 (Program's Details + Financial Evaluation + chi phí vận hành → EBITDA tăng thêm) × SALES = TC × AOV (TC_AOV_FnB_Marketing.pdf). Tham số ở đây là MẶC ĐỊNH; từng chương trình ghi đè ở Pre_Analysis_2026.xlsx. Mô hình 1 hoá đơn thống nhất với sổ Q4/2026 (23/09/2026): khách mới mang cả hoá đơn V; khách vốn sẽ đến (cannib) giữ hoá đơn thường ± uplift u × V và vẫn nhận ưu đãi (cộng dồn); món tặng tính là chi phí quà theo giá vốn; chi phí chương trình chưa VAT; kịch bản = hệ số số hoá đơn 60/100/140%.",
     "vat": 1.08,
     "base_days": 56,
     "base_note": "Kỳ nền mặc định = 56 ngày (8 tuần) ngay trước ngày bắt đầu, bỏ ngày lễ ($campaign.base_exclude); chương trình ở tương lai xa hơn dữ liệu thì lấy 56 ngày cuối có số.",
@@ -2820,16 +2971,6 @@
         "label": "Tặng vật phẩm (merch_unit_cost)"
       }
     ],
-    "item_add_pct": {
-      "_doc": "Phần giá trị món chương trình là GỌI THÊM (không thay món khách vốn gọi) — theo cơ chế",
-      "NONE": 0.5,
-      "GIFT_MERCH": 0.5,
-      "FIXED_PRICE": 0.0,
-      "PCT_OFF_ITEMS": 0.3,
-      "PCT_OFF_BILL": 0.0,
-      "FIXED_OFF": 0.0,
-      "GIFT_ITEM": 0.0
-    },
     "cannib_default": {
       "_doc": "% hoá đơn tham gia mà KHÔNG có chương trình khách vẫn đến (theo phương án) — ghi đè ở cột cannib_pct",
       "TC_BASE": 0.3,
@@ -2847,6 +2988,7 @@
       "_default": 0.5
     },
     "participation_default": 0.03,
+    "min_bill_factor": 1.2,
     "base_cogs_pct": {
       "_doc": "COGS % món khác (không có BOM) — nguồn: Pre-Analysis Q3 (32–35%) + NCB Operating Engine (32%). Kế toán khoá.",
       "NCB": 0.32,
@@ -2858,9 +3000,9 @@
       {
         "code": "THAN_TRONG",
         "label": "Thận trọng",
-        "bills_mult": 0.7,
-        "cannib_add": 0.15,
-        "cogs_add": 0.02
+        "bills_mult": 0.6,
+        "cannib_add": 0.0,
+        "cogs_add": 0.0
       },
       {
         "code": "CO_SO",
@@ -2872,15 +3014,16 @@
       {
         "code": "LAC_QUAN",
         "label": "Lạc quan",
-        "bills_mult": 1.3,
-        "cannib_add": -0.1,
+        "bills_mult": 1.4,
+        "cannib_add": 0.0,
         "cogs_add": 0.0
       }
     ],
     "gates": {
       "max_cogs_pct": 0.4,
       "max_promo_cost_pct_net": 0.3,
-      "min_gm_pct": 0.55
+      "min_gm_pct": 0.55,
+      "min_roi_approve": 0.3
     },
     "decisions": [
       {
@@ -2888,21 +3031,21 @@
         "label": "DUYỆT CHẠY",
         "color": "#22C55E",
         "badge": "ok",
-        "desc": "EBITDA tăng thêm > 0 ở kịch bản Cơ sở VÀ ≥ 0 ở Thận trọng"
+        "desc": "EBITDA tăng thêm ≥ 0 ở kịch bản Thận trọng VÀ ROI Cơ sở ≥ gates.min_roi_approve (0,3)"
       },
       {
         "code": "CHAY_THU",
         "label": "CHẠY THỬ CÓ ĐIỀU KIỆN",
         "color": "#F59E0B",
         "badge": "warning",
-        "desc": "Có lãi ở Cơ sở nhưng lỗ ở Thận trọng — chạy thử 1–2 tuần, theo dõi TC & %cannib"
+        "desc": "Cơ sở ≥ 0 nhưng Thận trọng lỗ hoặc ROI Cơ sở < 0,3 — chạy thử 1–2 tuần, theo dõi số hoá đơn & %cannib"
       },
       {
         "code": "SUA_CO_CHE",
         "label": "SỬA CƠ CHẾ",
         "color": "#EF4444",
         "badge": "bad",
-        "desc": "EBITDA tăng thêm ≤ 0 ở kịch bản Cơ sở — đổi ưu đãi / ngưỡng / chi phí"
+        "desc": "EBITDA tăng thêm < 0 ở kịch bản Cơ sở — đổi ưu đãi / ngưỡng / chi phí"
       },
       {
         "code": "BRANDING",
@@ -3025,6 +3168,11 @@
           "level": "optional"
         },
         {
+          "code": "uplift_pct",
+          "label": "Uplift u — khách vốn sẽ đến đổi mức chi (0,2 = +20%; set đồng giá: trống = 1 − TA × khách ÷ V)",
+          "level": "optional"
+        },
+        {
           "code": "season_factor",
           "label": "Hệ số mùa vụ",
           "level": "optional"
@@ -3050,6 +3198,56 @@
           "level": "optional"
         }
       ]
-    }
+    },
+    "fix_levers": [
+      {
+        "code": "CANNIB",
+        "label": "A · Giảm %cannib",
+        "unit": "pct",
+        "how": "Chỉ áp cho khách chưa đến: đặt bàn trước, nhóm mới, ngày / khung giờ yếu, khách mới (SĐT chưa có trên POS). Không giảm % toàn hoá đơn cho mọi khách.",
+        "tier": 2
+      },
+      {
+        "code": "PROMO",
+        "label": "B · Giảm chi ưu đãi / hoá đơn",
+        "unit": "vnd",
+        "how": "Hạ mức % giảm, đặt trần giảm/HĐ, đổi % sang quà món giá vốn thấp, giới hạn số quà (stock_qty).",
+        "tier": 1
+      },
+      {
+        "code": "VALUE",
+        "label": "C · Tăng giá trị hoá đơn tham gia",
+        "unit": "vnd",
+        "how": "Ngưỡng hoá đơn ≥ AOV nền × 1,2, bắt buộc kèm món chính / LTO, nâng giá set cao hơn TA × số khách, upsell.",
+        "tier": 3
+      },
+      {
+        "code": "FIXED",
+        "label": "D · Cắt chi phí cố định",
+        "unit": "vnd",
+        "how": "Giảm ads / KOL / in ấn / decor, hoặc gộp chương trình dùng chung chi phí. Chương trình thuần nhận diện: đổi mục tiêu sang BRANDING.",
+        "tier": 1
+      },
+      {
+        "code": "BILLS",
+        "label": "E · Tăng số hoá đơn tham gia",
+        "unit": "bills",
+        "how": "Mở rộng cửa hàng / số ngày chạy, truyền thông đúng tệp — chỉ có tác dụng khi mỗi hoá đơn đã có lãi.",
+        "tier": 3
+      }
+    ],
+    "fix_targets": [
+      {
+        "code": "HOA_VON",
+        "label": "Để hoà vốn (Cơ sở ≥ 0)"
+      },
+      {
+        "code": "DUYET",
+        "label": "Để DUYỆT (Thận trọng ≥ 0 · ROI ≥ ngưỡng)"
+      }
+    ],
+    "fix_max_change": 0.5,
+    "fix_levers_doc": "tier 1 = hành động bằng tiền (giảm chi ưu đãi · cắt chi phí) · 2 = thu hẹp đối tượng (%cannib) · 3 = kết quả phụ thuộc khách (giá trị hoá đơn · số hoá đơn). Việc cần làm lấy tầng thấp nhất có đòn bẩy đổi ≤ fix_max_change.",
+    "calib_min_n": 3
   }
 }

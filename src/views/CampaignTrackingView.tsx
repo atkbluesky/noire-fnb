@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PlanVsActual } from '../components/common/PlanVsActual';
 import type { EChartsOption } from 'echarts';
 import { AlertTriangle, FlaskConical, Info, TrendingUp, TrendingDown } from 'lucide-react';
 import { useFilters } from '../context/FilterContext';
@@ -42,6 +43,8 @@ export const CampaignTrackingView: React.FC = () => {
   const COST = byCode(T.cost_types);
 
   const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  /** quý: của kế hoạch M7.1 (nếu đã nối campaign_id) — không thì quý của ngày chạy */
+  const [qFilter, setQFilter] = useState<string | null>(null);
   const [tlScope, setTlScope] = useState<'key' | 'all'>('key');
 
   // chương trình giao với kỳ lọc + brand
@@ -96,10 +99,11 @@ export const CampaignTrackingView: React.FC = () => {
         const stores = c.stores.length ? c.stores : [];
         const brandOk = stores.length ? stores.some(inBrand) : brandMatches(c.brand ?? 'ALL');
         return brandOk && f <= mTo && t >= mFrom;
-      }),
+      }).filter(c => !qFilter || c.quarter === qFilter),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scope, brandMatches, mFrom, mTo],
+    [scope, brandMatches, mFrom, mTo, qFilter],
   );
+  const quarters = Array.from(new Set(CAMPAIGN.campaigns.map(c => c.quarter).filter(Boolean) as string[])).sort();
   /** số của MỘT chương trình trong phạm vi lọc — mọi cột bảng + KPI đọc từ đây */
   const sc = (c: Campaign) => {
     const x = scope.by[c.id];
@@ -730,6 +734,19 @@ export const CampaignTrackingView: React.FC = () => {
           } />
       </div>
 
+      {/* Quý */}
+      {quarters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Quý</span>
+          {[null, ...quarters].map(q => (
+            <button key={q ?? 'ALL'} onClick={() => setQFilter(q)} title="Quý của kế hoạch M7.1 — chương trình chưa nối kế hoạch lấy quý của ngày chạy"
+              className={`rounded-full border px-3 py-1 text-[11px] ${qFilter === q ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
+              {q ? q.replace('-', ' ') : 'Mọi quý'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Nhãn */}
       <div className="flex flex-wrap gap-2">
         <button onClick={() => setLabelFilter(null)}
@@ -756,6 +773,7 @@ export const CampaignTrackingView: React.FC = () => {
         <Card title={`Chi Tiết · ${sel.name}`}
           description={`${sel.id} · SỐ CẢ KỲ CHẠY ${sel.period_from ? `${dmy(sel.period_from)} → ${sel.date_to ? dmy(sel.period_to) : 'đang chạy'}` : ''} × mọi cửa hàng của chương trình (${sel.stores.join(', ')})${scope.by[sel.id] ? ` · trong ${periodTxt} × brand đang lọc: ${formatVND(scope.by[sel.id].net)} · ${formatNumber(scope.by[sel.id].bills)} HĐ` : ''}`}
           chip={LABEL[sel.label]?.label}>
+          {sel.m71 && <PlanVsActual c={sel} />}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-3 text-xs">
               <div className="rounded-lg border border-brand-border p-3">
@@ -1182,3 +1200,4 @@ export const CampaignTrackingView: React.FC = () => {
     </div>
   );
 };
+

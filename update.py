@@ -288,7 +288,7 @@ def plan(touched, force=False):
             p["hub"] = True
         if sid in MKT_SOURCES:
             p["mkt"] = True
-        if sid in ("S23_campaign", "S16_pre_analytics"):   # danh mục chương trình · kế hoạch Pre-Analysis
+        if sid in ("S23_campaign", "S16_pre_analytics", "S24_preeval"):   # danh mục · kế hoạch Q3 · sổ M7.1 (campaign_id)
             p["campaign"] = True
         if sid in ("S24_preeval", "S16_pre_analytics"):     # sổ đánh giá · file deck quý → mẫu chuẩn M7.1
             p["preeval"] = True
@@ -356,10 +356,14 @@ def execute(p):
         ok &= run("Lane Marketing luỹ kế (build_mkt.py)", [PY, os.path.join(HERE, "build_mkt.py")], log)
     if p["hub"] or p["mkt"]:
         ok &= run("Xuất bảng luỹ kế vào data_input/", [PY, os.path.join(TOOLS, "export_derived.py")], log)
+    # M7.1 ↔ M7.2 nối vòng: M7.1 khoá kế hoạch → M7.2 so thực tế với bản khoá + ghi bảng hiệu chỉnh
+    # → M7.1 chạy lại để dùng giả định đã hiệu chỉnh.
+    if p.get("preeval") and p.get("campaign"):
+        ok &= run("M7.1 đánh giá + khoá kế hoạch (preeval.py)", [PY, os.path.join(TOOLS, "preeval.py")], log)
     if p.get("campaign"):
         ok &= run("M7.2 đo chương trình (campaign.py)", [PY, os.path.join(TOOLS, "campaign.py")], log)
     if p.get("preeval"):
-        ok &= run("M7.1 đánh giá trước khi chạy (preeval.py)", [PY, os.path.join(TOOLS, "preeval.py")], log)
+        ok &= run("M7.1 đánh giá theo giả định đã hiệu chỉnh (preeval.py)", [PY, os.path.join(TOOLS, "preeval.py")], log)
     node = shutil.which("node")
     if node:
         ok &= run("Loader dashboard + chốt QA", [node, os.path.join(HERE, "scripts", "build-data.mjs"), "--strict"], log)
