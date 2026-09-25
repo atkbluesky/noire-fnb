@@ -12,15 +12,19 @@ export async function handleZaloWebhook(req: Request, env: ZaloEnv = process.env
   const raw = await req.text();
   if (raw.length > MAX_BODY_BYTES) return json(413, { ok: false, error: 'Payload quá lớn' });
 
+  // Zalo chỉ nhận Webhook URL khi URL trả 200 cho request kiểm tra — request đó KHÔNG có chữ ký
+  // hợp lệ (OA Secret Key chỉ hiện ra SAU khi URL được nhận). Vì vậy request lỗi / sai chữ ký
+  // trả 200 nhưng bị BỎ QUA: không chạm database. An toàn nằm ở chỗ không lưu, không ở mã 401.
   let payload: Record<string, unknown>;
   try {
     payload = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    return json(400, { ok: false, error: 'JSON không hợp lệ' });
+    return json(200, { ok: false, ignored: 'INVALID_JSON' });
   }
   const signature = req.headers.get('x-zevent-signature');
   if (!verifyWebhookSignature(raw, payload, signature, env)) {
-    return json(401, { ok: false, error: 'Chữ ký Zalo không hợp lệ' });
+    console.warn('[zalo-webhook] bỏ qua request sai chữ ký', String(payload.event_name ?? ''));
+    return json(200, { ok: false, ignored: 'INVALID_SIGNATURE' });
   }
 
   try {

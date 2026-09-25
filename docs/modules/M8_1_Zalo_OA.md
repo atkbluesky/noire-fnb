@@ -125,7 +125,7 @@ Daily table vẫn lưu `unique_chat_users` để vẽ trend. KPI unique trên To
 ## 6. QA và vận hành
 
 - Gửi cùng một payload webhook 2 lần: lần hai phải trả `duplicate: true` và metric không tăng.
-- Payload sai chữ ký phải trả 401 trước khi chạm database.
+- Payload sai chữ ký / không phải JSON: trả **200** `{ignored: INVALID_SIGNATURE | INVALID_JSON}` và KHÔNG chạm database. Không trả 401 vì Zalo chỉ nhận Webhook URL khi request kiểm tra (không chữ ký) được 200.
 - So `follower_total` với OA Manager sau cron; lệch phải điều tra token/OA ID, không chỉnh tay.
 - `incoming + outgoing` theo ngày phải bằng tổng message event cùng ngày.
 - Month/7D/MTD phải dùng timezone Bangkok, không dùng ngày UTC.
