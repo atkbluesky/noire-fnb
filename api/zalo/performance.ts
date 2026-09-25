@@ -1,4 +1,4 @@
-import { getSql, ictDate, json, type ZaloEnv } from './_shared';
+import { getSql, ictDate, json, type ZaloEnv } from './_shared.js';
 
 type Period = 'today' | '7d' | 'mtd' | 'month';
 
