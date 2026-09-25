@@ -181,6 +181,9 @@ export const ZaloOAView: React.FC = () => {
   }, [period, month]);
 
   const apiReady = data != null;
+  // Chế độ Export: export Tổng quan không có tổng follower → dùng snapshot OpenAPI nếu sổ tay S26 trống.
+  const apiFollower = data?.metrics.followerTotal ?? null;
+  const apiSnapshotDate = data?.freshness.last_snapshot ? freshnessLabel(data.freshness.last_snapshot) : null;
   const source: Source = apiReady && !preferExport ? 'api' : 'export';
   const hasExport = oaDaily.length > 0 && lastExportDate != null;
 
@@ -483,13 +486,17 @@ export const ZaloOAView: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <MetricCard
               label="Tổng follower"
-              subLabel={exp.follower ? `Sổ tay · chụp ${fullDate(exp.follower.date)}` : 'Tổng người quan tâm'}
-              value={formatNumber(exp.follower?.follower_total)}
+              subLabel={exp.follower
+                ? `Sổ tay · chụp ${fullDate(exp.follower.date)}`
+                : apiFollower != null ? `OpenAPI · snapshot ${apiSnapshotDate ?? ''}` : 'Tổng người quan tâm'}
+              value={formatNumber(exp.follower?.follower_total ?? apiFollower)}
               customDeltaText={exp.follower
                 ? (exp.followerNet != null
                     ? `${exp.followerNet >= 0 ? '+' : ''}${formatNumber(exp.followerNet)} ròng trong kỳ${exp.unfollows != null ? ` · bỏ ${formatNumber(exp.unfollows)}` : ''}`
                     : 'Cần thêm 1 mốc trước đầu kỳ để tính ròng')
-                : <span className="text-status-warning">Cần nhập — sổ Zalo_OA_Follower (S26)</span>}
+                : apiFollower != null
+                  ? 'Số hiện tại từ API — không thuộc kỳ export đang xem'
+                  : <span className="text-status-warning">Cần nhập — sổ Zalo_OA_Follower (S26)</span>}
               icon={<Users className="h-4 w-4" />}
               variant="hero"
             />
@@ -524,8 +531,8 @@ export const ZaloOAView: React.FC = () => {
           <Card
             title="Độ tươi & định nghĩa dữ liệu"
             description="Nguồn nào đang cấp số, đến ngày nào, và trường nào còn thiếu."
-            chip={exp.follower ? 'DATA HEALTH' : 'THIẾU TỔNG FOLLOWER'}
-            chipColor={exp.follower ? undefined : 'border-status-warning/40 bg-status-warningBg text-status-warning'}
+            chip={exp.follower || apiFollower != null ? 'DATA HEALTH' : 'THIẾU TỔNG FOLLOWER'}
+            chipColor={exp.follower || apiFollower != null ? undefined : 'border-status-warning/40 bg-status-warningBg text-status-warning'}
           >
             <div className="grid gap-3 text-xs sm:grid-cols-3">
               <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
