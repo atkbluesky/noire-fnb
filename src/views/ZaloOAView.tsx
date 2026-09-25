@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MessageCircle, Send, Users, MessagesSquare, RefreshCw, ShieldCheck, Eye, MousePointerClick, UserPlus, FileSpreadsheet,
 } from 'lucide-react';
@@ -152,10 +152,27 @@ export const ZaloOAView: React.FC = () => {
   const [expPeriod, setExpPeriod] = useState<ExportPeriod>('month');
   const [expMonth, setExpMonth] = useState(() => oaMonths.at(-1) ?? '');
 
+  // Tự làm mới 60 giây/lần khi đang xem nguồn API và tab đang mở — webhook ghi số realtime.
+  const [tick, setTick] = useState(0);
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const lastTick = useRef(0);
+  useEffect(() => {
+    if (preferExport) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') setTick(t => t + 1);
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [preferExport]);
+
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
+    // Lần gọi do bộ đếm 60 giây = làm mới NGẦM: không hiện "…", lỗi mạng thì GIỮ số cũ.
+    const silent = tick !== lastTick.current;
+    lastTick.current = tick;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     const params = new URLSearchParams({ period });
     if (period === 'month') params.set('month', month);
     fetch(`/api/zalo/performance?${params}`, { signal: controller.signal })
@@ -167,9 +184,10 @@ export const ZaloOAView: React.FC = () => {
           });
         }
         setData(body as unknown as ZaloPerformanceResponse);
+        setRefreshedAt(new Date());
       })
       .catch(err => {
-        if (err.name !== 'AbortError') {
+        if (err.name !== 'AbortError' && !silent) {
           setData(null);
           setError({ code: err.code, message: err.message });
         }
@@ -178,7 +196,7 @@ export const ZaloOAView: React.FC = () => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [period, month]);
+  }, [period, month, tick]);
 
   const apiReady = data != null;
   // Chế độ Export: export Tổng quan không có tổng follower → dùng snapshot OpenAPI nếu sổ tay S26 trống.
@@ -348,7 +366,7 @@ export const ZaloOAView: React.FC = () => {
           </h2>
           <p className="mt-1 text-xs text-brand-muted">
             {source === 'api'
-              ? 'Theo dõi follower snapshot và luồng chat realtime. Không lưu nội dung tin nhắn, không CRM, không tự động gửi tin.'
+              ? `Follower snapshot + luồng chat realtime qua webhook · tự làm mới 60 giây${refreshedAt ? ` · cập nhật ${refreshedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}. Không lưu nội dung tin nhắn.`
               : 'Đang chạy bằng file export OA Manager (Thống kê › Tổng quan) + sổ tay tổng follower — tự chuyển sang OpenAPI khi kết nối xong.'}
           </p>
         </div>
