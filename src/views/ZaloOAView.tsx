@@ -419,7 +419,7 @@ export const ZaloOAView: React.FC = () => {
               label="Tổng follower"
               subLabel="Snapshot cuối kỳ"
               value={loading ? '…' : formatNumber(metrics?.followerTotal)}
-              customDeltaText={`${metrics?.followerNet == null ? 'Chưa đủ snapshot đối chiếu' : `${metrics.followerNet >= 0 ? '+' : ''}${formatNumber(metrics.followerNet)} trong kỳ`}${
+              customDeltaText={`${metrics?.followerNet == null ? 'Chưa đủ snapshot đối chiếu' : `${metrics.followerNet >= 0 ? '+' : ''}${formatNumber(metrics.followerNet)} ${metrics.followerNetSince ? `từ ${shortDate(metrics.followerNetSince)}` : 'trong kỳ'}`}${
                 metrics && (metrics.newFollowers || metrics.unfollowers) ? ` · +${formatNumber(metrics.newFollowers)} / −${formatNumber(metrics.unfollowers)}` : ''}`}
               icon={<Users className="h-4 w-4" />}
               variant="hero"

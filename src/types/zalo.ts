@@ -24,6 +24,8 @@ export interface ZaloPerformanceResponse {
   metrics: {
     followerTotal: number | null;
     followerNet: number | null;
+    /** Có giá trị khi mốc so nằm TRONG kỳ (mới kết nối giữa kỳ): ngày snapshot đầu tiên. */
+    followerNetSince: string | null;
     incomingMessages: number;
     outgoingMessages: number;
     uniqueChatUsers: number;

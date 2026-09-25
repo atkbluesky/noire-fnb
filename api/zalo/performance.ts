@@ -68,11 +68,17 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
         and event_time < ((${window.end}::date + 1)::timestamp at time zone 'Asia/Bangkok')`;
     const [oa] = await sql<{ oa_name: string | null }[]>`select oa_name from zalo_oa_daily_snapshot
       where oa_id = ${oaId} order by snapshot_date desc limit 1`;
-    const [followers] = await sql<{ current: number | null; before: number | null }[]>`select
+    // Mốc so: snapshot gần nhất TRƯỚC đầu kỳ; chưa có (mới kết nối giữa kỳ) thì lấy snapshot
+    // SỚM NHẤT trong kỳ — trả kèm ngày mốc để màn hình ghi "+N từ dd/mm", không giả là cả kỳ.
+    const [followers] = await sql<{ current: number | null; before: number | null; base: number | null; base_date: string | null }[]>`select
       (select follower_total from zalo_oa_daily_snapshot where oa_id = ${oaId}
         and snapshot_date <= ${window.end}::date order by snapshot_date desc limit 1) as current,
       (select follower_total from zalo_oa_daily_snapshot where oa_id = ${oaId}
-        and snapshot_date < ${window.start}::date order by snapshot_date desc limit 1) as before`;
+        and snapshot_date < ${window.start}::date order by snapshot_date desc limit 1) as before,
+      (select follower_total from zalo_oa_daily_snapshot where oa_id = ${oaId}
+        and snapshot_date between ${window.start}::date and ${window.end}::date order by snapshot_date limit 1) as base,
+      (select snapshot_date::text from zalo_oa_daily_snapshot where oa_id = ${oaId}
+        and snapshot_date between ${window.start}::date and ${window.end}::date order by snapshot_date limit 1) as base_date`;
     const [freshness] = await sql<{ last_webhook: string | null; last_snapshot: string | null; last_success: string | null }[]>`select
       (select max(received_at)::text from zalo_oa_webhook_event where oa_id = ${oaId}) as last_webhook,
       (select max(fetched_at)::text from zalo_oa_daily_snapshot where oa_id = ${oaId}) as last_snapshot,
@@ -85,7 +91,8 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
       }
     }
     const followerTotal = followers?.current == null ? null : num(followers.current);
-    const followerBefore = followers?.before == null ? null : num(followers.before);
+    const inWindowBase = followers?.before == null && followers?.base != null && followers.base_date !== window.end;
+    const followerBefore = followers?.before != null ? num(followers.before) : inWindowBase ? num(followers.base) : null;
     return json(200, {
       ok: true,
       source: 'Zalo OA OpenAPI + Webhook',
@@ -95,6 +102,7 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
       metrics: {
         followerTotal,
         followerNet: followerTotal != null && followerBefore != null ? followerTotal - followerBefore : null,
+        followerNetSince: inWindowBase ? followers!.base_date : null,
         incomingMessages: rows.reduce((sum, row) => sum + num(row.incoming_messages), 0),
         outgoingMessages: rows.reduce((sum, row) => sum + num(row.outgoing_messages), 0),
         uniqueChatUsers: num(rangeUnique?.n),
