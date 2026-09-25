@@ -1,6 +1,6 @@
 import {
   getSql, json, normalizeWebhook, verifyWebhookSignature, type ZaloEnv,
-} from './_shared';
+} from './_shared.js';
 
 const MAX_BODY_BYTES = 256_000;
 

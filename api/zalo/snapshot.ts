@@ -1,4 +1,4 @@
-import { getSql, ictDate, json, requireCron, validAccessToken, type ZaloEnv } from './_shared';
+import { getSql, ictDate, json, requireCron, validAccessToken, type ZaloEnv } from './_shared.js';
 
 export async function handleZaloSnapshot(req: Request, env: ZaloEnv = process.env): Promise<Response> {
   if (!['GET', 'POST'].includes(req.method)) return json(405, { ok: false, error: 'Chỉ nhận GET/POST' });
