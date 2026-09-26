@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:data": "node scripts/build-data.mjs",
+    "probe:ipos": "node scripts/ipos-probe.mjs",
     "predev": "npm run build:data",
     "dev": "node ./node_modules/vite/bin/vite.js",
     "prebuild": "npm run build:data",

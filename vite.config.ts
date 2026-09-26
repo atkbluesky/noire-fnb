@@ -6,6 +6,9 @@ import { handleZaloPerformance } from './api/zalo/performance';
 import { handleZaloSnapshot } from './api/zalo/snapshot';
 import { handleZaloWebhook } from './api/zalo/webhook';
 import type { ZaloEnv } from './api/zalo/_shared';
+import { handleIposSync } from './api/ipos/sync';
+import { handleIposWebhook } from './api/ipos/webhook';
+import type { IposEnv } from './api/ipos/_shared';
 
 /* Trên Vercel, api/feedback.ts tự chạy thành Function. Dev server và `vite preview`
    không biết thư mục api/, nên plugin này gắn đúng hàm đó vào /api/feedback để chạy
@@ -96,11 +99,55 @@ function zaloApi(env: ZaloEnv): Plugin {
   };
 }
 
+/** Giữ API M10.1 chạy giống nhau giữa Vite local và Vercel Functions. */
+function iposApi(env: IposEnv): Plugin {
+  const mount = (
+    pathName: string,
+    handler: (req: Request, env: IposEnv) => Promise<Response>,
+  ): Connect.NextHandleFunction => async (req, res, next) => {
+    try {
+      req.setEncoding('utf8');
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const headers = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+      }
+      const method = req.method ?? 'GET';
+      const query = req.url?.startsWith('?') ? req.url : req.url === '/' ? '' : req.url ?? '';
+      const response = await handler(new Request(
+        `http://${req.headers.host ?? 'localhost'}${pathName}${query}`,
+        { method, headers, body: ['GET', 'HEAD'].includes(method) ? undefined : body },
+      ), env);
+      res.statusCode = response.status;
+      response.headers.forEach((value, key) => res.setHeader(key, value));
+      res.end(await response.text());
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  const routes: Array<[string, (req: Request, env: IposEnv) => Promise<Response>]> = [
+    ['/api/ipos/webhook', handleIposWebhook],
+    ['/api/ipos/sync', handleIposSync],
+  ];
+
+  return {
+    name: 'noire-ipos-api',
+    configureServer(server) {
+      for (const [p, h] of routes) server.middlewares.use(p, mount(p, h));
+    },
+    configurePreviewServer(server) {
+      for (const [p, h] of routes) server.middlewares.use(p, mount(p, h));
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const serverEnv = loadEnv(mode, process.cwd(), '') as ZaloEnv & FeedbackEnv;
+  const serverEnv = loadEnv(mode, process.cwd(), '') as ZaloEnv & FeedbackEnv & IposEnv;
   return {
-    plugins: [react(), feedbackApi(serverEnv), zaloApi(serverEnv)],
+    plugins: [react(), feedbackApi(serverEnv), zaloApi(serverEnv), iposApi(serverEnv)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

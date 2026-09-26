@@ -41,6 +41,7 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | └ **M8.1** | Zalo OA Performance | `m81` | `ZaloOAView.tsx` | OpenAPI + Webhook + PostgreSQL | `zalo_oa_daily_metric` | P6.1 | 🟡 chờ credential + DB |
 | **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_campaigns · partner_check` | P7 | ✅ chung số với M7 |
 | **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
+| └ **M10.1** | Đặt bàn *(iPOS Booking)* | `m101` | `ReservationView.tsx` | iPOS OpenAPI + Webhook + PostgreSQL | `ipos_reservation` | P6.2 | 🟡 chờ access token + Webhook URL |
 | **R1** | Insight & Cảnh báo | `r1` | `InsightsView.tsx` | tổng hợp | `store_month · nature · product_stat · identify · bom_stat · meta · stores` + `MKT.budget · gads_stat · voucher_join` | P9 | ✅ |
 
 ---
@@ -111,6 +112,7 @@ mỗi module ghi rõ ngay trên thanh lọc phần nào lọc được. Khai bá
 | M8.1 Zalo OA | — | toàn bộ | *Today/7D/MTD/Month; không dùng filter brand* |
 | M9 Partnership | mọi khối — hoá đơn đối tác theo brand cửa hàng | Dining City (báo cáo team) gán brand ở danh mục | |
 | M10 Booking | — | toàn bộ | *lead hiện chủ yếu NDC* |
+| M10.1 Đặt bàn | mọi khối — đơn gắn nhà hàng qua `restaurant.reference_pos` | — | *Today/7D/MTD/Month · chọn trục Ngày tạo / Ngày phục vụ* |
 
 Để bộ lọc brand hoạt động **thật** chứ không chỉ hiện nút, tầng ETL đã bổ sung chiều `brand`
 vào bảng CTKM (`nature`, `campaigns`) và chiều brand cho voucher suy từ cột `Nhà hàng sử dụng`.
