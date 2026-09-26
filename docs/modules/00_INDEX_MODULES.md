@@ -22,6 +22,7 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | └ M8.1 | [`M8_1_Zalo_OA.md`](M8_1_Zalo_OA.md) | Zalo OA Performance | P6.1 | 🟡 chạy bằng export OA · API chờ slot App liên kết |
 | M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership — Aggregator + Partner | P7 | ✅ đo trên hoá đơn POS · chung số với M7 |
 | M10 | [`M10_Booking.md`](M10_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
+| └ M10.1 | [`M10_1_Dat_Ban.md`](M10_1_Dat_Ban.md) | Đặt bàn — phễu từ iPOS Booking | P6.2 | 🟡 chưa nối · thiếu Webhook URL + access token |
 | R1 | [`R1_Insight.md`](R1_Insight.md) | Insight & Cảnh báo | P9 | ✅ |
 
 ---
