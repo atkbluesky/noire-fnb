@@ -6,6 +6,7 @@
   "scripts": {
     "build:data": "node scripts/build-data.mjs",
     "probe:ipos": "node scripts/ipos-probe.mjs",
+    "probe:fb": "node scripts/fb-probe.mjs",
     "probe:ads": "node scripts/ads-probe.mjs",
     "typecheck:api": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.api.json",
     "predev": "npm run build:data",
