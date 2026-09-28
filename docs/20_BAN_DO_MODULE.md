@@ -33,6 +33,7 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | **M3** | Công suất & Kênh bán | `m3` | `CapacityView.tsx` | hub C·D·E·I·J | `daypart · daypart_order · heat · channel · zone · staff · dwell · stores` | P3 | ⚠️ thiếu chỗ ngồi |
 | **M4** | Ngân sách Marketing Q3 | `m4` | `BudgetView.tsx` | mkt §1c | `MKT.budget` | P4 | ✅ chỉ Q3 |
 | **M5** | Digital Ads (Meta + Google) | `m5` | `DigitalAdsView.tsx` | mkt §1·§1b | `MKT.ads_* · gads · gads_stat · budget` + `store_month · stores` | P7 | ⚠️ **thiếu Zalo** |
+| └ **M5.1** | Ads Auto — Meta Marketing API + Google Ads API *(đọc)* | `m5` | `DigitalAdsView.tsx` *(nhánh API)* | Meta Insights + Google Ads GAQL + PostgreSQL | `ads_campaign_daily · ads_daily_metric · dim_ads_campaign` | P7.1 | 🟢 Meta chạy thật · 8 tháng lệch 0,000% · Google chờ token |
 | **M6** | Social Media (Fanpage + TikTok) | `m6` | `SocialView.tsx` | loader §5b | `MKT.social.*` + `store_month · identify` | P7.5 | 🟡 chờ `social_month` |
 | **M7** | **Promotion** *(mục mẹ)* | `m7` | `PromotionView.tsx` | hub H + campaign | `nature · campaigns` + `CAMPAIGN.pos_map · plan` | P4 | ✅ |
 | └ **M7.1** | Pre-Analytics · Plan | `m71` | `PreAnalyticsView.tsx` | campaign | `CAMPAIGN.plan` *(pre_plan ← S16)* | P5.5 | ✅ |

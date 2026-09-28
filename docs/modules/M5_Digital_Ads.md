@@ -10,6 +10,17 @@
 | **Giai đoạn** | P7 |
 | **Trạng thái** | ⚠️ **Meta ✅ · Google ✅ *(T7 + T8/2026)* · Zalo ⛔ chưa có dữ liệu** |
 
+> 📡 **Nâng cấp đang dựng — [`M5_1_Ads_Auto.md`](M5_1_Ads_Auto.md)**
+> Tài liệu này mô tả nhánh **Excel** (export tay → `scripts/build-data.mjs` → `src/data/data_mkt.json`),
+> hiện là nguồn đang chạy. M5.1 thêm nhánh **API** (Meta Marketing API + Google Ads API → PostgreSQL,
+> grain ngày × chiến dịch) chạy **song song** trên cùng tab `m5`.
+> Nhánh Excel mô tả ở đây **giữ nguyên, không bị gỡ** — xem luật M5_1 §0.
+>
+> ❗ **Có brand thứ TƯ: `NEC` — NOIRE Events & Catering**, page chạy booking tiệc.
+> ETL Excel không nhận ra mã này nên gộp vào `Không xác định`: T8/2026 là **6.521.370đ (13,7%)**.
+> Doanh thu tiệc do M10 theo dõi riêng, **không** nằm trong `store_month.net` ở mẫu số ACR.
+> Bảng gán brand + phễu đầy đủ: [`M5_1_Ads_Auto.md` §2b-bis](M5_1_Ads_Auto.md).
+
 ---
 
 ## 1. Chuỗi trace

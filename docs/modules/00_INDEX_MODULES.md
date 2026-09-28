@@ -1,5 +1,7 @@
 # DANH SÁCH MODULE — 17 TAB
 
+> M5.1 · M8.1 · M10.1 là **module con dùng chung tab với module mẹ** — không phải tab thứ 18.
+
 Mỗi file mô tả một tab theo cùng một cấu trúc:
 **chuỗi trace (nguồn → tầng → khoá) · màn hình hiển thị gì · chỉ số & công thức · bộ lọc ·
 đang chặn bởi gì · checklist nâng cấp.**
@@ -14,6 +16,7 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | M3 | [`M3_Cong_suat_Kenh.md`](M3_Cong_suat_Kenh.md) | Công suất & Kênh bán | P3 | ⚠️ thiếu số chỗ ngồi |
 | M4 | [`M4_Ngan_sach.md`](M4_Ngan_sach.md) | Ngân sách Marketing Q3 | P4 | ✅ |
 | M5 | [`M5_Digital_Ads.md`](M5_Digital_Ads.md) | Digital Ads (Meta + Google) | P7 | ⚠️ thiếu Zalo |
+| └ M5.1 | [`M5_1_Ads_Auto.md`](M5_1_Ads_Auto.md) | Ads Auto — Meta API + Google Ads API *(tự động lấy số)* | P7.1 | 🟢 Meta chạy thật · 8 tháng khớp Excel 0,000% · Google chờ developer token |
 | M6 | [`M6_Social_Media.md`](M6_Social_Media.md) | Social Media (Fanpage + TikTok) | P7.5 | 🟡 chờ `social_month` |
 | **M7** | [`M7_Promotion.md`](M7_Promotion.md) | **Promotion** — mục mẹ · tổng quan 5 bản chất chi phí ưu đãi | P4 | ✅ |
 | └ M7.1 | [`M7_1_Pre_Analytics.md`](M7_1_Pre_Analytics.md) | Pre-Analytics · Plan — kế hoạch Pre-Analysis + thực tế | P5.5 | ✅ nối 5/25 CT với POS |

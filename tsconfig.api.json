@@ -1,0 +1,35 @@
+/*
+ * Kiểm kiểu cho thư mục `api/` — phát hiện 27/09/2026.
+ *
+ * `tsconfig.json` khai `"include": ["src"]`, nên `npx tsc --noEmit` KHÔNG hề đụng tới
+ * `api/`. Mã server của M8.1 · M10.1 · M8.2 · M5.1 từ trước tới nay chỉ được esbuild
+ * TRANSPILE khi Vite nạp `vite.config.ts` — mà transpile thì bỏ qua kiểu hoàn toàn.
+ * Hệ quả: một lỗi kiểu trong `api/` lọt qua cả `tsc --noEmit` lẫn `npm run build`.
+ *
+ * File này KHÔNG sửa `tsconfig.json` (luật M5_1 §0: chỉ thêm, không sửa cấu hình
+ * đang chạy). Chạy riêng:
+ *
+ *     npm run typecheck:api
+ *
+ * Khác biệt so với config gốc: `api/` chạy trên Node runtime chứ không phải trình
+ * duyệt, nên bỏ `lib.DOM`, thêm `types: ["node"]`, và tắt `allowImportingTsExtensions`
+ * vì mã server import nhau bằng đuôi `.js` (chuẩn ESM của Node).
+ */
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["api"]
+}
