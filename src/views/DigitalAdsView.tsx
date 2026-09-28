@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useFilters } from '../context/FilterContext';
 import { MKT_DATA, HUB_DATA, BRAND_COLORS } from '../data';
+import type { AdsPerformanceResponse } from '../types/ads';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -21,8 +22,41 @@ export const DigitalAdsView: React.FC = () => {
   const ms = selectedMonths;
   const lastMonth = ms[ms.length - 1] || '2026-08';
 
-  // Monthly ads spend
-  const AM = ms.map(m => {
+  /* ── M5.1 · nhánh API ────────────────────────────────────────────────────
+     Gọi /api/ads/performance cho đúng khoảng tháng đang chọn. Endpoint trả 503
+     NOT_CONFIGURED / NO_DATA khi chưa nối DB hoặc chưa chạy sync — khi đó màn hình
+     TỰ RƠI về nguồn Excel thay vì để trống (QĐ-1). Nhánh Excel bên dưới không bị
+     đụng một dòng nào; API chỉ thay số ở hai chỗ: `AM` và `hrByMonth`.             */
+  const [api, setApi] = useState<AdsPerformanceResponse | null>(null);
+  const [apiState, setApiState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const [preferApi, setPreferApi] = useState(true);
+
+  const rangeFrom = ms.length ? `${ms[0]}-01` : '';
+  const rangeTo = useMemo(() => {
+    if (!ms.length) return '';
+    const [y, mo] = lastMonth.split('-').map(Number);
+    return `${lastMonth}-${String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0')}`;
+  }, [ms.length, lastMonth]);
+
+  useEffect(() => {
+    if (!rangeFrom || !rangeTo) return;
+    let alive = true;
+    setApiState('loading');
+    fetch(`/api/ads/performance?from=${rangeFrom}&to=${rangeTo}`)
+      .then(async res => {
+        const body = await res.json().catch(() => null);
+        if (!alive) return;
+        if (res.ok && body?.ok) { setApi(body as AdsPerformanceResponse); setApiState('ready'); }
+        else { setApi(null); setApiState('unavailable'); }
+      })
+      .catch(() => { if (alive) { setApi(null); setApiState('unavailable'); } });
+    return () => { alive = false; };
+  }, [rangeFrom, rangeTo]);
+
+  const useApi = preferApi && apiState === 'ready' && api != null;
+
+  // ── Nguồn EXCEL (nguyên vẹn, không sửa) ──────────────────────────────────
+  const excelAM = ms.map(m => {
     if (filters.brand === 'ALL') {
       return AMall.find(a => a.month === m) || { month: m, spend: 0, reach: 0, n: 0 };
     }
@@ -35,6 +69,35 @@ export const DigitalAdsView: React.FC = () => {
     };
   });
 
+  const excelHrByMonth: Record<string, number> = {};
+  AB.forEach(r => {
+    if (r.brand === 'Tuyển dụng') {
+      excelHrByMonth[r.month] = (excelHrByMonth[r.month] || 0) + r.spend;
+    }
+  });
+
+  // ── Nguồn API — dựng lại đúng hai cấu trúc trên từ lát tháng × brand ──────
+  const apiAM = ms.map(m => {
+    const rs = (api?.byMonthBrand ?? []).filter(
+      r => r.month === m && (filters.brand === 'ALL' || r.brand === filters.brand));
+    return {
+      month: m,
+      // `mediaSpend` đã loại tuyển dụng ở tầng mart, nên cộng `hrSpend` lại cho
+      // khớp ngữ nghĩa "tổng chi" của nhánh Excel — chỗ trừ HR nằm ở dưới.
+      spend: rs.reduce((a, r) => a + r.mediaSpend + r.hrSpend, 0),
+      reach: 0,   // Google không trả reach; cộng reach giữa chiến dịch là trùng người
+      n: rs.reduce((a, r) => a + r.campaigns, 0),
+    };
+  });
+
+  const apiHrByMonth: Record<string, number> = {};
+  (api?.byMonthBrand ?? []).forEach(r => {
+    if (r.hrSpend > 0) apiHrByMonth[r.month] = (apiHrByMonth[r.month] || 0) + r.hrSpend;
+  });
+
+  const AM = useApi ? apiAM : excelAM;
+  const hrByMonth = useApi ? apiHrByMonth : excelHrByMonth;
+
   // Calculate Ad Cost Ratio = Media Spend ÷ Net Sales
   const netByMonth: Record<string, number> = {};
   HUB_DATA.store_month.forEach(r => {
@@ -42,12 +105,33 @@ export const DigitalAdsView: React.FC = () => {
     netByMonth[r.month] = (netByMonth[r.month] || 0) + (r.net || 0);
   });
 
-  const hrByMonth: Record<string, number> = {};
-  AB.forEach(r => {
-    if (r.brand === 'Tuyển dụng') {
-      hrByMonth[r.month] = (hrByMonth[r.month] || 0) + r.spend;
+  /* ── Đối chiếu hai nguồn (M5_1 §3d) ───────────────────────────────────────
+     >2% là SAI CẤU TRÚC, không phải sai số làm tròn. Hiện cảnh báo trên màn hình
+     chứ không im lặng chọn một bên. */
+  const reconcile = useMemo(() => {
+    if (!api) return null;
+
+    /* CHỈ so những tháng CẢ HAI nguồn đều có. Trong lúc backfill dần, API mới có
+       một tháng mà Excel đã có tám — so thẳng ra lệch 76% và báo động giả. Lệch
+       phải nói lên "hai nguồn bất đồng", không phải "API chưa kéo đủ tháng". */
+    const apiMonths = new Set((api.months ?? []).map(m => m.month));
+    const shared = ms.filter(m => apiMonths.has(m));
+    if (!shared.length) {
+      return { covered: 0, total: ms.length, api: 0, excel: 0, diff: 0, level: 'none' as const };
     }
-  });
+    const a = apiAM.filter(x => apiMonths.has(x.month)).reduce((s, x) => s + x.spend, 0);
+    const e = excelAM.filter(x => apiMonths.has(x.month)).reduce((s, x) => s + x.spend, 0);
+    if (!e) return null;
+    const diff = Math.abs(a - e) / e;
+    return {
+      covered: shared.length,
+      total: ms.length,
+      api: a,
+      excel: e,
+      diff,
+      level: (diff < 0.005 ? 'ok' : diff <= 0.02 ? 'warn' : 'bad') as 'ok' | 'warn' | 'bad',
+    };
+  }, [api, ms.join(','), filters.brand]);
 
   const acrSeries = ms.map(m => {
     const a = AM.find(x => x.month === m);
@@ -432,6 +516,113 @@ export const DigitalAdsView: React.FC = () => {
         </p>
       </div>
 
+      {/* M5.1 · Băng nguồn dữ liệu — QĐ-1: công tắc phải NHÌN THẤY ĐƯỢC */}
+      <div className="rounded-xl border border-brand-border bg-brand-surface p-3 text-xs space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-muted">Nguồn số liệu</span>
+          <div className="flex rounded-md border border-brand-border overflow-hidden">
+            <button
+              onClick={() => setPreferApi(true)}
+              disabled={apiState !== 'ready'}
+              title={apiState !== 'ready' ? 'API chưa sẵn sàng — chạy /api/ads/sync trước' : 'Meta Marketing API + Google Ads API'}
+              className={`px-2.5 py-1 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                useApi ? 'bg-brand-gold text-brand-dark' : 'text-brand-muted hover:text-brand-text'}`}
+            >
+              API
+            </button>
+            <button
+              onClick={() => setPreferApi(false)}
+              className={`px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                !useApi ? 'bg-brand-gold text-brand-dark' : 'text-brand-muted hover:text-brand-text'}`}
+            >
+              EXPORT
+            </button>
+          </div>
+          <span className="text-brand-faint text-[11px]">
+            {useApi
+              ? `${api?.source} · grain ngày × chiến dịch`
+              : 'Excel export tay · grain tháng × chiến dịch'}
+          </span>
+          {apiState === 'loading' && <span className="text-brand-faint text-[11px]">· đang gọi API…</span>}
+          {apiState === 'unavailable' && (
+            <span className="text-brand-faint text-[11px]">· API chưa nối — đang chạy bằng Excel</span>
+          )}
+        </div>
+
+        {/* Đối chiếu hai nguồn — M5_1 §3d. Chỉ so tháng cả hai nguồn cùng có. */}
+        {reconcile && reconcile.level === 'none' && (
+          <div className="rounded-lg border border-status-warning/40 bg-status-warningBg/20 p-2 text-[11px] text-status-warning">
+            <b>Chưa đối chiếu được:</b> API chưa có tháng nào trong kỳ đang xem.
+            Chạy <code>/api/ads/sync?month=YYYY-MM</code> để kéo về.
+          </div>
+        )}
+        {reconcile && reconcile.level !== 'none' && (
+          <div className={`rounded-lg border p-2 text-[11px] ${
+            reconcile.level === 'ok' ? 'border-status-ok/40 bg-status-okBg/20 text-status-ok'
+            : reconcile.level === 'warn' ? 'border-status-warning/40 bg-status-warningBg/20 text-status-warning'
+            : 'border-status-bad/40 bg-status-badBg/20 text-status-bad'}`}>
+            <b>Đối chiếu API vs Excel</b>
+            {reconcile.covered < reconcile.total && ` (${reconcile.covered}/${reconcile.total} tháng — API chưa kéo đủ kỳ)`}
+            : API {formatVND(reconcile.api)} · Excel {formatVND(reconcile.excel)} ·
+            lệch <b>{(reconcile.diff * 100).toFixed(2)}%</b>
+            {reconcile.level === 'bad' && ' — VƯỢT 2%, sai cấu trúc chứ không phải làm tròn. Không dùng nguồn API cho tới khi tìm ra nguyên nhân.'}
+            {reconcile.level === 'warn' && ' — trong ngưỡng nhưng cần ghi QA.'}
+          </div>
+        )}
+        {/* Kỳ đang xem rộng hơn phần API đã kéo → số API KHÔNG so được với Excel */}
+        {useApi && reconcile && reconcile.level !== 'none' && reconcile.covered < reconcile.total && (
+          <div className="rounded-lg border border-status-warning/40 bg-status-warningBg/20 p-2 text-[11px] text-status-warning">
+            <b>Đang xem {reconcile.total} tháng nhưng API mới có {reconcile.covered}.</b>{' '}
+            Mọi số theo nguồn API bên dưới chỉ gồm phần đã kéo — chưa phải toàn kỳ.
+            Backfill bằng <code>/api/ads/sync?days=270</code>.
+          </div>
+        )}
+
+        {/* Chiến dịch chưa gán brand — tiền đang rơi khỏi mọi phân tích theo brand */}
+        {useApi && api && !api.quality.unknownBrandOk && (
+          <div className="rounded-lg border border-status-bad/40 bg-status-badBg/20 p-2 text-[11px] text-status-bad">
+            <b>Chưa gán brand: {formatPercent(api.quality.unknownBrandShare ?? 0)} chi tiêu trong kỳ.</b>{' '}
+            Tiền này rơi khỏi mọi phân tích theo brand và làm sai ACR từng brand.
+            {api.quality.unmappedCampaigns.length > 0 && (
+              <> Chiến dịch: {api.quality.unmappedCampaigns.slice(0, 3)
+                .map(c => `${c.campaignName ?? c.campaignId} (${formatVND(c.spend)})`).join(' · ')}
+                {api.quality.unmappedCampaigns.length > 3 && ` — và ${api.quality.unmappedCampaigns.length - 3} chiến dịch nữa`}.
+              </>
+            )}{' '}
+            Sửa bằng cách cập nhật <code className="text-brand-sand">dim_ads_campaign</code> rồi đặt{' '}
+            <code className="text-brand-sand">mapping_locked = true</code>.
+          </div>
+        )}
+
+        {/* Chi nhắm tiệc — mẫu số ACR KHÔNG chứa doanh thu tiệc */}
+        {useApi && api && api.metrics.bookingSpend > 0 && (
+          <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-2 text-[11px] text-brand-muted">
+            <b className="text-brand-text">Trong kỳ có {formatVND(api.metrics.bookingSpend)} chi nhắm tiệc/catering</b>{' '}
+            ({formatPercent(api.metrics.bookingSpend / (api.metrics.mediaSpend || 1))} chi media). Doanh thu tiệc do
+            M10 Booking theo dõi riêng, <b>không nằm trong</b> Net Sales ở mẫu số — nên ACR dưới đây cao hơn
+            phần thực sự nhắm doanh thu nhà hàng. ACR chỉ tính phần nhà hàng:{' '}
+            <b className="text-brand-goldLight">
+              {(() => {
+                const net = netByMonth[acrFullMonth] || 0;
+                const store = (api.byMonthBrand ?? [])
+                  .filter(r => r.month === acrFullMonth && (filters.brand === 'ALL' || r.brand === filters.brand))
+                  .reduce((a, r) => a + r.storeSpend, 0);
+                return net > 0 && store > 0 ? `${((store / net) * 100).toFixed(2)}%` : '—';
+              })()}
+            </b>{' '}
+            ({formatMonthLabel(acrFullMonth)}).
+          </div>
+        )}
+
+        {useApi && api && (api.freshness.stuckRuns > 0 || api.freshness.lastSuccess == null) && (
+          <div className="rounded-lg border border-status-warning/40 bg-status-warningBg/20 p-2 text-[11px] text-status-warning">
+            {api.freshness.stuckRuns > 0
+              ? `${api.freshness.stuckRuns} lần sync đang treo quá 30 phút — kiểm ads_sync_run.`
+              : 'Chưa có lần sync nào thành công.'}
+          </div>
+        )}
+      </div>
+
       {/* ROAS Policy Notice */}
       <div className="rounded-xl border border-brand-border bg-brand-surface p-4 text-xs text-brand-muted space-y-1">
         <p>
@@ -440,7 +631,16 @@ export const DigitalAdsView: React.FC = () => {
           trên mỗi chuyển đổi làm thước đo chuẩn mực.
         </p>
         <p className="text-brand-faint text-[11px]">
-          Chi tiêu tuyển dụng nhân sự ({formatVND(AS.hr_spend)}) đã được tách riêng khỏi chi phí quảng cáo thương hiệu.
+          {/* M5 checklist mục 3 — minh bạch phần đã trừ khỏi ACR.
+              `ads_stat` của nhánh Excel KHÔNG có khoá `hr_spend` (kiểm 27/09/2026: chỉ có
+              spend · unknown · campaigns), nên chỗ này vẫn hiện "—" từ trước tới nay.
+              Cộng từ `hrByMonth` của kỳ đang xem thì cả hai nguồn đều ra số thật. */}
+          Chi tiêu tuyển dụng nhân sự (
+          {formatVND(
+            ms.reduce((a, m) => a + (hrByMonth[m] || 0), 0)
+            || AS.hr_spend || 0,
+          )}
+          ) đã được tách riêng khỏi chi phí quảng cáo thương hiệu.
         </p>
       </div>
 

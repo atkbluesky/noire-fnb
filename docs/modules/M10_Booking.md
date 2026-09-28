@@ -11,6 +11,13 @@
 | **Loader** | `scripts/build-data.mjs` §4b → `booking` · `booking_ads` · `booking_page` · `booking_meta` · `booking_stat` |
 | **Trạng thái** | ✅ dựng lại 17/09/2026 |
 
+> 📡 **Chi phí ads booking nay đo được theo NGÀY** — [`M5_1_Ads_Auto.md`](M5_1_Ads_Auto.md).
+> M5.1 kéo Meta Marketing API về Postgres ở grain ngày × chiến dịch và gắn cột `funnel`
+> theo đúng luật `$booking.ads` của §3 dưới đây (`funnel = 'booking'`).
+> Đo 27/09/2026 trên 8 tháng: **43,6tr** chi nhắm tiệc — gồm `8,0tr` của page NEC và
+> `35,6tr` của chiến dịch tiệc chạy trên page ba brand nhà hàng.
+> Dùng `ads_daily_metric.booking_spend` nếu cần số theo ngày thay vì theo tháng.
+
 ---
 
 ## 1. Ba nguồn, một phễu

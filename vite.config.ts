@@ -9,6 +9,10 @@ import type { ZaloEnv } from './api/zalo/_shared';
 import { handleIposSync } from './api/ipos/sync';
 import { handleIposWebhook } from './api/ipos/webhook';
 import type { IposEnv } from './api/ipos/_shared';
+import { handleAdsSync } from './api/ads/sync';
+import { handleAdsPerformance } from './api/ads/performance';
+import { handleAdsExport } from './api/ads/export';
+import type { AdsEnv } from './api/ads/_shared';
 
 /* Trên Vercel, api/feedback.ts tự chạy thành Function. Dev server và `vite preview`
    không biết thư mục api/, nên plugin này gắn đúng hàm đó vào /api/feedback để chạy
@@ -143,11 +147,62 @@ function iposApi(env: IposEnv): Plugin {
   };
 }
 
+/** Giữ API M5.1 chạy giống nhau giữa Vite local và Vercel Functions. */
+function adsApi(env: AdsEnv): Plugin {
+  const mount = (
+    pathName: string,
+    handler: (req: Request, env: AdsEnv) => Promise<Response>,
+  ): Connect.NextHandleFunction => async (req, res, next) => {
+    try {
+      req.setEncoding('utf8');
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const headers = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+      }
+      const method = req.method ?? 'GET';
+      const query = req.url?.startsWith('?') ? req.url : req.url === '/' ? '' : req.url ?? '';
+      const response = await handler(new Request(
+        `http://${req.headers.host ?? 'localhost'}${pathName}${query}`,
+        { method, headers, body: ['GET', 'HEAD'].includes(method) ? undefined : body },
+      ), env);
+      res.statusCode = response.status;
+      response.headers.forEach((value, key) => res.setHeader(key, value));
+      // /api/ads/export trả XLSX nhị phân — `response.text()` sẽ làm hỏng file.
+      const type = response.headers.get('content-type') ?? '';
+      if (type.includes('json') || type.startsWith('text/')) {
+        res.end(await response.text());
+      } else {
+        res.end(Buffer.from(await response.arrayBuffer()));
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  const routes: Array<[string, (req: Request, env: AdsEnv) => Promise<Response>]> = [
+    ['/api/ads/sync', handleAdsSync],
+    ['/api/ads/performance', handleAdsPerformance],
+    ['/api/ads/export', handleAdsExport],
+  ];
+
+  return {
+    name: 'noire-ads-api',
+    configureServer(server) {
+      for (const [p, h] of routes) server.middlewares.use(p, mount(p, h));
+    },
+    configurePreviewServer(server) {
+      for (const [p, h] of routes) server.middlewares.use(p, mount(p, h));
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const serverEnv = loadEnv(mode, process.cwd(), '') as ZaloEnv & FeedbackEnv & IposEnv;
+  const serverEnv = loadEnv(mode, process.cwd(), '') as ZaloEnv & FeedbackEnv & IposEnv & AdsEnv;
   return {
-    plugins: [react(), feedbackApi(serverEnv), zaloApi(serverEnv), iposApi(serverEnv)],
+    plugins: [react(), feedbackApi(serverEnv), zaloApi(serverEnv), iposApi(serverEnv), adsApi(serverEnv)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
