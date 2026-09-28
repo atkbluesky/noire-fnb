@@ -25,7 +25,8 @@ const MESSAGING_ACTION = 'onsite_conversion.messaging_conversation_started_7d';
  * tách theo tuổi × giới tính) → cộng ra 549tr thay vì 157tr, sai 3,5 lần.
  * Đây là bẫy M5 §6.1, đã mắc một lần với Excel.
  */
-const INSIGHT_FIELDS = 'campaign_id,campaign_name,spend,impressions,clicks,reach,frequency,actions';
+const INSIGHT_FIELDS =
+  'campaign_id,campaign_name,spend,impressions,clicks,reach,frequency,actions,video_thruplay_watched_actions';
 
 export function requireMeta(env: AdsEnv): { version: string; token: string; accounts: string[] } {
   const token = env.META_ADS_SYSTEM_TOKEN?.trim();
@@ -125,6 +126,12 @@ function mapRow(raw: Record<string, unknown>, accountId: string): CampaignDailyR
     results: null,
     resultType: null,
     messagingConversations: actionValue(raw.actions, MESSAGING_ACTION),
+    // Ba action dưới đo được ở T8/2026: link_click 5.372 · lead 191 · video_view 138.830.
+    linkClicks: actionValue(raw.actions, 'link_click'),
+    leads: actionValue(raw.actions, 'lead'),
+    videoViews: actionValue(raw.actions, 'video_view'),
+    // ThruPlay KHÔNG nằm trong `actions` — là trường riêng, cũng dạng mảng {action_type, value}.
+    thruplays: actionValue(raw.video_thruplay_watched_actions, 'video_view'),
     status: null,                                    // insights không trả status chiến dịch
     // Giữ `actions` để sau muốn thêm loại kết quả khác thì khỏi kéo lại API (M5_1 §2c).
     raw: { actions: Array.isArray(raw.actions) ? raw.actions : [] },
@@ -163,4 +170,41 @@ export async function fetchInsights(
   }
 
   return { rows, throttled };
+}
+
+/* ─── Reach & tần suất theo CỬA SỔ (M5_1 §2h) ───────────────────────────────
+   Reach không cộng được qua ngày/chiến dịch, nên hỏi Meta đúng cả cửa sổ: không
+   truyền `time_increment` thì Meta trả MỘT dòng cho toàn khoảng `time_range`.
+   `level=account` → một dòng cho tài khoản; `level=campaign` → một dòng mỗi chiến dịch. */
+export async function fetchWindowReach(
+  accountId: string,
+  level: 'account' | 'campaign',
+  since: string,
+  until: string,
+  env: AdsEnv,
+): Promise<Array<{ entityId: string; reach: number | null; impressions: number | null; frequency: number | null; spend: number | null }>> {
+  const out: Array<{ entityId: string; reach: number | null; impressions: number | null; frequency: number | null; spend: number | null }> = [];
+  let after: string | undefined;
+  for (let page = 0; page < 50; page += 1) {
+    const { body } = await graph(`act_${accountId}/insights`, {
+      level,
+      time_range: JSON.stringify({ since, until }),
+      fields: level === 'campaign' ? 'campaign_id,reach,impressions,frequency,spend' : 'reach,impressions,frequency,spend',
+      limit: 500,
+      after,
+    }, env);
+    for (const r of body.data ?? []) {
+      const opt = (v: unknown, label: string) => (v == null || v === '' ? null : num(v, label));
+      out.push({
+        entityId: level === 'campaign' ? String(r.campaign_id ?? '') : accountId,
+        reach: opt(r.reach, 'reach'),
+        impressions: opt(r.impressions, 'impressions'),
+        frequency: opt(r.frequency, 'frequency'),
+        spend: opt(r.spend, 'spend'),
+      });
+    }
+    after = body.paging?.cursors?.after;
+    if (!body.paging?.next || !after) break;
+  }
+  return out;
 }

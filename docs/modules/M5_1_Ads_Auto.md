@@ -10,7 +10,7 @@
 | **Grain** | **1 ngày × 1 chiến dịch × 1 nền tảng** — quyết định chốt 27/09/2026, xem §0.5 QĐ-2 |
 | **Phạm vi** | **Chỉ ĐỌC.** Không tạo chiến dịch, không đổi ngân sách, không bật/tắt gì trên tài khoản quảng cáo |
 | **Giai đoạn** | P7.1 |
-| **Trạng thái** | 🟢 **Meta CHẠY THẬT 27/09/2026** — 8 tháng (2.224 dòng) trên Neon, đối chiếu Excel **lệch 0,000% cả 8 tháng**, 14/14 QA gate xanh, 0 chiến dịch chưa gán brand, màn hình M5 đã đọc nhánh API. Google còn chặn vì thiếu developer token. Xem §0.45–§0.48 · bảng gán brand ở §2b-bis |
+| **Trạng thái** | 🟢 **Màn hình ba tầng dựng xong 28/09/2026** — Meta 9 tháng trên Neon (tới 27/09), T1→T8 khớp Excel 0,00%, 16/16 biểu đồ kiểm vẽ sạch. Google vẫn từ Excel (API chờ refresh token). Xem **§9** |
 
 > Tài liệu gốc cần đối chiếu khi chạy probe:
 > [Meta · Insights API](https://developers.facebook.com/docs/marketing-api/insights) ·
@@ -902,6 +902,15 @@ Refresh token mang quyền của người bấm đồng ý — tài khoản ch�
 
 ---
 
+**Thêm 28/09/2026 — ba vướng cuối khi lấy token:**
+
+| Vướng | Cách xử |
+|---|---|
+| `403 org_internal` | Consent screen đang **Internal** → Audience › **Make external** + **Publish app** (In production). Để *Testing* thì refresh token hết hạn sau 7 ngày |
+| Trang "refused to connect" ở `localhost:8787` dù Google đã cho qua | Listener đã hết giờ. Bật lại rồi bấm link lại — KHÔNG chép `code=` từ ảnh chụp |
+| Mọi phiên bản API trả 404 | Danh sách thử cũ: v17–v21 đã bị gỡ. Hiện hành **v22–v25** (v26+ chưa có). Cập nhật trong `_google.ts` + probe |
+| `403 The caller does not have permission` | Câu chung chung. Mã thật nằm ở `details[].errors[].errorCode` — nay code in ra luôn: `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` = developer token mức Test |
+
 ### 5c. Cron
 
 ```json
@@ -952,7 +961,7 @@ Ghi ra để không ai tưởng là bỏ sót.
 
 | Mức | Việc | Ghi chú |
 |---|---|---|
-| 🔴 **chặn** | **Google Ads — thiếu `GADS_REFRESH_TOKEN`** *(cập nhật 28/09/2026)* | Đã có 4/5 khoá: developer token · client ID/secret (client **mới**, không phải cái lộ trong ảnh) · customer `1956330376`. Kẹt ở bước **xác minh danh tính Google** khi đăng nhập để cấp quyền: `noirecafeandbistro` đòi passkey qua Bluetooth (hỏng), `quangdai122` đòi mã bảo mật từ **Galaxy S20** (không mang theo). Việc của Google, code không can thiệp — **chờ có S20**, rồi chạy `npm run probe:ads google-auth`. Xem §5e |
+| 🔴 **chặn** | **Google Ads — developer token ở mức TEST** *(cập nhật 28/09/2026)* | OAuth ĐÃ XONG: refresh token có, `listAccessibleCustomers` thấy 3 tài khoản gồm `1956330376`. Nhưng đọc số trả `403 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` — token Test chỉ đọc được tài khoản test. **Việc còn lại: xin Explorer/Basic access** ở Google Ads (MCC) › Tools › API Center. Không cần sửa code. Duyệt xong chạy `npm run probe:ads reconcile --month=2026-08` rồi sync |
 | 🟡 chờ | `quangdai122` phải được mời vào Google Ads `195-633-0376` quyền **Chỉ đọc** và **chấp nhận** | Không cần để LẤY token, nhưng cần để token ĐỌC được số. Làm song song được |
 | 🟡 chưa rõ | Developer token đang ở mức **Test** hay **Basic** | Probe `google` sẽ nói rõ khi có refresh token. Test thì chỉ gọi được tài khoản test — xin Basic ở API Center, 1–3 ngày |
 | 🔴 **chặn** | **Meta System User token** cần quyền admin Business Manager | User token 60 ngày dùng **tạm cho probe** được, **không** dùng cho cron |
@@ -960,3 +969,152 @@ Ghi ra để không ai tưởng là bỏ sót.
 | 🟡 rủi ro | Meta hiệu chỉnh attribution tới 28 ngày | Cửa sổ 7 ngày bắt được phần lớn. Backfill lại tháng trọn kỳ sau ngày 5 tháng sau |
 | 🟡 rủi ro | Số API lệch >2% so với Excel | §3d chặn. Nguyên nhân hay gặp: thiếu tài khoản trong `META_ADS_ACCOUNT_IDS` |
 | 🟢 đã tính | Vercel Function timeout 10s (Hobby) / 60s (Pro) | Sync chia theo nền tảng + theo tài khoản, mỗi lần một lô. Quá giờ thì ghi `ads_sync_run` và để cron sau chạy tiếp |
+
+---
+
+## 9. Màn hình M5 ba tầng — dựng lại 28/09/2026
+
+> Nguồn yêu cầu: prompt "Performance & BI Specialist" của người vận hành — đi từ **tổng thể (Blended)**
+> tới **từng kênh (Meta → Google)**, giữ ACR làm thước đo chính, tách Dine-in / Tiệc.
+> File: `src/views/DigitalAdsView.tsx` (vỏ) · `src/views/ads/AdsDashboard.tsx` (ba tầng) ·
+> `src/views/ads/adsModel.ts` (**mọi công thức**) · `src/views/ads/DigitalAdsExcelView.tsx` (bản cũ, dự phòng).
+
+### 9.1 Trục phân tách: 4 MẢNG — người vận hành chốt 28/09/2026
+
+| Mảng | Gồm | Mẫu số ACR |
+|---|---|---|
+| **NCB · NDC · NJFB** | chi `funnel = store` của từng brand | `store_month.net` của brand |
+| **Tiệc · NEC** | chi `funnel = booking` — **bất kể chạy trên page nào** | *không áp dụng* — doanh thu tiệc ở M10 |
+| Tuyển dụng | `funnel = hr` | ngoài mọi con số, chỉ hiện ở khung ghi chú |
+
+**Page NEC mở từ T7/2026** (đo được: chi đầu tiên trên page NEC ngày **15/07/2026**). Trước đó chiến dịch tiệc
+chạy **nhờ page brand**, nhận diện bằng tên (*tiệc · YEP · party · sự kiện…* — luật `guessFunnel`, §2b-bis).
+Hệ quả: *mảng* là Tiệc, nhưng *page* là brand. Hai chiều này tách riêng — biểu đồ "Chi tiệc theo page" dùng page.
+
+**Sửa gán 28/09/2026:** `NOIRE DC- Lead Tiệc - Tệp Event` (T3/2026) — hôm trước gán page = NEC, nhưng T3 chưa có
+page NEC → sửa page = **NDC**, giữ `funnel = booking`, `mapping_locked = true`. Tổng mảng Tiệc không đổi.
+
+**Bỏ ngân sách CRM Q3 (15tr Meta, 30tr Zalo)** khỏi M5 — người vận hành chốt: CRM thuộc M8.
+
+### 9.2 Mục tiêu dữ liệu — mỗi khối trả lời MỘT câu hỏi
+
+Câu hỏi in ngay trên màn hình, dưới tiêu đề từng tầng/khối. Khối nào không trả lời được câu gì thì không có mặt.
+
+| Tầng | Câu hỏi |
+|---|---|
+| **1 · Tổng quan** | Tiền quảng cáo có nằm trong khung cho phép so với doanh thu, và giải ngân có đúng nhịp kế hoạch không? |
+| **2 · Meta** | Mỗi đồng Meta mua được bao nhiêu hội thoại và lead, nội dung có kéo được click, tệp có bão hoà không? |
+| **3 · Google** | Google bắt được nhu cầu tìm quán ở kênh nào, và mỗi hành động tốn bao nhiêu? |
+
+| Khối | Câu hỏi | Dạng |
+|---|---|---|
+| Thẻ ACR | Có vượt trần không? | số lớn + trạng thái |
+| Chi media theo tháng × mảng | Tiền dồn vào mảng nào, dịch chuyển ra sao? | cột chồng, tô vùng kỳ đang xem |
+| Tỷ trọng kênh | Meta/Google chia ngân sách thế nào? | vòng, % ở chú giải |
+| ACR theo tháng | Tháng nào vượt trần? | đường + vạch mục tiêu |
+| Kế hoạch vs thực chi từng tháng Q3 | Tháng nào chi lệch? | cột đôi, nhãn % đạt |
+| Giải ngân Q3 | Tiền có nằm im so với kế hoạch đã tới hạn? | bảng, trạng thái màu |
+| Chi Meta + kết quả theo ngày/tuần | Tiền đổ ngày nào, ngày đó có ra hội thoại? | **hai** biểu đồ xếp dọc |
+| Phễu Meta | Rơi ở bước nào: không bấm, hay bấm mà không nhắn? | các bước + tỉ lệ chuyển |
+| Chi phí / tin nhắn theo mảng | Mảng nào mua hội thoại rẻ/đắt? | cột ngang + bảng |
+| Chi tiệc theo page | Tiệc đã chuyển hẳn sang page NEC chưa? | cột chồng theo page |
+| Bảng chiến dịch | Chiến dịch nào ăn tiền không ra hội thoại, tệp nào đã nóng? | bảng sắp xếp được |
+| Chi phí / chuyển đổi theo kênh hiển thị (Google) | Kênh nào rẻ nhất để kéo khách tới quán? | cột ngang |
+| Cụm từ tìm kiếm | Khách tìm theo tên quán hay theo nhu cầu? | ô số + bảng |
+
+### 9.3 Định nghĩa chỉ số (một chỗ duy nhất: `adsModel.ts`)
+
+| Chỉ số | Công thức | Ghi chú |
+|---|---|---|
+| **ACR toàn hệ thống** | (Meta mọi mảng trừ HR + Google) ÷ doanh thu thuần | **Khác màn hình cũ**: bản cũ chỉ tính Meta (T8: 0,90%), bản mới cộng Google (T8: **0,98%**) |
+| ACR ăn tại chỗ | như trên, bỏ chi Tiệc khỏi tử số | T8: 0,86% |
+| ACR brand | (Meta mảng brand + Google brand) ÷ doanh thu brand | |
+| **CPTB** | chi chiến dịch **mục tiêu Tin nhắn** ÷ tin nhắn của **chính** chúng | giữ định nghĩa M5 gốc — xem §9.9 lỗi 2 |
+| **CPL** | chi chiến dịch **có phát sinh lead** ÷ số lead | |
+| Tin nhắn mới | `onsite_conversion.messaging_conversation_started_7d`, **mọi** chiến dịch | T8: **756** (bản Excel cũ: 710 = chỉ chiến dịch mục tiêu Tin nhắn) |
+| Hành động inbound | tin nhắn + lead (Meta) + chuyển đổi (Google) | luôn hiện kèm bóc tách — đây là cộng những hành động khác giá trị |
+| CTR tất cả / CTR link | `clicks` / `link_click` ÷ hiển thị | |
+| Link click → tin nhắn | tin nhắn ÷ link click | nội dung dẫn vào inbox tốt tới đâu |
+| Tần suất 7 ngày | reach & hiển thị **cả cửa sổ 7 ngày**, cấp tài khoản (`ads_period_reach`) | KHÔNG lấy tần suất theo ngày-chiến dịch |
+| Reach | cấp tài khoản, tháng cuối kỳ | **không cộng được** qua tháng/chiến dịch/mảng → lọc mảng thì hiện "—" |
+
+Mọi tỉ lệ tính **từ tổng**. API chỉ trả số cộng được.
+
+### 9.4 Giả định — người vận hành CHƯA chốt, làm theo đề xuất
+
+| Giả định | Giá trị | Đổi ở đâu |
+|---|---|---|
+| Mục tiêu ACR | kế hoạch ads Q3 ÷ mục tiêu doanh thu Q3 = **1,067%** (theo brand: cửa hàng của brand) | `acrTarget()` |
+| Ngưỡng ACR | ≤ mục tiêu xanh · ≤ 120% cam · vượt đỏ | `acrStatus()` |
+| Kế hoạch tháng đang chạy | chia đều theo ngày | `planToDate()` |
+| Ngưỡng tần suất | < 3,5 xanh · 3,5–4 cam · ≥ 4 đỏ | `frequencyStatus()` |
+| Chi phí đứng yên | ±10% so kỳ trước coi như không đổi | `costDelta()` |
+
+### 9.5 Kỳ và so sánh
+
+- **Kỳ Meta** = các tháng của bộ lọc chung, cắt ở **hôm qua** (tháng đang chạy chưa có số hôm nay).
+- **Kỳ trước** = cùng **số ngày**, liền trước — không lấy "tháng trước" vì T9 mới 27 ngày so với T8 đủ 31 ngày là so lệch.
+- **Google chỉ có theo tháng** (Excel T7–T8). Nên bộ chọn kỳ vẫn là **tháng**, không phải ngày tự do như prompt đề xuất —
+  chọn ngày tự do thì phần Google bị cắt sai. Khi Google API nối xong mới mở chọn theo ngày.
+- **Giải ngân Q3 độc lập với kỳ đang xem** — đó là câu hỏi kiểm soát ngân sách quý. Mỗi kênh so tới ngày **nó có số**.
+
+### 9.6 Lệch so với prompt — có chủ ý
+
+| Prompt yêu cầu | Làm khác | Vì sao |
+|---|---|---|
+| Biểu đồ **trục kép** chi tiêu × tin nhắn | **Hai** biểu đồ xếp dọc chung trục thời gian | Trục kép là lỗi đọc số hàng đầu (dataviz) — hai thang đo tự do khiến mắt so sai độ lớn. Trục kép chi tiêu × ACR của màn hình cũ cũng đã tách |
+| Google: bóc theo **loại chiến dịch** (PMax/Local/Search) | Bóc theo **kênh hiển thị** (Maps · Search · Display · YouTube…) | NOIRE chỉ chạy 5 chiến dịch Performance Max — không có loại nào khác để tách |
+| Chỉ đường Maps / cuộc gọi / xem menu | Khung "chưa có" | Excel chỉ trả tổng chuyển đổi. Cần Google Ads API |
+| Bộ lọc Chi nhánh | Không có ở phần Meta | Chiến dịch Meta chưa gán cửa hàng (`store_code` trống). Google đã có cửa hàng ở bảng chiến dịch |
+| TikTok trong bảng giải ngân | Ghi "chưa chạy" | Không có dữ liệu |
+| Màu brand gốc | Bảng màu mới | Màu gốc TRƯỢT 4/5 kiểm validator — NCB↔NDC ΔE 7,2, mắt thường cũng khó tách |
+
+### 9.7 Bảng màu mảng — đã chạy validator dataviz
+
+| Mảng | Nền tối | Nền sáng |
+|---|---|---|
+| NCB | `#d95926` | `#eb6834` |
+| NDC | `#199e70` | `#1baf7a` |
+| NJFB | `#c98500` | `#eda100` |
+| Tiệc | `#9085e9` | `#4a3aa7` |
+
+Tối: qua 5/5 (CVD ΔE ≥ 8,4 · normal ΔE ≥ 19,8). Sáng: qua 4/5 — xanh ngọc & vàng < 3:1 tương phản
+→ **bắt buộc có bảng số đi kèm**, mọi biểu đồ M5 đều có. Nền tảng: Meta xanh dương, Google hồng — khác hẳn bảng mảng
+vì là thực thể khác. Thực chi = gold hệ thống · kế hoạch/mục tiêu = xám.
+
+### 9.8 Dữ liệu mới cho màn hình — `006_ads_meta_detail.sql`
+
+| | |
+|---|---|
+| Cột mới ở fact | `link_clicks` · `leads` · `video_views` (≥3 giây) · `thruplays` |
+| `ads_daily_segment` | mart ngày × nền tảng × brand × **phễu** — mọi chỉ số, không chỉ chi tiêu |
+| `ads_period_reach` | reach/tần suất theo **tháng** và **7 ngày gần nhất**, cấp tài khoản + chiến dịch |
+| API | `/api/ads/performance` thêm khoá: `segments` · `segmentDaily` · `segmentMonthly` · `tiecByPage` · `campaigns` · `reach` · `efficiency` · `previous` · `syncedThrough`. Khoá cũ giữ nguyên |
+
+### 9.9 Năm lỗi phát hiện & sửa trong lượt này
+
+**1. `raw` mã hoá JSON hai lần — do tôi, đã lên `main` qua PR #17.**
+Đoạn ghi theo lô `unnest(… JSON.stringify(raw) …::jsonb[])`: postgres.js hỏi server kiểu tham số, thấy `jsonb`
+thì **tự stringify thêm một lần**. Cả 2.224 dòng lưu `raw` thành *chuỗi*. Đã thử cả ba cách trên Neon rồi mới chọn
+`jsonb_to_recordset(<mảng object>::jsonb)`. Migration 006 gỡ lớp bọc — không mất dữ liệu.
+⚠ **Production đang chạy code cũ**: cron sẽ tiếp tục ghi sai cho tới khi bản sửa lên `main`. Sau khi deploy,
+**chạy lại migration 006** (an toàn, chỉ đụng dòng còn là chuỗi).
+
+**2. CPTB chia toàn bộ chi của mảng — sai nghĩa.** NCB ra **214.368đ/tin** vì 16tr của NCB là chiến dịch Engagement
+không nhằm ra tin nhắn. Sửa về định nghĩa gốc (chiến dịch mục tiêu Tin nhắn): NCB **29.106đ/tin**.
+
+**3. Đường mục tiêu ACR không hiện** — trục Y tự co tới 1%, mục tiêu 1,07% nằm ngoài khung.
+
+**4. Khối tuần cuối chỉ 1 ngày** (31/08) → đồ thị tụt giả. Sửa: khối 7 ngày tính ngược từ ngày cuối.
+
+**5. Chú giải mất màu** — truyền `textStyle: { fontSize }` ghi đè màu mà `EChartWrapper` đặt sẵn.
+
+Lỗi 3–5 thấy nhờ chụp màn hình bằng Chrome headless: khung trình duyệt tích hợp đang **dừng vẽ**
+(`requestAnimationFrame` không chạy — màn hình M1 cũ cũng 0 canvas), nên phải kiểm bằng hai đường khác:
+(a) dựng `AdsDashboard` ngoài trình duyệt, bắt cấu hình từng biểu đồ, cho ECharts vẽ ra SVG — **16/16 biểu đồ, 0 NaN**;
+(b) Chrome headless với hồ sơ tạm riêng, rồi xem ảnh.
+
+### 9.10 Dữ liệu mới nhất
+
+Sync lại T1→T9/2026 ngày 28/09/2026: **2.406 dòng**, T1→T8 khớp Excel **0,00%** từng tháng,
+**T9 (01→27/09): 24.777.327đ** — lần đầu có. ACR T9 **chưa hiện** vì doanh thu T9 chưa trọn tháng (luật §3b).

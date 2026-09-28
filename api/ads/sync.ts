@@ -13,10 +13,10 @@
  */
 import {
   accountList, getSql, isoDate, json, monthEnd, isMonth, refreshMart, requireCron, shiftDays,
-  upsertAccount, upsertCampaignDaily, upsertCampaignDim, upsertNetworkDaily, upsertSearchTermDaily,
-  type AdsEnv, type CampaignDailyRow, type Sql,
+  upsertAccount, upsertCampaignDaily, upsertCampaignDim, upsertNetworkDaily, upsertPeriodReach, upsertSearchTermDaily,
+  type AdsEnv, type CampaignDailyRow, type PeriodReachRow, type Sql,
 } from './_shared.js';
-import { fetchAccount, fetchInsights, isMetaConfigured } from './_meta.js';
+import { fetchAccount, fetchInsights, fetchWindowReach, isMetaConfigured } from './_meta.js';
 import {
   customerList, fetchCampaignDaily, fetchCustomer, fetchNetworkDaily, fetchSearchTermDaily,
   isGoogleConfigured,
@@ -95,6 +95,39 @@ async function writeCampaignRows(sql: Sql, rows: CampaignDailyRow[]): Promise<nu
   return upsertCampaignDaily(sql, rows);
 }
 
+/**
+ * Reach & tần suất theo cửa sổ (M5_1 §2h): mỗi tháng dương lịch chạm vào cửa sổ
+ * sync, cộng cửa sổ 7 ngày gần nhất. Tháng đang chạy dừng ở hôm qua.
+ * Mỗi cửa sổ hỏi hai cấp: tài khoản (một dòng) và chiến dịch (một dòng/chiến dịch).
+ */
+async function syncWindowReach(sql: Sql, accountId: string, from: string, to: string, env: AdsEnv): Promise<number> {
+  const yesterday = shiftDays(isoDate(new Date()), -1);
+  const cap = (d: string) => (d > yesterday ? yesterday : d);
+  const windows: Array<{ kind: 'month' | 'last7d'; start: string; end: string }> = [];
+
+  for (let m = from.slice(0, 7); m <= to.slice(0, 7); m = shiftDays(`${m}-01`, 32).slice(0, 7)) {
+    const start = `${m}-01`;
+    if (start > yesterday) break;
+    windows.push({ kind: 'month', start, end: cap(monthEnd(m)) });
+  }
+  if (to >= shiftDays(yesterday, -6)) {
+    windows.push({ kind: 'last7d', start: shiftDays(yesterday, -6), end: yesterday });
+  }
+
+  let written = 0;
+  for (const w of windows) {
+    for (const level of ['account', 'campaign'] as const) {
+      const got = await fetchWindowReach(accountId, level, w.start, w.end, env);
+      const rows: PeriodReachRow[] = got.map(g => ({
+        level, entityId: g.entityId, periodKind: w.kind, periodStart: w.start, periodEnd: w.end,
+        reach: g.reach, impressions: g.impressions, frequency: g.frequency, spend: g.spend,
+      }));
+      written += await upsertPeriodReach(sql, rows);
+    }
+  }
+  return written;
+}
+
 async function syncMeta(sql: Sql, from: string, to: string, env: AdsEnv): Promise<PlatformReport> {
   if (!isMetaConfigured(env)) {
     return { platform: 'meta', ok: true, code: 'NOT_CONFIGURED', warnings: ['Thiếu META_ADS_SYSTEM_TOKEN / META_ADS_ACCOUNT_IDS'] };
@@ -119,6 +152,14 @@ async function syncMeta(sql: Sql, from: string, to: string, env: AdsEnv): Promis
         throttled = true;
         warnings.push(`meta:act_${accountId}: dừng sớm vì quota ≥90% — cron sau sẽ kéo tiếp`);
         break;
+      }
+
+      // Reach & tần suất theo cửa sổ — lỗi ở đây KHÔNG làm hỏng số chi tiêu vừa ghi,
+      // chỉ báo cảnh báo (reach là chỉ số phụ, chi tiêu là chỉ số chính).
+      try {
+        upserted += await syncWindowReach(sql, accountId, from, to, env);
+      } catch (error) {
+        warnings.push(`meta:act_${accountId}: không kéo được reach theo kỳ — ${error instanceof Error ? error.message.slice(0, 120) : 'UNKNOWN'}`);
       }
     }
     await closeRun(sql, runId, true, { fetched, upserted });

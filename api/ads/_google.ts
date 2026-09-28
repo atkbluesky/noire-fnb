@@ -21,7 +21,9 @@ const MICROS = 1_000_000;
  * Google bỏ version cũ mỗi ~4 tháng. KHÔNG ghim cứng một số rồi tin — thử từ mới
  * về cũ, version nào gọi được thì nhớ lại trong tiến trình. Ghim bằng GADS_API_VERSION.
  */
-const VERSION_CANDIDATES = ['v21', 'v20', 'v19', 'v18', 'v17'];
+/* Đo thật 28/09/2026: v17–v21 đã bị gỡ (404), v26+ chưa có ("Method not found"),
+   v22–v25 đang sống. Danh sách này sẽ lại cũ — khi mọi bản đều 404 thì thêm bản mới lên đầu. */
+const VERSION_CANDIDATES = ['v25', 'v24', 'v23', 'v22'];
 
 let cachedVersion: string | undefined;
 let cachedToken: { value: string; expiresAt: number } | undefined;
@@ -86,7 +88,11 @@ async function searchStream(
   try { body = JSON.parse(text); } catch { throw new Error(`GADS_BAD_JSON:${res.status}:${text.slice(0, 160)}`); }
   if (!res.ok) {
     const err = (Array.isArray(body) ? (body[0] as Record<string, unknown>)?.error : (body as Record<string, unknown>)?.error) as Record<string, unknown> | undefined;
-    throw new Error(`GADS_HTTP_${res.status}:${String(err?.message ?? text.slice(0, 160))}`);
+    // Lấy errorCode cụ thể trong `details` — thông báo chung "The caller does not have permission"
+    // không phân biệt được thiếu quyền tài khoản hay developer token mới ở mức Test.
+    const codes = ((err?.details as Array<{ errors?: Array<{ errorCode?: Record<string, string> }> }>) ?? [])
+      .flatMap(d => d.errors ?? []).map(e => Object.values(e.errorCode ?? {}).join('/')).filter(Boolean);
+    throw new Error(`GADS_HTTP_${res.status}:${codes.length ? codes.join(',') + ':' : ''}${String(err?.message ?? text.slice(0, 160))}`);
   }
   // searchStream trả MẢNG chunk, mỗi chunk có `.results`.
   const chunks = Array.isArray(body) ? body : [body];
@@ -109,7 +115,7 @@ async function resolveVersion(customerId: string, env: AdsEnv): Promise<string> 
       const msg = error instanceof Error ? error.message : String(error);
       lastError = msg;
       // Không phải lỗi version → dừng, báo nguyên văn để người đọc biết đi xin quyền.
-      if (/DEVELOPER_TOKEN|PERMISSION_DENIED|not.*approved|test account|UNAUTHENTICATED/i.test(msg)) {
+      if (/DEVELOPER_TOKEN|PERMISSION_DENIED|NOT_APPROVED|not.*approved|test account|UNAUTHENTICATED|does not have permission|GADS_HTTP_40[13]/i.test(msg)) {
         throw new Error(msg);
       }
     }
@@ -171,6 +177,10 @@ export async function fetchCampaignDaily(
     results: null,
     resultType: null,
     messagingConversations: 0,
+    linkClicks: 0,          // Google không tách link click — dùng `clicks`
+    leads: 0,
+    videoViews: 0,
+    thruplays: 0,
     status: c(r).status == null ? null : String(c(r).status),
     raw: {},
   }));
