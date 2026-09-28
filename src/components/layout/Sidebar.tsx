@@ -153,8 +153,8 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         code: 'M8.1',
         title: 'Zalo OA Performance',
         icon: <MessageCircle className="h-4 w-4" />,
-        status: 'warning',
-        statusText: 'OA Export',
+        status: 'ok',
+        statusText: 'Export + API',
         parent: 'm8',
       },
       {

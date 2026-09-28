@@ -1,4 +1,4 @@
-export type ZaloPeriod = 'today' | '7d' | 'mtd' | 'month';
+export type ZaloPeriod = 'today' | '7d' | 'mtd' | 'month' | 'range';
 
 export interface ZaloDailyMetric {
   date: string;
@@ -39,6 +39,8 @@ export interface ZaloPerformanceResponse {
     last_webhook: string | null;
     last_snapshot: string | null;
     last_success: string | null;
+    /** Ngày đầu tiên có số API (min metric_date) — trước ngày này là chưa kết nối. */
+    first_metric: string | null;
   };
   definitions: Record<string, string>;
 }

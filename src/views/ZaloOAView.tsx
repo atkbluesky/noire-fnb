@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MessageCircle, Send, Users, MessagesSquare, RefreshCw, ShieldCheck, Eye, MousePointerClick, UserPlus, FileSpreadsheet,
+  MessageCircle, Send, Users, MessagesSquare, RefreshCw, ShieldCheck, Eye, MousePointerClick, UserPlus, UserMinus, FileSpreadsheet,
 } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
 import { MetricCard } from '../components/common/MetricCard';
@@ -8,26 +8,20 @@ import { Card } from '../components/common/Card';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
 import { formatMonthLabel, formatNumber, formatPercent } from '../utils/formatters';
 import { MKT_DATA } from '../data';
-import type { ZaloPerformanceResponse, ZaloPeriod } from '../types/zalo';
-import type { ZaloOADaily } from '../types/mkt';
+import type { ZaloPerformanceResponse } from '../types/zalo';
+import {
+  apiSpans, followerOf, ictToday, mergeDays, oaWindow, shiftDays, summarize,
+  type OaDay, type OaPeriod, type OaSummary, type Range,
+} from './zalo/oaModel';
 
-/* M8.1 có HAI nguồn, cùng một bố cục:
-   · API    — OpenAPI getoa (tổng follower) + Webhook (chat realtime). Cần App liên kết OA.
-   · EXPORT — OA Manager › Thống kê › Tổng quan (S12, theo ngày) + sổ tay Tổng người quan tâm (S26).
-   API chưa nối được (OA đã đủ số App liên kết) thì màn hình tự chạy bằng EXPORT thay vì để trống. */
-type Source = 'api' | 'export';
-type ExportPeriod = '7d' | '30d' | 'month' | 'ytd';
+/* M8.1 — MỘT màn hình gộp hai nguồn (luật gộp: ./zalo/oaModel.ts):
+   · Export OA Manager › Thống kê › Tổng quan (S12) — thả file hằng tháng, số chính thức + 3 chỉ số chỉ export có.
+   · OpenAPI getoa + Webhook — tổng follower, chat 2 chiều, và bù Quan tâm/Tin nhắn cho những ngày chưa có file. */
 
-const PERIODS: { id: ZaloPeriod; label: string }[] = [
-  { id: 'today', label: 'Today' },
-  { id: '7d', label: '7D' },
-  { id: 'mtd', label: 'MTD' },
-  { id: 'month', label: 'Month' },
-];
-const EXPORT_PERIODS: { id: ExportPeriod; label: string }[] = [
+const PERIODS: { id: OaPeriod; label: string }[] = [
   { id: '7d', label: '7D' },
   { id: '30d', label: '30D' },
-  { id: 'month', label: 'Month' },
+  { id: 'month', label: 'Tháng' },
   { id: 'ytd', label: 'YTD' },
 ];
 
@@ -36,39 +30,27 @@ const TYPE_LABELS: Record<string, string> = {
   file: 'Tệp', sticker: 'Sticker', gif: 'GIF', location: 'Vị trí', link: 'Liên kết', other: 'Khác',
 };
 
-const shortDate = (value: string) => {
-  const [, month, day] = value.split('-');
-  return `${day}/${month}`;
-};
-const fullDate = (value: string) => {
-  const [year, month, day] = value.split('-');
-  return `${day}/${month}/${year}`;
-};
-const shiftDays = (value: string, days: number) => {
-  const date = new Date(`${value}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-};
-const monthEnd = (month: string) => {
-  const date = new Date(`${month}-01T00:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() + 1);
-  return shiftDays(date.toISOString().slice(0, 10), -1);
-};
+/* Bảng luật gộp hiển thị cho người xem — trùng khớp với oaModel.ts. */
+const SOURCE_RULES: [string, string, string][] = [
+  ['Quan tâm mới · Gửi tin nhắn đến OA', 'Export (ngày có file)', 'API webhook — ngày chưa có file'],
+  ['Xem trang OA · Tương tác menu · Xem nội dung', 'Export', '— API không có'],
+  ['Tổng follower', 'API getoa (snapshot 00:05)', 'Sổ tay S26'],
+  ['Bỏ quan tâm', 'API webhook unfollow', 'Sổ tay S26'],
+  ['Tin OA gửi đi · Người chat · Hội thoại · Loại tin', 'API webhook', '— export không có'],
+];
 
-const freshnessLabel = (value: string | null) => value
+const shortDate = (value: string) => `${value.slice(8, 10)}/${value.slice(5, 7)}`;
+const fullDate = (value: string) => `${shortDate(value)}/${value.slice(0, 4)}`;
+const freshnessLabel = (value: string | null | undefined) => value
   ? new Intl.DateTimeFormat('vi-VN', {
       timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
     }).format(new Date(value))
   : 'Chưa có';
 
-const SegButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean; title?: string }> = ({
-  active, onClick, children, disabled, title,
-}) => (
+const SegButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+    className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition-colors ${
       active ? 'bg-brand-gold text-brand-dark' : 'text-brand-muted hover:text-brand-text'
     }`}
   >
@@ -76,507 +58,324 @@ const SegButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
   </button>
 );
 
-/* ───────────── Nguồn EXPORT: gom theo kỳ ───────────── */
-type OaSums = Pick<ZaloOADaily, 'follows' | 'msgs' | 'views' | 'menu' | 'content'>;
-const OA_KEYS: (keyof OaSums)[] = ['follows', 'msgs', 'views', 'menu', 'content'];
-
-const sumRows = (rows: ZaloOADaily[]): OaSums => {
-  const out: OaSums = { follows: 0, msgs: 0, views: 0, menu: 0, content: 0 };
-  for (const row of rows) for (const key of OA_KEYS) out[key] += row[key] ?? 0;
-  return out;
-};
-
-function exportWindow(period: ExportPeriod, month: string, lastDate: string) {
-  if (period === '7d') return { start: shiftDays(lastDate, -6), end: lastDate, prev: { start: shiftDays(lastDate, -13), end: shiftDays(lastDate, -7) } };
-  if (period === '30d') return { start: shiftDays(lastDate, -29), end: lastDate, prev: { start: shiftDays(lastDate, -59), end: shiftDays(lastDate, -30) } };
-  if (period === 'ytd') return { start: `${lastDate.slice(0, 4)}-01-01`, end: lastDate, prev: null };
-  const end = monthEnd(month) < lastDate ? monthEnd(month) : lastDate;
-  const prevMonth = shiftDays(`${month}-01`, -1).slice(0, 7);
-  return { start: `${month}-01`, end, prev: { start: `${prevMonth}-01`, end: monthEnd(prevMonth) } };
+async function fetchPerf(range: Range, signal: AbortSignal): Promise<ZaloPerformanceResponse> {
+  const params = new URLSearchParams({ period: 'range', ...range });
+  const response = await fetch(`/api/zalo/performance?${params}`, { signal });
+  const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok || body.ok !== true) {
+    throw Object.assign(new Error(String(body.message ?? body.error ?? 'Không tải được dữ liệu Zalo OA')), { code: body.code });
+  }
+  return body as unknown as ZaloPerformanceResponse;
 }
 
-/* Bảng trường dữ liệu × nguồn — trả lời "OA có những trường gì, lấy ở đâu". */
-const FIELD_MATRIX: { field: string; exp: string; manual: string; api: string }[] = [
-  { field: 'Tổng người quan tâm (follower)', exp: '—', manual: '✓ nhập tay', api: '✓ getoa · num_follower' },
-  { field: 'Quan tâm mới', exp: '✓ theo ngày', manual: '—', api: '✓ Webhook follow*' },
-  { field: 'Bỏ quan tâm', exp: '—', manual: '✓ nếu có', api: '✓ Webhook unfollow*' },
-  { field: 'Gửi tin nhắn đến OA', exp: '✓ lượt/ngày', manual: '—', api: '✓ user_send_*' },
-  { field: 'Tin OA gửi đi', exp: '—', manual: '—', api: '✓ oa_send_*' },
-  { field: 'Unique chat user · Hội thoại · Loại tin', exp: '—', manual: '—', api: '✓ tính từ event' },
-  { field: 'Xem trang thông tin OA', exp: '✓ theo ngày', manual: '—', api: '— API không trả' },
-  { field: 'Tương tác thanh menu', exp: '✓ theo ngày', manual: '—', api: '— API không trả' },
-  { field: 'Xem nội dung', exp: '✓ theo ngày', manual: '—', api: '— API không trả' },
-];
+type ApiState =
+  | { state: 'checking' }
+  | { state: 'off'; code?: string; message: string }
+  | { state: 'live'; cur: ZaloPerformanceResponse; prev: ZaloPerformanceResponse | null; at: Date };
 
-const ExportFieldMatrix: React.FC = () => (
-  <div className="mt-4 overflow-x-auto">
-    <table className="w-full min-w-[560px] text-left text-[11px]">
-      <thead>
-        <tr className="border-b border-brand-border text-brand-muted">
-          <th className="py-1.5 pr-3 font-bold">Trường dữ liệu OA</th>
-          <th className="py-1.5 pr-3 font-bold">Export Tổng quan (S12)</th>
-          <th className="py-1.5 pr-3 font-bold">Sổ tay follower (S26)</th>
-          <th className="py-1.5 font-bold">OpenAPI + Webhook</th>
-        </tr>
-      </thead>
-      <tbody>
-        {FIELD_MATRIX.map(row => (
-          <tr key={row.field} className="border-b border-brand-border/50">
-            <td className="py-1.5 pr-3 text-brand-text">{row.field}</td>
-            {[row.exp, row.manual, row.api].map((cell, i) => (
-              <td key={i} className={`py-1.5 pr-3 font-mono ${cell.startsWith('✓') ? 'text-status-ok' : 'text-brand-faint'}`}>{cell}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    <p className="mt-2 text-[10px] leading-relaxed text-brand-faint">
-      * Cần chạy thêm migration 002 (đếm follow/unfollow vào bảng ngày) và bật event follow/unfollow khi đăng ký webhook.
-      Ba chỉ số hành vi trang OA chỉ có trong export — sau khi nối API vẫn nên giữ nhịp xuất file hằng tháng.
-    </p>
-  </div>
-);
+/** So kỳ chỉ khi cả hai kỳ đủ số — kỳ thiếu ngày thì so sẽ ra "giảm" giả. */
+const compare = (cur: OaSummary, prev: OaSummary | null, key: keyof OaSummary, needExport = false) => {
+  if (!prev) return { customDeltaText: 'Không có kỳ so sánh' };
+  const gap = needExport ? cur.noExportDays + prev.noExportDays : cur.gapDays + prev.gapDays;
+  if (gap > 0) return { customDeltaText: 'Kỳ so sánh chưa đủ số' };
+  return { curRawValue: cur[key] as number | null, prevValue: prev[key] as number | null };
+};
 
 export const ZaloOAView: React.FC = () => {
-  const [period, setPeriod] = useState<ZaloPeriod>('7d');
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [data, setData] = useState<ZaloPerformanceResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ code?: string; message: string } | null>(null);
-  const [preferExport, setPreferExport] = useState(false);
+  const exportDaily = MKT_DATA.oa_daily ?? [];
+  const follower = MKT_DATA.oa_follower ?? [];
+  const lastExport = exportDaily.at(-1)?.date ?? null;
 
-  const oaDaily = MKT_DATA.oa_daily ?? [];
-  const oaFollower = MKT_DATA.oa_follower ?? [];
-  const oaMonths = useMemo(() => [...new Set(oaDaily.map(row => row.date.slice(0, 7)))], [oaDaily]);
-  const lastExportDate = oaDaily.at(-1)?.date ?? null;
-  const [expPeriod, setExpPeriod] = useState<ExportPeriod>('month');
-  const [expMonth, setExpMonth] = useState(() => oaMonths.at(-1) ?? '');
+  const [period, setPeriod] = useState<OaPeriod>('month');
+  const [monthPick, setMonthPick] = useState<string | null>(null);
+  const [api, setApi] = useState<ApiState>({ state: 'checking' });
 
-  // Tự làm mới 60 giây/lần khi đang xem nguồn API và tab đang mở — webhook ghi số realtime.
+  // API sống → kỳ neo vào hôm nay; API tắt → neo vào ngày cuối có export (không để kỳ rỗng).
+  const today = ictToday();
+  const anchor = api.state === 'off' ? lastExport ?? today : today;
+  const month = monthPick ?? anchor.slice(0, 7);
+  const win = useMemo(() => oaWindow(period, month, anchor), [period, month, anchor]);
+
+  // Tự làm mới ngầm 60 giây/lần khi API sống và tab đang mở — webhook ghi số realtime.
   const [tick, setTick] = useState(0);
-  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
   const lastTick = useRef(0);
+  const live = api.state === 'live';
   useEffect(() => {
-    if (preferExport) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState === 'visible') setTick(t => t + 1);
-    }, 60_000);
+    if (!live) return;
+    const id = window.setInterval(() => document.visibilityState === 'visible' && setTick(t => t + 1), 60_000);
     return () => window.clearInterval(id);
-  }, [preferExport]);
+  }, [live]);
 
+  const off = api.state === 'off';
   useEffect(() => {
+    if (off) return;
     const controller = new AbortController();
-    // Lần gọi do bộ đếm 60 giây = làm mới NGẦM: không hiện "…", lỗi mạng thì GIỮ số cũ.
     const silent = tick !== lastTick.current;
     lastTick.current = tick;
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
-    const params = new URLSearchParams({ period });
-    if (period === 'month') params.set('month', month);
-    fetch(`/api/zalo/performance?${params}`, { signal: controller.signal })
-      .then(async response => {
-        const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-        if (!response.ok || body.ok !== true) {
-          throw Object.assign(new Error(String(body.message ?? body.error ?? 'Không tải được dữ liệu Zalo OA')), {
-            code: body.code,
-          });
-        }
-        setData(body as unknown as ZaloPerformanceResponse);
-        setRefreshedAt(new Date());
-      })
-      .catch(err => {
-        if (err.name !== 'AbortError' && !silent) {
-          setData(null);
-          setError({ code: err.code, message: err.message });
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
+    Promise.all([fetchPerf(win, controller.signal), win.prev ? fetchPerf(win.prev, controller.signal) : null])
+      .then(([cur, prev]) => setApi({ state: 'live', cur, prev, at: new Date() }))
+      // Lỗi khi làm mới ngầm thì GIỮ số cũ; lỗi lần đầu thì màn hình chạy bằng export.
+      .catch(err => { if (err.name !== 'AbortError' && !silent) setApi({ state: 'off', code: err.code, message: err.message }); });
     return () => controller.abort();
-  }, [period, month, tick]);
+  }, [win, tick, off]);
 
-  const apiReady = data != null;
-  // Chế độ Export: export Tổng quan không có tổng follower → dùng snapshot OpenAPI nếu sổ tay S26 trống.
-  const apiFollower = data?.metrics.followerTotal ?? null;
-  const apiSnapshotDate = data?.freshness.last_snapshot ? freshnessLabel(data.freshness.last_snapshot) : null;
-  const source: Source = apiReady && !preferExport ? 'api' : 'export';
-  const hasExport = oaDaily.length > 0 && lastExportDate != null;
+  const cur = live ? api.cur : null;
+  const firstApi = cur?.freshness.first_metric ?? null;
 
-  /* ───── Nguồn EXPORT ───── */
-  const exp = useMemo(() => {
-    if (!hasExport || !lastExportDate) return null;
-    const win = exportWindow(expPeriod, expMonth || lastExportDate.slice(0, 7), lastExportDate);
-    const rows = oaDaily.filter(row => row.date >= win.start && row.date <= win.end);
-    const prevRows = win.prev ? oaDaily.filter(row => row.date >= win.prev!.start && row.date <= win.prev!.end) : [];
-    const snaps = oaFollower.filter(row => row.follower_total != null);
-    const current = [...snaps].reverse().find(row => row.date <= win.end) ?? null;
-    const before = [...snaps].reverse().find(row => row.date < win.start) ?? null;
-    const unf = oaFollower.filter(row => row.date >= win.start && row.date <= win.end && row.unfollows != null);
+  const view = useMemo(() => {
+    const days = mergeDays(win, { exportDaily, follower, api: cur });
+    const prevDays = win.prev ? mergeDays(win.prev, { exportDaily, follower, api: live ? api.prev : null }) : null;
     return {
-      win,
-      rows,
-      sums: sumRows(rows),
-      prev: prevRows.length ? sumRows(prevRows) : null,
-      follower: current,
-      followerNet: current && before ? (current.follower_total ?? 0) - (before.follower_total ?? 0) : null,
-      unfollows: unf.length ? unf.reduce((sum, row) => sum + (row.unfollows ?? 0), 0) : null,
-      lastSnapshot: snaps.at(-1) ?? null,
+      days,
+      sum: summarize(days),
+      prev: prevDays ? summarize(prevDays) : null,
+      follower: followerOf(win, follower, cur),
     };
-  }, [hasExport, lastExportDate, expPeriod, expMonth, oaDaily, oaFollower]);
+  }, [win, exportDaily, follower, cur, live, api]);
 
-  /* ───── Biểu đồ nguồn API (giữ nguyên) ───── */
-  const trendOption = useMemo<EChartsOption>(() => ({
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    legend: { top: 0 },
-    grid: { top: 38, right: 58, bottom: 28, left: 48 },
-    xAxis: { type: 'category', data: data?.daily.map(row => shortDate(row.date)) ?? [] },
-    yAxis: [
-      { type: 'value', minInterval: 1, name: 'Tin nhắn' },
-      { type: 'value', minInterval: 1, name: 'Follower', splitLine: { show: false } },
-    ],
-    series: [
-      {
-        name: 'Incoming', type: 'bar', stack: 'message', barMaxWidth: 28,
-        data: data?.daily.map(row => row.incomingMessages) ?? [],
-        itemStyle: { color: '#C5A059', borderRadius: [3, 3, 0, 0] },
-      },
-      {
-        name: 'Outgoing', type: 'bar', stack: 'message', barMaxWidth: 28,
-        data: data?.daily.map(row => row.outgoingMessages) ?? [],
-        itemStyle: { color: '#82846C', borderRadius: [3, 3, 0, 0] },
-      },
-      {
-        name: 'Unique user/ngày', type: 'line', smooth: true,
-        data: data?.daily.map(row => row.uniqueChatUsers) ?? [],
-        lineStyle: { color: '#22C55E', width: 2 }, itemStyle: { color: '#22C55E' },
-      },
-      {
-        name: 'Tổng follower', type: 'line', yAxisIndex: 1, connectNulls: true,
-        data: data?.daily.map(row => row.followerTotal) ?? [],
-        lineStyle: { color: '#60A5FA', width: 2, type: 'dashed' }, itemStyle: { color: '#60A5FA' },
-      },
-    ],
-  }), [data]);
+  const monthOptions = useMemo(() => {
+    const set = new Set(exportDaily.map(row => row.date.slice(0, 7)));
+    if (firstApi) for (let m = firstApi.slice(0, 7); m <= today.slice(0, 7); m = shiftDays(`${m}-28`, 7).slice(0, 7)) set.add(m);
+    set.add(month);
+    return [...set].sort();
+  }, [exportDaily, firstApi, today, month]);
 
-  const mix = useMemo(() => Object.entries(data?.messageTypes ?? {})
+  /* ───── Biểu đồ gộp: ngày (YTD gom theo tháng) ───── */
+  const trendOption = useMemo<EChartsOption>(() => {
+    const byMonth = period === 'ytd';
+    const buckets: (Pick<OaDay, 'follows' | 'msgs' | 'views' | 'menu' | 'content' | 'followerTotal'> & { label: string })[] = byMonth
+      ? [...new Set(view.days.map(d => d.date.slice(0, 7)))].map(m => {
+          const rows = view.days.filter(d => d.date.startsWith(m));
+          const s = summarize(rows);
+          return { label: formatMonthLabel(m), ...s, followerTotal: [...rows].reverse().find(d => d.followerTotal != null)?.followerTotal ?? null };
+        })
+      : view.days.map(d => ({ ...d, label: shortDate(d.date) }));
+    const hasFollower = buckets.some(b => b.followerTotal != null);
+    const spans = byMonth ? [] : apiSpans(view.days);
+    const line = (name: string, key: 'views' | 'menu' | 'content', color: string, dashed = false) => ({
+      name, type: 'line' as const, smooth: true, data: buckets.map(b => b[key]),
+      lineStyle: { color, width: dashed ? 1.5 : 2, ...(dashed ? { type: 'dashed' as const } : {}) }, itemStyle: { color },
+    });
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+      legend: { top: 0, type: 'scroll' },
+      grid: { top: 56, right: hasFollower ? 58 : 20, bottom: 28, left: 48 },
+      xAxis: { type: 'category', data: buckets.map(b => b.label) },
+      yAxis: [
+        { type: 'value', minInterval: 1, name: 'Lượt' },
+        ...(hasFollower ? [{ type: 'value' as const, minInterval: 1, name: 'Follower', scale: true, splitLine: { show: false } }] : []),
+      ],
+      series: [
+        {
+          name: 'Quan tâm mới', type: 'bar', barMaxWidth: 22, data: buckets.map(b => b.follows),
+          itemStyle: { color: '#C5A059', borderRadius: [3, 3, 0, 0] },
+          markArea: spans.length ? {
+            silent: true, itemStyle: { color: 'rgba(96,165,250,0.08)' },
+            label: { color: '#60A5FA', fontSize: 10, position: 'insideTop' },
+            data: spans.map(([a, b]) => [{ name: 'API · chờ export', xAxis: shortDate(a) }, { xAxis: shortDate(b) }]),
+          } : undefined,
+        },
+        { name: 'Gửi tin nhắn đến OA', type: 'bar', barMaxWidth: 22, data: buckets.map(b => b.msgs), itemStyle: { color: '#82846C', borderRadius: [3, 3, 0, 0] } },
+        line('Xem trang OA', 'views', '#60A5FA'),
+        line('Tương tác menu', 'menu', '#22C55E'),
+        line('Xem nội dung', 'content', '#A78BFA', true),
+        ...(hasFollower ? [{
+          name: 'Tổng follower', type: 'line' as const, yAxisIndex: 1, connectNulls: true,
+          data: buckets.map(b => b.followerTotal),
+          lineStyle: { color: '#F97316', width: 2, type: 'dashed' as const }, itemStyle: { color: '#F97316' },
+        }] : []),
+      ],
+    };
+  }, [view, period]);
+
+  const mix = useMemo(() => Object.entries(cur?.messageTypes ?? {})
     .map(([name, value]) => ({ name: TYPE_LABELS[name] ?? name, value }))
-    .sort((a, b) => b.value - a.value), [data]);
+    .sort((a, b) => b.value - a.value), [cur]);
 
   const mixOption = useMemo<EChartsOption>(() => ({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle' },
     series: [{
-      type: 'pie', radius: ['48%', '72%'], center: ['36%', '52%'],
-      data: mix,
-      label: { show: false },
+      type: 'pie', radius: ['48%', '72%'], center: ['36%', '52%'], data: mix, label: { show: false },
       itemStyle: { borderWidth: 2, borderColor: '#141417' },
       color: ['#C5A059', '#82846C', '#22C55E', '#60A5FA', '#A78BFA', '#F97316', '#EC4899', '#94A3B8'],
     }],
   }), [mix]);
 
-  /* ───── Biểu đồ nguồn EXPORT ───── */
-  const expTrendOption = useMemo<EChartsOption>(() => {
-    if (!exp) return {};
-    // YTD gom theo tháng — 240+ cột ngày không đọc được.
-    const byMonth = expPeriod === 'ytd';
-    const buckets = byMonth
-      ? oaMonths.filter(m => m >= exp.win.start.slice(0, 7) && m <= exp.win.end.slice(0, 7))
-          .map(m => ({ label: formatMonthLabel(m), key: m, ...sumRows(exp.rows.filter(row => row.date.startsWith(m))) }))
-      : exp.rows.map(row => ({ label: shortDate(row.date), key: row.date, ...row }));
-    const snapByKey = new Map<string, number>();
-    for (const row of oaFollower) {
-      if (row.follower_total == null) continue;
-      snapByKey.set(byMonth ? row.date.slice(0, 7) : row.date, row.follower_total);
-    }
-    const hasSnap = buckets.some(b => snapByKey.has(b.key));
-    return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-      legend: { top: 0, type: 'scroll' },
-      grid: { top: 38, right: hasSnap ? 58 : 20, bottom: 28, left: 48 },
-      xAxis: { type: 'category', data: buckets.map(b => b.label) },
-      yAxis: [
-        { type: 'value', minInterval: 1, name: 'Lượt' },
-        ...(hasSnap ? [{ type: 'value' as const, minInterval: 1, name: 'Follower', splitLine: { show: false } }] : []),
-      ],
-      series: [
-        { name: 'Quan tâm', type: 'bar', barMaxWidth: 22, data: buckets.map(b => b.follows), itemStyle: { color: '#C5A059', borderRadius: [3, 3, 0, 0] } },
-        { name: 'Gửi tin nhắn đến OA', type: 'bar', barMaxWidth: 22, data: buckets.map(b => b.msgs), itemStyle: { color: '#82846C', borderRadius: [3, 3, 0, 0] } },
-        { name: 'Xem trang OA', type: 'line', smooth: true, data: buckets.map(b => b.views), lineStyle: { color: '#60A5FA', width: 2 }, itemStyle: { color: '#60A5FA' } },
-        { name: 'Tương tác menu', type: 'line', smooth: true, data: buckets.map(b => b.menu), lineStyle: { color: '#22C55E', width: 2 }, itemStyle: { color: '#22C55E' } },
-        { name: 'Xem nội dung', type: 'line', smooth: true, data: buckets.map(b => b.content), lineStyle: { color: '#A78BFA', width: 1.5, type: 'dashed' }, itemStyle: { color: '#A78BFA' } },
-        ...(hasSnap ? [{
-          name: 'Tổng follower (sổ tay)', type: 'line' as const, yAxisIndex: 1, connectNulls: true, symbolSize: 8,
-          data: buckets.map(b => snapByKey.get(b.key) ?? null),
-          lineStyle: { color: '#F97316', width: 2, type: 'dashed' as const }, itemStyle: { color: '#F97316' },
-        }] : []),
-      ],
-    };
-  }, [exp, expPeriod, oaMonths, oaFollower]);
+  const { sum, prev, follower: fol } = view;
+  const checking = api.state === 'checking';
+  const val = (v: number | null | undefined) => (checking ? '…' : formatNumber(v));
+  const exportNote = sum.noExportDays ? `${sum.noExportDays} ngày chờ file export` : 'export OA Manager';
+  const apiSince = firstApi && firstApi > win.start ? ` · từ ${shortDate(firstApi)}` : '';
+  // Chỉ số chỉ API có: so kỳ khi kỳ trước nằm trọn sau ngày nối API.
+  const apiCompare = (key: 'outgoingMessages' | 'uniqueChatUsers' | 'conversations') => {
+    const before = live ? api.prev : null;
+    if (!cur || !before || !firstApi || before.window.start < firstApi) return { customDeltaText: 'Chưa đủ kỳ API để so' };
+    return { curRawValue: cur.metrics[key], prevValue: before.metrics[key] };
+  };
 
-  // Ô phải: Quan tâm theo tháng + tỷ lệ Quan tâm / Xem trang OA — bối cảnh tăng trưởng toàn năm.
-  const expMonthlyOption = useMemo<EChartsOption>(() => {
-    const rows = MKT_DATA.oa ?? [];
-    return {
-      tooltip: { trigger: 'axis' },
-      legend: { top: 0 },
-      grid: { top: 38, right: 44, bottom: 28, left: 40 },
-      xAxis: { type: 'category', data: rows.map(r => formatMonthLabel(r.month)) },
-      yAxis: [
-        { type: 'value', minInterval: 1 },
-        { type: 'value', axisLabel: { formatter: '{value}%' }, splitLine: { show: false } },
-      ],
-      series: [
-        {
-          name: 'Quan tâm', type: 'bar', barMaxWidth: 26, itemStyle: { color: '#C5A059' },
-          data: rows.map(r => ({
-            value: r.follows,
-            itemStyle: { color: r.month === expMonth ? '#C5A059' : '#6E6C65', borderRadius: [3, 3, 0, 0] },
-          })),
-        },
-        {
-          name: 'Quan tâm / Xem trang (%)', type: 'line', yAxisIndex: 1, smooth: true,
-          data: rows.map(r => (r.views > 0 ? +((r.follows / r.views) * 100).toFixed(1) : null)),
-          lineStyle: { color: '#22C55E', width: 2 }, itemStyle: { color: '#22C55E' },
-        },
-      ],
-    };
-  }, [expMonth]);
-
-  const metrics = data?.metrics;
-  const empty = !loading && data && data.daily.length === 0;
-  const apiBlocked = !loading && !apiReady;
+  if (!lastExport && off) {
+    return (
+      <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+        <div className="rounded-xl border border-brand-border bg-brand-surface/60 p-5 text-xs text-brand-muted">
+          Chưa có số Zalo OA: API chưa đọc được ({api.message}) và chưa có file export trong L0_input/04_CRM/02_Zalo_OA —
+          thả file OA Manager › Thống kê › Tổng quan rồi chạy CAP_NHAT.bat.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-            OWNED CHANNEL PERFORMANCE
-          </span>
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">OWNED CHANNEL PERFORMANCE</span>
           <h2 className="mt-0.5 font-display text-xl font-extrabold text-brand-text">
             M8.1 · Zalo Official Account
-            {source === 'api' && data?.oaName && (
+            {cur?.oaName && (
               <span className="ml-2 rounded-md border border-brand-gold/40 px-2 py-0.5 align-middle text-[11px] font-bold text-brand-gold">
-                OA: {data.oaName}
+                OA: {cur.oaName}
               </span>
             )}
           </h2>
           <p className="mt-1 text-xs text-brand-muted">
-            {source === 'api'
-              ? `Follower snapshot + luồng chat realtime qua webhook · tự làm mới 60 giây${refreshedAt ? ` · cập nhật ${refreshedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}. Không lưu nội dung tin nhắn.`
-              : 'Đang chạy bằng file export OA Manager (Thống kê › Tổng quan) + sổ tay tổng follower — tự chuyển sang OpenAPI khi kết nối xong.'}
+            Export OA Manager {lastExport ? `đến ${fullDate(lastExport)}` : 'chưa có'} + {live
+              ? `API realtime · cập nhật ${api.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+              : checking ? 'đang kiểm tra API…' : 'API chưa đọc được'}
+            {' · '}{fullDate(win.start)} → {fullDate(win.end)}
+            {sum.gapDays > 0 && <span className="text-status-warning"> · {sum.gapDays} ngày chưa có số</span>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-1" title="Nguồn số liệu">
-            <SegButton active={source === 'api'} onClick={() => setPreferExport(false)} disabled={!apiReady}
-              title={apiReady ? 'OpenAPI + Webhook' : 'OpenAPI chưa kết nối'}>API</SegButton>
-            <SegButton active={source === 'export'} onClick={() => setPreferExport(true)} disabled={!hasExport}>Export</SegButton>
+          <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-1">
+            {PERIODS.map(item => (
+              <SegButton key={item.id} active={period === item.id} onClick={() => setPeriod(item.id)}>{item.label}</SegButton>
+            ))}
           </div>
-          {source === 'api' ? (
-            <>
-              <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-1">
-                {PERIODS.map(item => (
-                  <SegButton key={item.id} active={period === item.id} onClick={() => setPeriod(item.id)}>{item.label}</SegButton>
-                ))}
-              </div>
-              {period === 'month' && (
-                <input
-                  type="month"
-                  value={month}
-                  onChange={event => setMonth(event.target.value)}
-                  className="rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-gold"
-                />
-              )}
-            </>
-          ) : hasExport && (
-            <>
-              <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-1">
-                {EXPORT_PERIODS.map(item => (
-                  <SegButton key={item.id} active={expPeriod === item.id} onClick={() => setExpPeriod(item.id)}>{item.label}</SegButton>
-                ))}
-              </div>
-              {expPeriod === 'month' && (
-                <select
-                  value={expMonth}
-                  onChange={event => setExpMonth(event.target.value)}
-                  className="rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-gold"
-                >
-                  {oaMonths.map(m => <option key={m} value={m}>{formatMonthLabel(m)}</option>)}
-                </select>
-              )}
-            </>
+          {period === 'month' && (
+            <select
+              value={month}
+              onChange={event => setMonthPick(event.target.value)}
+              className="rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-xs text-brand-text outline-none focus:border-brand-gold"
+            >
+              {monthOptions.map(m => <option key={m} value={m}>{formatMonthLabel(m)}</option>)}
+            </select>
           )}
         </div>
       </div>
 
-      {apiBlocked && (
-        <div className="rounded-xl border border-status-warning/40 bg-status-warningBg/20 p-4">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-status-warning" />
-            <div>
-              <h3 className="font-display text-sm font-bold text-brand-text">
-                OpenAPI chưa kết nối{error?.code === 'NOT_CONFIGURED' ? '' : ' — lỗi đọc API'}
-                {hasExport ? ' · đang hiển thị số từ file export' : ''}
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-brand-muted">
-                {error?.code === 'NOT_CONFIGURED'
-                  ? 'Chưa có App liên kết OA (OA đã chạm giới hạn số App). Code API/Webhook/DB đã sẵn — khai báo ZALO_* + DATABASE_URL là màn hình tự chuyển sang realtime.'
-                  : error?.message}
-                {' '}Chi tiết: <span className="font-mono text-brand-sand">docs/modules/M8_1_Zalo_OA.md</span>.
-              </p>
-            </div>
-          </div>
+      {off && (
+        <div className="flex items-start gap-3 rounded-xl border border-status-warning/40 bg-status-warningBg/20 p-4">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-status-warning" />
+          <p className="text-xs leading-relaxed text-brand-muted">
+            <span className="font-bold text-brand-text">API chưa đọc được</span>
+            {api.code === 'NOT_CONFIGURED' ? ' — chưa khai ZALO_OA_ID / DATABASE_URL.' : ` — ${api.message}.`}
+            {' '}Đang hiện số export; tổng follower lấy sổ tay S26, các chỉ số chat 2 chiều tạm ẩn.
+          </p>
         </div>
       )}
 
-      {source === 'api' ? (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <MetricCard
-              label="Tổng follower"
-              subLabel="Snapshot cuối kỳ"
-              value={loading ? '…' : formatNumber(metrics?.followerTotal)}
-              customDeltaText={`${metrics?.followerNet == null ? 'Chưa đủ snapshot đối chiếu' : `${metrics.followerNet >= 0 ? '+' : ''}${formatNumber(metrics.followerNet)} ${metrics.followerNetSince ? `từ ${shortDate(metrics.followerNetSince)}` : 'trong kỳ'}`}${
-                metrics && (metrics.newFollowers || metrics.unfollowers) ? ` · +${formatNumber(metrics.newFollowers)} / −${formatNumber(metrics.unfollowers)}` : ''}`}
-              icon={<Users className="h-4 w-4" />}
-              variant="hero"
-            />
-            <MetricCard label="Incoming" subLabel="User → OA" value={loading ? '…' : formatNumber(metrics?.incomingMessages)} icon={<MessageCircle className="h-4 w-4" />} />
-            <MetricCard label="Outgoing" subLabel="OA → User" value={loading ? '…' : formatNumber(metrics?.outgoingMessages)} icon={<Send className="h-4 w-4" />} />
-            <MetricCard label="Unique chat user" subLabel="Khử trùng toàn kỳ" value={loading ? '…' : formatNumber(metrics?.uniqueChatUsers)} icon={<Users className="h-4 w-4" />} />
-            <MetricCard label="Cuộc hội thoại" subLabel="Session gap 24 giờ" value={loading ? '…' : formatNumber(metrics?.conversations)} icon={<MessagesSquare className="h-4 w-4" />} />
-          </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <MetricCard
+          label="Tổng follower"
+          subLabel={fol.source === 'api' ? 'API · snapshot cuối kỳ' : fol.date ? `Sổ tay · ${fullDate(fol.date)}` : 'Tổng người quan tâm'}
+          value={val(fol.total)}
+          customDeltaText={fol.total == null
+            ? <span className="text-status-warning">Chưa có — API hoặc sổ S26</span>
+            : fol.net == null ? 'Chưa đủ mốc để tính ròng'
+            : `${fol.net >= 0 ? '+' : ''}${formatNumber(fol.net)} ${fol.netSince ? `từ ${shortDate(fol.netSince)}` : 'trong kỳ'}`}
+          icon={<Users className="h-4 w-4" />}
+          variant="hero"
+        />
+        <MetricCard label="Quan tâm mới" subLabel="Lượt · export + API" value={val(sum.follows)}
+          {...compare(sum, prev, 'follows')} icon={<UserPlus className="h-4 w-4" />} />
+        <MetricCard label="Gửi tin nhắn đến OA" subLabel="Lượt · User → OA" value={val(sum.msgs)}
+          {...compare(sum, prev, 'msgs')} icon={<MessageCircle className="h-4 w-4" />} />
+        <MetricCard label="Xem trang OA" subLabel={`Quan tâm/Xem trang: ${formatPercent(sum.followRate)} · ${exportNote}`}
+          value={val(sum.views)} {...compare(sum, prev, 'views', true)} icon={<Eye className="h-4 w-4" />} />
+        <MetricCard label="Tương tác menu" subLabel={`Xem nội dung: ${formatNumber(sum.content)} · ${exportNote}`}
+          value={val(sum.menu)} {...compare(sum, prev, 'menu', true)} icon={<MousePointerClick className="h-4 w-4" />} />
+      </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <Card
-              title="Lưu lượng chat theo ngày"
-              description="Incoming, outgoing, unique user và snapshot tổng follower theo ngày; unique KPI được khử trùng lại cho toàn kỳ."
-              chip="WEBHOOK REALTIME"
-              className="lg:col-span-2"
-            >
-              <EChartWrapper option={trendOption} height={300} loading={loading} />
-            </Card>
-            <Card title="Mix loại tin nhắn" description="Phân loại theo event_name của Zalo." chip="MESSAGE TYPE">
-              {mix.length > 0
-                ? <EChartWrapper option={mixOption} height={300} loading={loading} />
-                : <div className="flex h-[300px] items-center justify-center text-xs text-brand-muted">Chưa có event tin nhắn trong kỳ.</div>}
-            </Card>
-          </div>
-
-          <Card
-            title="Độ tươi & định nghĩa dữ liệu"
-            description="Mốc vận hành để biết số đang realtime hay snapshot đã trễ."
-            chip={empty ? 'CHƯA CÓ DỮ LIỆU' : 'DATA HEALTH'}
-            chipColor={empty ? 'border-status-warning/40 bg-status-warningBg text-status-warning' : undefined}
-          >
-            <div className="grid gap-3 text-xs sm:grid-cols-3">
-              <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-                <div className="flex items-center gap-1.5 text-brand-muted"><RefreshCw className="h-3.5 w-3.5" /> Webhook gần nhất</div>
-                <div className="mt-1 font-mono font-bold text-brand-text">{freshnessLabel(data?.freshness.last_webhook ?? null)}</div>
-              </div>
-              <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-                <div className="flex items-center gap-1.5 text-brand-muted"><RefreshCw className="h-3.5 w-3.5" /> Snapshot follower</div>
-                <div className="mt-1 font-mono font-bold text-brand-text">{freshnessLabel(data?.freshness.last_snapshot ?? null)}</div>
-              </div>
-              <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-                <div className="text-brand-muted">Phạm vi hiển thị</div>
-                <div className="mt-1 font-mono font-bold text-brand-text">
-                  {data ? `${data.window.start} → ${data.window.end}` : '—'}
-                </div>
-              </div>
-            </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-brand-faint">
-              Conversation = phiên bắt đầu bằng incoming message sau ≥24 giờ không tương tác. User ID được HMAC trước khi lưu;
-              nội dung text và attachment không được ghi vào database.
-            </p>
-          </Card>
-        </>
-      ) : !exp ? (
-        <div className="rounded-xl border border-brand-border bg-brand-surface/60 p-5 text-xs text-brand-muted">
-          {loading ? 'Đang kiểm tra kết nối OpenAPI…' : 'Chưa có file export OA Zalo trong L0_input/04_CRM/02_Zalo_OA — thả file OA Manager › Thống kê › Tổng quan rồi chạy CAP_NHAT.bat.'}
+      {cur && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricCard label="Tin OA gửi đi" subLabel={`OA → User · API${apiSince}`} value={formatNumber(cur.metrics.outgoingMessages)}
+            {...apiCompare('outgoingMessages')}
+            icon={<Send className="h-4 w-4" />} />
+          <MetricCard label="Người chat" subLabel={`Khử trùng toàn kỳ · API${apiSince}`} value={formatNumber(cur.metrics.uniqueChatUsers)}
+            {...apiCompare('uniqueChatUsers')}
+            icon={<Users className="h-4 w-4" />} />
+          <MetricCard label="Cuộc hội thoại" subLabel={`Cách nhau ≥24 giờ · API${apiSince}`} value={formatNumber(cur.metrics.conversations)}
+            {...apiCompare('conversations')}
+            icon={<MessagesSquare className="h-4 w-4" />} />
+          <MetricCard label="Bỏ quan tâm" subLabel={`Webhook unfollow${apiSince}`} value={formatNumber(sum.unfollows)}
+            {...compare(sum, prev, 'unfollows')} icon={<UserMinus className="h-4 w-4" />} />
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <MetricCard
-              label="Tổng follower"
-              subLabel={exp.follower
-                ? `Sổ tay · chụp ${fullDate(exp.follower.date)}`
-                : apiFollower != null ? `OpenAPI · snapshot ${apiSnapshotDate ?? ''}` : 'Tổng người quan tâm'}
-              value={formatNumber(exp.follower?.follower_total ?? apiFollower)}
-              customDeltaText={exp.follower
-                ? (exp.followerNet != null
-                    ? `${exp.followerNet >= 0 ? '+' : ''}${formatNumber(exp.followerNet)} ròng trong kỳ${exp.unfollows != null ? ` · bỏ ${formatNumber(exp.unfollows)}` : ''}`
-                    : 'Cần thêm 1 mốc trước đầu kỳ để tính ròng')
-                : apiFollower != null
-                  ? 'Số hiện tại từ API — không thuộc kỳ export đang xem'
-                  : <span className="text-status-warning">Cần nhập — sổ Zalo_OA_Follower (S26)</span>}
-              icon={<Users className="h-4 w-4" />}
-              variant="hero"
-            />
-            <MetricCard label="Quan tâm mới" subLabel="Lượt · export OA" value={formatNumber(exp.sums.follows)}
-              curRawValue={exp.sums.follows} prevValue={exp.prev?.follows ?? null}
-              customDeltaText={exp.prev ? undefined : 'Không có kỳ so sánh'} icon={<UserPlus className="h-4 w-4" />} />
-            <MetricCard label="Gửi tin nhắn đến OA" subLabel="Lượt · User → OA" value={formatNumber(exp.sums.msgs)}
-              curRawValue={exp.sums.msgs} prevValue={exp.prev?.msgs ?? null}
-              customDeltaText={exp.prev ? undefined : 'Không có kỳ so sánh'} icon={<MessageCircle className="h-4 w-4" />} />
-            <MetricCard label="Xem trang OA" subLabel={`Quan tâm / Xem trang: ${exp.sums.views ? formatPercent(exp.sums.follows / exp.sums.views) : '—'}`}
-              value={formatNumber(exp.sums.views)} curRawValue={exp.sums.views} prevValue={exp.prev?.views ?? null}
-              customDeltaText={exp.prev ? undefined : 'Không có kỳ so sánh'} icon={<Eye className="h-4 w-4" />} />
-            <MetricCard label="Tương tác menu" subLabel={`Xem nội dung: ${formatNumber(exp.sums.content)}`}
-              value={formatNumber(exp.sums.menu)} curRawValue={exp.sums.menu} prevValue={exp.prev?.menu ?? null}
-              customDeltaText={exp.prev ? undefined : 'Không có kỳ so sánh'} icon={<MousePointerClick className="h-4 w-4" />} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <Card
-              title={expPeriod === 'ytd' ? 'Tương tác OA theo tháng' : 'Tương tác OA theo ngày'}
-              description="Quan tâm và tin nhắn (cột) cùng hành vi trên trang OA (đường). Số là LƯỢT hành động, không phải người duy nhất."
-              chip="EXPORT OA MANAGER"
-              className="lg:col-span-2"
-            >
-              <EChartWrapper option={expTrendOption} height={300} />
-            </Card>
-            <Card title="Quan tâm mới theo tháng" description="Cột vàng = tháng đang chọn. Đường = tỷ lệ Quan tâm / Xem trang OA." chip="GROWTH">
-              <EChartWrapper option={expMonthlyOption} height={300} />
-            </Card>
-          </div>
-
-          <Card
-            title="Độ tươi & định nghĩa dữ liệu"
-            description="Nguồn nào đang cấp số, đến ngày nào, và trường nào còn thiếu."
-            chip={exp.follower || apiFollower != null ? 'DATA HEALTH' : 'THIẾU TỔNG FOLLOWER'}
-            chipColor={exp.follower || apiFollower != null ? undefined : 'border-status-warning/40 bg-status-warningBg text-status-warning'}
-          >
-            <div className="grid gap-3 text-xs sm:grid-cols-3">
-              <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-                <div className="flex items-center gap-1.5 text-brand-muted"><FileSpreadsheet className="h-3.5 w-3.5" /> Export Tổng quan (S12)</div>
-                <div className="mt-1 font-mono font-bold text-brand-text">đến {fullDate(lastExportDate!)}</div>
-                <div className="mt-0.5 text-[10px] text-brand-faint">{oaMonths.length} tháng · {oaDaily.length} ngày</div>
-              </div>
-              <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-                <div className="flex items-center gap-1.5 text-brand-muted"><Users className="h-3.5 w-3.5" /> Sổ tay tổng follower (S26)</div>
-                <div className={`mt-1 font-mono font-bold ${exp.lastSnapshot ? 'text-brand-text' : 'text-status-warning'}`}>
-                  {exp.lastSnapshot ? `${formatNumber(exp.lastSnapshot.follower_total)} · ${fullDate(exp.lastSnapshot.date)}` : 'Chưa nhập'}
-                </div>
-                <div className="mt-0.5 text-[10px] text-brand-faint">L0_input/04_CRM/05_Zalo_OA_Follower</div>
-              </div>
-              <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-                <div className="text-brand-muted">Phạm vi hiển thị</div>
-                <div className="mt-1 font-mono font-bold text-brand-text">{exp.win.start} → {exp.win.end}</div>
-                <div className="mt-0.5 text-[10px] text-brand-faint">
-                  {exp.win.prev ? `so với ${exp.win.prev.start} → ${exp.win.prev.end}` : 'YTD không so kỳ'}
-                </div>
-              </div>
-            </div>
-            <ExportFieldMatrix />
-          </Card>
-        </>
       )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card
+          title={period === 'ytd' ? 'Tương tác OA theo tháng' : 'Tương tác OA theo ngày'}
+          description="Cột = Quan tâm mới, Gửi tin nhắn. Đường = hành vi trên trang OA (chỉ export có). Nền xanh = ngày lấy số API vì chưa có file export."
+          chip="EXPORT + API"
+          className={mix.length ? 'lg:col-span-2' : 'lg:col-span-3'}
+        >
+          <EChartWrapper option={trendOption} height={300} loading={checking} />
+        </Card>
+        {mix.length > 0 && (
+          <Card title="Mix loại tin nhắn" description={`Phân loại theo event_name của Zalo${apiSince}.`} chip="API">
+            <EChartWrapper option={mixOption} height={300} />
+          </Card>
+        )}
+      </div>
+
+      <Card title="Nguồn & độ tươi dữ liệu" description="Mỗi chỉ số lấy từ nguồn nào, nguồn đó mới đến đâu." chip="DATA HEALTH">
+        <div className="grid gap-3 text-xs sm:grid-cols-3">
+          <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
+            <div className="flex items-center gap-1.5 text-brand-muted"><FileSpreadsheet className="h-3.5 w-3.5" /> Export Tổng quan (S12)</div>
+            <div className="mt-1 font-mono font-bold text-brand-text">{lastExport ? `đến ${fullDate(lastExport)}` : 'Chưa có file'}</div>
+            <div className="mt-0.5 text-[10px] text-brand-faint">Thả file tháng mới vào L0_input/04_CRM/02_Zalo_OA → CAP_NHAT.bat</div>
+          </div>
+          <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
+            <div className="flex items-center gap-1.5 text-brand-muted"><RefreshCw className="h-3.5 w-3.5" /> API · webhook / snapshot</div>
+            <div className={`mt-1 font-mono font-bold ${cur ? 'text-brand-text' : 'text-status-warning'}`}>
+              {cur ? `${freshnessLabel(cur.freshness.last_webhook)} · ${freshnessLabel(cur.freshness.last_snapshot)}` : checking ? '…' : 'Chưa đọc được'}
+            </div>
+            <div className="mt-0.5 text-[10px] text-brand-faint">{firstApi ? `Có số từ ${fullDate(firstApi)}` : 'Tự động — không cần thao tác'}</div>
+          </div>
+          <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
+            <div className="flex items-center gap-1.5 text-brand-muted"><Users className="h-3.5 w-3.5" /> Sổ tay tổng follower (S26)</div>
+            <div className="mt-1 font-mono font-bold text-brand-text">
+              {follower.length ? `${follower.length} mốc · đến ${fullDate(follower.at(-1)!.date)}` : 'Trống'}
+            </div>
+            <div className="mt-0.5 text-[10px] text-brand-faint">Chỉ cần cho các tháng trước ngày nối API</div>
+          </div>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-[11px]">
+            <thead>
+              <tr className="border-b border-brand-border text-brand-muted">
+                <th className="py-1.5 pr-3 font-bold">Chỉ số</th>
+                <th className="py-1.5 pr-3 font-bold">Nguồn chính</th>
+                <th className="py-1.5 font-bold">Bù khi thiếu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SOURCE_RULES.map(([field, main, fallback]) => (
+                <tr key={field} className="border-b border-brand-border/50">
+                  <td className="py-1.5 pr-3 text-brand-text">{field}</td>
+                  <td className="py-1.5 pr-3 font-mono text-status-ok">{main}</td>
+                  <td className={`py-1.5 font-mono ${fallback.startsWith('—') ? 'text-brand-faint' : 'text-brand-sand'}`}>{fallback}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-[10px] leading-relaxed text-brand-faint">
+            Ngày có file export thì dùng số export (số chính thức của OA Manager), kể cả khi API cũng có. Số là LƯỢT hành động.
+            API không lưu nội dung tin nhắn; user ID được HMAC trước khi lưu.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { getSql, ictDate, json, type ZaloEnv } from './_shared.js';
 
-type Period = 'today' | '7d' | 'mtd' | 'month';
+type Period = 'today' | '7d' | 'mtd' | 'month' | 'range';
+const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 const fromIso = (value: string) => new Date(`${value}T00:00:00Z`);
@@ -10,8 +11,16 @@ const shift = (value: string, days: number) => {
   return iso(date);
 };
 
-function periodWindow(period: Period, month: string | null) {
+/** `range`: màn hình gộp export + API tự tính kỳ (7D/30D/Tháng/YTD) — hợp lệ khi start ≤ end, dài ≤ 1 năm. */
+function customRange(url: URL) {
+  const start = url.searchParams.get('start') ?? '';
+  const end = url.searchParams.get('end') ?? '';
+  return ISO_DATE.test(start) && ISO_DATE.test(end) && start <= end && shift(start, 366) >= end ? { start, end } : null;
+}
+
+function periodWindow(period: Period, month: string | null, range: { start: string; end: string } | null) {
   const today = ictDate();
+  if (period === 'range' && range) return { start: range.start, end: range.end > today ? today : range.end };
   if (period === 'today') return { start: today, end: today };
   if (period === '7d') return { start: shift(today, -6), end: today };
   if (period === 'mtd') return { start: `${today.slice(0, 7)}-01`, end: today };
@@ -29,8 +38,10 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
   if (req.method !== 'GET') return json(405, { ok: false, error: 'Chỉ nhận GET' });
   const url = new URL(req.url);
   const rawPeriod = url.searchParams.get('period') ?? '7d';
-  const period: Period = ['today', '7d', 'mtd', 'month'].includes(rawPeriod) ? rawPeriod as Period : '7d';
-  const window = periodWindow(period, url.searchParams.get('month'));
+  const range = customRange(url);
+  const period: Period = rawPeriod === 'range' && !range ? '7d'
+    : ['today', '7d', 'mtd', 'month', 'range'].includes(rawPeriod) ? rawPeriod as Period : '7d';
+  const window = periodWindow(period, url.searchParams.get('month'), range);
   const oaId = env.ZALO_OA_ID?.trim();
   if (!oaId || !env.DATABASE_URL) {
     return json(503, {
@@ -79,10 +90,14 @@ export async function handleZaloPerformance(req: Request, env: ZaloEnv = process
         and snapshot_date between ${window.start}::date and ${window.end}::date order by snapshot_date limit 1) as base,
       (select snapshot_date::text from zalo_oa_daily_snapshot where oa_id = ${oaId}
         and snapshot_date between ${window.start}::date and ${window.end}::date order by snapshot_date limit 1) as base_date`;
-    const [freshness] = await sql<{ last_webhook: string | null; last_snapshot: string | null; last_success: string | null }[]>`select
+    // first_metric: ngày đầu có số API — trước ngày này ô trống là CHƯA KẾT NỐI, không phải 0.
+    const [freshness] = await sql<{
+      last_webhook: string | null; last_snapshot: string | null; last_success: string | null; first_metric: string | null;
+    }[]>`select
       (select max(received_at)::text from zalo_oa_webhook_event where oa_id = ${oaId}) as last_webhook,
       (select max(fetched_at)::text from zalo_oa_daily_snapshot where oa_id = ${oaId}) as last_snapshot,
-      (select max(finished_at)::text from zalo_oa_sync_run where oa_id = ${oaId} and status = 'success') as last_success`;
+      (select max(finished_at)::text from zalo_oa_sync_run where oa_id = ${oaId} and status = 'success') as last_success,
+      (select min(metric_date)::text from zalo_oa_daily_metric where oa_id = ${oaId}) as first_metric`;
 
     const messageTypes: Record<string, number> = {};
     for (const row of rows) {

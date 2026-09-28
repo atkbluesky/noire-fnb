@@ -5,10 +5,10 @@
 | **Câu hỏi** | OA đang tăng follower và xử lý bao nhiêu tương tác chat? |
 | **`activeView`** | `m81` |
 | **View** | `src/views/ZaloOAView.tsx` |
-| **Nguồn** | ① Zalo OA OpenAPI `getoa` + Webhook realtime · ② khi ① chưa nối: export OA Manager › Thống kê › Tổng quan (L0 `S12`) + sổ tay Tổng người quan tâm (L0 `S26`) |
+| **Nguồn** | GỘP, mỗi chỉ số lấy từ nguồn có số (§1b): export OA Manager › Thống kê › Tổng quan (L0 `S12`, thả hằng tháng) + Zalo OA OpenAPI `getoa` + Webhook realtime · sổ tay S26 chỉ để bù tổng follower trước ngày nối API |
 | **Grain** | OA × ngày (`Asia/Bangkok`) |
 | **Phạm vi** | Performance only — không CRM, không gửi tin tự động |
-| **Trạng thái** | 🟡 chạy bằng nguồn ② (export T1–T8/2026) · nguồn ① code sẵn, bị chặn vì OA đã đủ số App liên kết |
+| **Trạng thái** | 🟢 28/09/2026 — màn hình GỘP export + API (bỏ nút chuyển API/Export). API đã sống từ 27/09/2026 (smoke-test M8.2: OA "NOIRE Cafe & Bistro", 651 follower) · export T1–T8/2026 |
 
 ---
 
@@ -32,16 +32,16 @@ Vercel Cron 00:05 ICT ─▶ /api/zalo/snapshot ─▶ GET /v2.0/oa/getoa
                                              ▼
                                   zalo_oa_daily_snapshot
 
-Dashboard ──GET /api/zalo/performance──▶ Today · 7D · MTD · Month
-           │
-           └─ 503 NOT_CONFIGURED / lỗi ─▶ nguồn ② (tự chuyển, cùng bố cục)
-                 data_mkt.json.oa_daily    ← L0 S12 · OA Zalo T*.xls (theo ngày)
-                 data_mkt.json.oa_follower ← L0 S26 · Zalo_OA_Follower*.xlsx (nhập tay)
-                 → 7D · 30D · Month · YTD, neo vào NGÀY CUỐI có file (không phải hôm nay)
+Dashboard ─┬─ GET /api/zalo/performance?period=range&start=…&end=…   (kỳ này + kỳ trước)
+           ├─ data_mkt.json.oa_daily    ← L0 S12 · OA Zalo T*.xls (theo ngày)
+           └─ data_mkt.json.oa_follower ← L0 S26 · Zalo_OA_Follower*.xlsx (nhập tay)
+                      │
+                      ▼  src/views/zalo/oaModel.ts — gộp THEO NGÀY, luật §1b
+           7D · 30D · Tháng · YTD — neo hôm nay khi API sống, neo ngày cuối có export khi API tắt
 ```
 
-Nút **API | Export** trên header: API chỉ bật khi `/api/zalo/performance` trả `ok`. Khi API đã
-chạy vẫn chuyển được sang Export để xem lịch sử trước ngày kết nối.
+Một bố cục duy nhất, không còn nút API | Export. API lỗi/chưa khai báo → màn hình vẫn chạy bằng
+export + S26, ẩn hàng chỉ số chat 2 chiều và hiện cảnh báo.
 
 ### 1b. Trường dữ liệu theo nguồn
 
@@ -54,9 +54,24 @@ chạy vẫn chuyển được sang Export để xem lịch sử trước ngày 
 | Tin OA gửi đi · Unique chat user · Hội thoại · Loại tin | — | — | ✓ |
 | Xem trang thông tin OA · Tương tác thanh menu · Xem nội dung | ✓ theo ngày | — | ✗ API không trả |
 
-Export KHÔNG có tổng follower → thẻ "Tổng follower" để trống và xin số sổ S26; **không** suy tổng
-từ luỹ kế `Quan tâm` (thiếu Bỏ quan tâm nên luôn thổi phồng). Ba chỉ số hành vi trang OA chỉ có
-trong export → sau khi nối API vẫn giữ nhịp xuất file hằng tháng.
+**Luật gộp** (`src/views/zalo/oaModel.ts`, tính theo từng ngày):
+
+| Chỉ số | Nguồn chính | Bù khi thiếu |
+|---|---|---|
+| Quan tâm mới · Gửi tin nhắn đến OA | Export — ngày có file | API webhook — ngày chưa có file, từ ngày nối API (`first_metric`) |
+| Xem trang · Tương tác menu · Xem nội dung | Export | — (API không có) |
+| Tổng follower (+ ròng) | API `getoa` snapshot | Sổ tay S26 |
+| Bỏ quan tâm | API webhook `unfollow` | Sổ tay S26 |
+| Tin OA gửi · Người chat · Hội thoại · Loại tin | API | — (export không có) |
+
+- Ngày có cả hai nguồn → **lấy export** (số chính thức của OA Manager).
+- Ngày không nguồn nào phủ = **null (thiếu số)**, không phải 0. Từ `first_metric` trở đi, ngày không có
+  dòng API = 0 thật (không có event).
+- So kỳ chỉ hiện khi cả hai kỳ đủ số; tỉ lệ Quan tâm/Xem trang chỉ tính trên ngày có export.
+- **Không** suy tổng follower từ luỹ kế `Quan tâm` (thiếu Bỏ quan tâm nên luôn thổi phồng).
+
+**Nhịp hằng tháng:** API chạy tự động; đầu tháng thả file export tháng trước vào
+`L0_input/04_CRM/02_Zalo_OA` → `CAP_NHAT.bat`. File vào thì số export tự thay số API cho các ngày đó.
 
 Zalo quy định OA access token hiệu lực 25 giờ; refresh token dùng một lần và được xoay sau
 mỗi lần refresh. Vì vậy token mới được mã hoá AES-256-GCM rồi ghi lại database, không giữ
@@ -101,11 +116,12 @@ Daily table vẫn lưu `unique_chat_users` để vẽ trend. KPI unique trên To
 | `/api/zalo/snapshot` | GET/POST | `Authorization: Bearer CRON_SECRET` | Refresh token, lấy follower, lưu snapshot |
 | `/api/zalo/performance?period=7d` | GET | Quyền đọc dashboard hiện hữu | Tổng hợp KPI + daily trend |
 
-`period` nhận `today`, `7d`, `mtd`, `month`; với `month` truyền thêm `month=YYYY-MM`.
+`period` nhận `today`, `7d`, `mtd`, `month` (kèm `month=YYYY-MM`), `range` (kèm `start`, `end` dạng
+`YYYY-MM-DD`, dài ≤ 1 năm — màn hình gộp dùng cái này). `freshness.first_metric` = ngày đầu có số API.
 
 ## 5. Cài đặt production
 
-0. **Giới hạn App liên kết OA** (nguyên nhân đang chặn): vào OA Manager › Cài đặt › Ứng dụng đã liên kết
+0. **Giới hạn App liên kết OA** (đã gỡ được — API sống từ 27/09/2026; giữ lại để tham khảo khi cài OA khác): vào OA Manager › Cài đặt › Ứng dụng đã liên kết
    (hoặc developers.zalo.me › App › Official Account) — gỡ App không còn dùng để lấy slot; hoặc dùng
    chung một App đã liên kết mà NOIRE nắm quyền quản trị (cần App ID + App Secret + quyền đặt webhook
    của App đó — App của bên thứ ba thường không cấp webhook). Webhook đặt theo App, nên App dùng chung
