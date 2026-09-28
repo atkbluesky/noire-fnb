@@ -1,5 +1,23 @@
 # M5.1 · ADS AUTO — META MARKETING API + GOOGLE ADS API
 
+> **Cập nhật kiểm chứng 28/09/2026:** Google Ads API đã đọc được tài khoản quảng cáo
+> `6930679147` qua MCC `1956330376`, phiên bản v25. Đã đồng bộ dữ liệu Google
+> 01/01–27/09/2026 vào PostgreSQL; M5 local hiển thị Google API theo ngày, chiến
+> dịch, kênh và cụm tìm kiếm. Chi tháng 8 từ API là 4.411.052,45 đ so với Excel
+> 4.411.053 đ (khác 0,55 đ do làm tròn). API báo 1.541 chuyển đổi, trong khi bản
+> Excel cũ ghi 1.500; chỉ tiêu chuyển đổi có thể được Google cập nhật theo attribution.
+>
+> **Thiết lập cho môi trường khác:** Bật Google Ads API trong Google Cloud project,
+> tạo OAuth client Desktop và cấp scope `https://www.googleapis.com/auth/adwords`
+> để lấy refresh token. Tài khoản Google cấp quyền phải truy cập được tài khoản
+> quảng cáo con. Đặt `GADS_CLIENT_ID`, `GADS_CLIENT_SECRET`, `GADS_REFRESH_TOKEN`,
+> `GADS_CUSTOMER_IDS=6930679147` và `GADS_LOGIN_CUSTOMER_ID=1956330376` trong
+> biến môi trường của nơi chạy ứng dụng. **Không** đặt ID MCC vào `GADS_CUSTOMER_IDS`.
+> Cloud project đã được duyệt Explorer access; cấu hình đang chạy không dùng
+> `developer-token` header. Không đưa OAuth secret hoặc refresh token lên GitHub.
+> Chạy `npm run probe:ads google` để xác nhận quyền, rồi gọi sync có `CRON_SECRET`.
+> Phải cấu hình cùng các biến ở Vercel nếu muốn dashboard production tự cập nhật.
+
 | | |
 |---|---|
 | **Câu hỏi** | Số chi quảng cáo có tự về hệ thống mỗi ngày mà không ai phải export tay, và có khớp với số Excel đang dùng để báo cáo BOD không? |
@@ -10,7 +28,7 @@
 | **Grain** | **1 ngày × 1 chiến dịch × 1 nền tảng** — quyết định chốt 27/09/2026, xem §0.5 QĐ-2 |
 | **Phạm vi** | **Chỉ ĐỌC.** Không tạo chiến dịch, không đổi ngân sách, không bật/tắt gì trên tài khoản quảng cáo |
 | **Giai đoạn** | P7.1 |
-| **Trạng thái** | 🟢 **Màn hình ba tầng dựng xong 28/09/2026** — Meta 9 tháng trên Neon (tới 27/09), T1→T8 khớp Excel 0,00%, 16/16 biểu đồ kiểm vẽ sạch. Google vẫn từ Excel (API chờ refresh token). Xem **§9** |
+| **Trạng thái** | 🟢 Meta 9 tháng trên Neon (tới 27/09), T1→T8 khớp Excel 0,00%. Google API đã đồng bộ T7–T9 và chạy trong M5 local; Excel là nguồn dự phòng. Xem cập nhật phía trên. |
 
 > Tài liệu gốc cần đối chiếu khi chạy probe:
 > [Meta · Insights API](https://developers.facebook.com/docs/marketing-api/insights) ·
@@ -772,7 +790,7 @@ GET https://graph.facebook.com/<ver>/act_<ACCOUNT_ID>/insights
 ```
 POST https://googleads.googleapis.com/<ver>/customers/<CUSTOMER_ID>/googleAds:searchStream
 Headers: Authorization: Bearer <access_token sinh từ refresh_token>
-         developer-token: <GADS_DEVELOPER_TOKEN>
+         developer-token: <GADS_DEVELOPER_TOKEN> (chỉ khi project/token yêu cầu)
          login-customer-id: <MCC id — chỉ khi truy cập qua MCC>
 Body:    { "query": "<GAQL>" }
 ```
@@ -783,7 +801,7 @@ Ba GAQL, mỗi cái vào **một** bảng:
 |---|---|
 | `ads_campaign_daily` | `SELECT campaign.id, campaign.name, campaign.status, segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM campaign WHERE segments.date BETWEEN '…' AND '…'` |
 | `ads_network_daily` | `… segments.ad_network_type … FROM campaign WHERE …` |
-| `ads_search_term_daily` | `SELECT campaign.id, search_term_view.search_term, segments.date, metrics.* FROM search_term_view WHERE …` |
+| `ads_search_term_daily` | `SELECT campaign.id, campaign_search_term_view.search_term, segments.date, metrics.* FROM campaign_search_term_view WHERE …` (bao gồm Performance Max) |
 
 | Điểm | Ghi chú |
 |---|---|
@@ -961,7 +979,7 @@ Ghi ra để không ai tưởng là bỏ sót.
 
 | Mức | Việc | Ghi chú |
 |---|---|---|
-| 🔴 **chặn** | **Google Ads — developer token ở mức TEST** *(cập nhật 28/09/2026)* | OAuth ĐÃ XONG: refresh token có, `listAccessibleCustomers` thấy 3 tài khoản gồm `1956330376`. Nhưng đọc số trả `403 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` — token Test chỉ đọc được tài khoản test. **Việc còn lại: xin Explorer/Basic access** ở Google Ads (MCC) › Tools › API Center. Không cần sửa code. Duyệt xong chạy `npm run probe:ads reconcile --month=2026-08` rồi sync |
+| 🟢 đã giải quyết | Google Ads production access | Cloud project đã được duyệt Explorer; probe v25 và sync tài khoản con `6930679147` thành công ngày 28/09/2026. |
 | 🟡 chờ | `quangdai122` phải được mời vào Google Ads `195-633-0376` quyền **Chỉ đọc** và **chấp nhận** | Không cần để LẤY token, nhưng cần để token ĐỌC được số. Làm song song được |
 | 🟡 chưa rõ | Developer token đang ở mức **Test** hay **Basic** | Probe `google` sẽ nói rõ khi có refresh token. Test thì chỉ gọi được tài khoản test — xin Basic ở API Center, 1–3 ngày |
 | 🔴 **chặn** | **Meta System User token** cần quyền admin Business Manager | User token 60 ngày dùng **tạm cho probe** được, **không** dùng cho cron |

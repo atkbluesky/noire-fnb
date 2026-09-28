@@ -373,38 +373,36 @@ export async function upsertPeriodReach(sql: Sql, rows: PeriodReachRow[]): Promi
 }
 
 export async function upsertNetworkDaily(sql: Sql, rows: NetworkDailyRow[]): Promise<number> {
-  let written = 0;
-  for (const r of rows) {
+  for (const part of chunked(rows)) {
+    const payload = part.map(r => ({ campaign_id: r.campaignId, network: r.network, stat_date: r.statDate,
+      spend: r.spend, impressions: r.impressions, clicks: r.clicks, conversions: r.conversions }));
     await sql`insert into ads_network_daily (
-        platform, campaign_id, network, stat_date, spend, impressions, clicks, conversions, synced_at
-      ) values (
-        'google', ${r.campaignId}, ${r.network}, ${r.statDate}::date,
-        ${r.spend}, ${r.impressions}, ${r.clicks}, ${r.conversions}, now()
-      )
+      platform, campaign_id, network, stat_date, spend, impressions, clicks, conversions, synced_at
+    ) select 'google', t.campaign_id, t.network, t.stat_date, t.spend, t.impressions, t.clicks, t.conversions, now()
+      from jsonb_to_recordset(${payload as never}::jsonb) as t(
+        campaign_id text, network text, stat_date date, spend numeric, impressions bigint, clicks bigint, conversions numeric)
       on conflict (platform, campaign_id, network, stat_date) do update set
-        spend = excluded.spend, impressions = excluded.impressions,
-        clicks = excluded.clicks, conversions = excluded.conversions, synced_at = now()`;
-    written += 1;
+        spend = excluded.spend, impressions = excluded.impressions, clicks = excluded.clicks,
+        conversions = excluded.conversions, synced_at = now()`;
   }
-  return written;
+  return rows.length;
 }
 
 export async function upsertSearchTermDaily(sql: Sql, rows: SearchTermDailyRow[]): Promise<number> {
-  let written = 0;
-  for (const r of rows) {
+  for (const part of chunked(rows)) {
+    const payload = part.map(r => ({ campaign_id: r.campaignId, search_term: r.searchTerm, stat_date: r.statDate,
+      spend: r.spend, impressions: r.impressions, clicks: r.clicks, conversions: r.conversions, has_brand_term: r.hasBrandTerm }));
     await sql`insert into ads_search_term_daily (
-        platform, campaign_id, search_term, stat_date, spend, impressions, clicks,
-        conversions, has_brand_term, synced_at
-      ) values (
-        'google', ${r.campaignId}, ${r.searchTerm}, ${r.statDate}::date,
-        ${r.spend}, ${r.impressions}, ${r.clicks}, ${r.conversions}, ${r.hasBrandTerm}, now()
-      )
+      platform, campaign_id, search_term, stat_date, spend, impressions, clicks, conversions, has_brand_term, synced_at
+    ) select 'google', t.campaign_id, t.search_term, t.stat_date, t.spend, t.impressions, t.clicks, t.conversions, t.has_brand_term, now()
+      from jsonb_to_recordset(${payload as never}::jsonb) as t(
+        campaign_id text, search_term text, stat_date date, spend numeric, impressions bigint, clicks bigint,
+        conversions numeric, has_brand_term boolean)
       on conflict (platform, campaign_id, search_term, stat_date) do update set
         spend = excluded.spend, impressions = excluded.impressions, clicks = excluded.clicks,
         conversions = excluded.conversions, has_brand_term = excluded.has_brand_term, synced_at = now()`;
-    written += 1;
   }
-  return written;
+  return rows.length;
 }
 
 /** Dựng lại mart. Gọi SAU khi fact đã ghi xong, nếu không mart sẽ thiếu. */

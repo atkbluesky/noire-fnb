@@ -4,10 +4,8 @@
  * `googleAds:searchStream` là POST nhưng nội dung là GAQL read-only. Luật M5_1 §0.9
  * CẤM tuyệt đối mọi endpoint `:mutate` (`campaigns:mutate`, `campaignBudgets:mutate`…).
  *
- * ⚠ TRẠNG THÁI 27/09/2026: chưa chạy được lần nào trên production — thiếu
- * `GADS_DEVELOPER_TOKEN`. Mã dưới đây viết theo tài liệu, CHƯA được đo như phía Meta.
- * Lần đầu có token phải chạy `npm run probe:ads google` trước, và đối chiếu
- * `reconcile --month=2026-08` với mốc Excel 4.411.053đ rồi mới bật cron.
+ * Đã đọc tài khoản con của MCC ngày 28/09/2026: chi T8 = 4.411.052,45đ,
+ * khớp Excel 4.411.053đ trong sai số làm tròn. Quyền production thuộc Cloud project.
  */
 import {
   hasBrandTerm, num, redactSearchTerm,
@@ -29,7 +27,7 @@ let cachedVersion: string | undefined;
 let cachedToken: { value: string; expiresAt: number } | undefined;
 
 export const isGoogleConfigured = (env: AdsEnv): boolean => Boolean(
-  env.GADS_DEVELOPER_TOKEN?.trim() && env.GADS_CLIENT_ID?.trim()
+  env.GADS_CLIENT_ID?.trim()
   && env.GADS_CLIENT_SECRET?.trim() && env.GADS_REFRESH_TOKEN?.trim()
   && customerList(env).length,
 );
@@ -75,7 +73,7 @@ async function searchStream(
       method: 'POST',
       headers: {
         authorization: `Bearer ${token}`,
-        'developer-token': env.GADS_DEVELOPER_TOKEN?.trim() ?? '',
+        ...(env.GADS_DEVELOPER_TOKEN?.trim() ? { 'developer-token': env.GADS_DEVELOPER_TOKEN.trim() } : {}),
         ...(loginCid ? { 'login-customer-id': loginCid } : {}),
         'content-type': 'application/json',
       },
@@ -135,8 +133,9 @@ export interface GoogleCustomer {
 export async function fetchCustomer(customerId: string, env: AdsEnv): Promise<GoogleCustomer> {
   const version = await resolveVersion(customerId, env);
   const rows = await searchStream(version, customerId,
-    'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone FROM customer LIMIT 1', env);
+    'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager FROM customer LIMIT 1', env);
   const c = (rows[0]?.customer ?? {}) as Record<string, unknown>;
+  if (c.manager === true) throw new Error(`GADS_CUSTOMER_IS_MANAGER:${customerId}:Đặt tài khoản chạy quảng cáo vào GADS_CUSTOMER_IDS và MCC vào GADS_LOGIN_CUSTOMER_ID`);
   return {
     customerId,
     name: c.descriptiveName == null ? null : String(c.descriptiveName),
@@ -219,9 +218,9 @@ export async function fetchSearchTermDaily(
 ): Promise<{ rows: SearchTermDailyRow[]; redacted: number }> {
   const version = await resolveVersion(customerId, env);
   const raw = await searchStream(version, customerId, `
-    SELECT campaign.id, search_term_view.search_term, segments.date,
+    SELECT campaign.id, campaign_search_term_view.search_term, segments.date,
            metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions
-    FROM search_term_view
+    FROM campaign_search_term_view
     WHERE ${gaqlDate(since, until)}`.trim(), env);
 
   let redacted = 0;
@@ -237,14 +236,14 @@ export async function fetchSearchTermDaily(
     const conversions = num(m(r).conversions, 'conversions');
     if (spend === 0 && clicks === 0 && conversions === 0) continue;   // bỏ phần đuôi im lặng
 
-    const view = (r.searchTermView ?? {}) as Record<string, unknown>;
+    const view = (r.campaignSearchTermView ?? {}) as Record<string, unknown>;
     const safe = redactSearchTerm(String(view.searchTerm ?? ''));
     if (safe.redacted) redacted += 1;
     if (!safe.term) continue;
 
     const campaignId = String(c(r).id ?? '');
     const statDate = String(seg(r).date ?? '');
-    const key = `${campaignId} ${safe.term} ${statDate}`;
+    const key = `${campaignId}\u0000${safe.term}\u0000${statDate}`;
 
     const hit = bucket.get(key);
     if (hit) {

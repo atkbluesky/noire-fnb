@@ -162,7 +162,7 @@ export async function handleAdsPerformance(req: Request, env: AdsEnv = process.e
           where finished_at is null and started_at < now() - interval '30 minutes') as stuck,
         /* Đã KÉO tới ngày nào — khác hẳn "có chi tiêu tới ngày nào".
            T2/2026 ngừng chạy ads từ ngày 14, nhưng tháng đó VẪN trọn kỳ. */
-        (select max(window_to)::text from ads_sync_run where ok) as synced_through`;
+        (select max(window_to)::text from ads_sync_run where ok and platform = 'meta') as synced_through`;
 
     const metrics = total(rows);
     const syncedThrough = freshness?.synced_through ?? null;
@@ -208,9 +208,9 @@ export async function handleAdsPerformance(req: Request, env: AdsEnv = process.e
       /* Lát tháng × brand — `DigitalAdsView` cần đúng lát này để dựng lại chuỗi
          ACR theo tháng có lọc brand, thay cho `MKT_DATA.ads_brand` của nhánh Excel.
          Không có lát này thì view phải tự gộp từ `daily`, mà `daily` đã bỏ chiều brand. */
-      byMonthBrand: [...groupBy(rows, r => `${r.stat_date.slice(0, 7)} ${r.brand}`)]
+      byMonthBrand: [...groupBy(rows, r => `${r.stat_date.slice(0, 7)}\u0000${r.brand}`)]
         .map(([key, rs]) => {
-          const [month, brand] = key.split(' ');
+          const [month, brand] = key.split('\u0000');
           return { month, brand, ...total(rs) };
         })
         .sort((a, b) => (a.month === b.month ? b.mediaSpend - a.mediaSpend : a.month < b.month ? -1 : 1)),

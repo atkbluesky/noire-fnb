@@ -8,6 +8,7 @@
  *   funnel `booking` → TIEC (bất kể page) · `hr` → HR · còn lại → brand của page.
  */
 import { shiftDays, type Sql } from './_shared.js';
+import { googleDashboard } from './_googleDashboard.js';
 
 const num = (v: unknown): number => Number(v) || 0;
 
@@ -71,7 +72,7 @@ async function efficiency(sql: Sql, start: string, end: string) {
              sum(f.spend) as spend, sum(f.messaging_conversations) as messages, sum(f.leads) as leads
         from ads_campaign_daily f
         join dim_ads_campaign d on d.platform = f.platform and d.campaign_id = f.campaign_id
-       where f.stat_date between ${start}::date and ${end}::date
+       where f.platform = 'meta' and f.stat_date between ${start}::date and ${end}::date
        group by 1, 2, 3
     )
     select segment,
@@ -90,27 +91,27 @@ export async function dashboardExtras(sql: Sql, start: string, end: string) {
   const [effCur, effPrev] = await Promise.all([efficiency(sql, start, end), efficiency(sql, prev.start, prev.end)]);
   const [cur, before, daily, monthly, tiec, campaigns, reachRows, synced] = await Promise.all([
     sql<Raw[]>`select ${seg} as segment, ${add} from ads_daily_segment
-      where stat_date between ${start}::date and ${end}::date group by 1`,
+      where platform = 'meta' and stat_date between ${start}::date and ${end}::date group by 1`,
     sql<Raw[]>`select ${seg} as segment, ${add} from ads_daily_segment
-      where stat_date between ${prev.start}::date and ${prev.end}::date group by 1`,
+      where platform = 'meta' and stat_date between ${prev.start}::date and ${prev.end}::date group by 1`,
     sql<Raw[]>`select stat_date::text as date, ${seg} as segment, ${add} from ads_daily_segment
-      where stat_date between ${start}::date and ${end}::date group by 1, 2 order by 1`,
+      where platform = 'meta' and stat_date between ${start}::date and ${end}::date group by 1, 2 order by 1`,
     // TOÀN BỘ tháng — biểu đồ ACR & kế hoạch cần lịch sử, không cắt theo kỳ đang xem.
     sql<Raw[]>`select to_char(stat_date, 'YYYY-MM') as month, ${seg} as segment, ${add}
-      from ads_daily_segment group by 1, 2 order by 1`,
+      from ads_daily_segment where platform = 'meta' group by 1, 2 order by 1`,
     // Chi tiệc theo PAGE chạy: cho thấy dịch chuyển sang page NEC từ T7/2026.
     sql<Raw[]>`select to_char(stat_date, 'YYYY-MM') as month, brand as page, coalesce(sum(spend), 0)::float as spend
-      from ads_daily_segment where funnel = 'booking' group by 1, 2 order by 1`,
+      from ads_daily_segment where platform = 'meta' and funnel = 'booking' group by 1, 2 order by 1`,
     sql<Raw[]>`
       with f as (
         select f.platform, f.campaign_id, ${add}
           from ads_campaign_daily f
-         where f.stat_date between ${start}::date and ${end}::date
+         where f.platform = 'meta' and f.stat_date between ${start}::date and ${end}::date
          group by 1, 2
         having sum(f.spend) > 0
       ), r as (
         select entity_id, reach, frequency from ads_period_reach
-         where level = 'campaign' and period_kind = 'month'
+         where platform = 'meta' and level = 'campaign' and period_kind = 'month'
            and period_start = date_trunc('month', ${end}::date)::date
       )
       select f.*, c.campaign_name, c.brand, c.funnel, c.objective, c.mapping_locked,
@@ -123,15 +124,15 @@ export async function dashboardExtras(sql: Sql, start: string, end: string) {
       (select 'month' as kind, period_start::text as ps, period_end::text as pe,
               reach::float, impressions::float, frequency::float
          from ads_period_reach
-        where level = 'account' and period_kind = 'month'
+        where platform = 'meta' and level = 'account' and period_kind = 'month'
           and period_start = date_trunc('month', ${end}::date)::date
         limit 1)
       union all
       (select 'last7d', period_start::text, period_end::text, reach::float, impressions::float, frequency::float
          from ads_period_reach
-        where level = 'account' and period_kind = 'last7d'
+        where platform = 'meta' and level = 'account' and period_kind = 'last7d'
         order by period_start desc limit 1)`,
-    sql<Raw[]>`select max(window_to)::text as d from ads_sync_run where ok`,
+    sql<Raw[]>`select max(window_to)::text as d from ads_sync_run where ok and platform = 'meta'`,
   ]);
 
   const segments = ['NCB', 'NDC', 'NJFB', 'TIEC', 'HR', 'KHAC'].map(s => ({
@@ -156,6 +157,7 @@ export async function dashboardExtras(sql: Sql, start: string, end: string) {
   };
 
   return {
+    google: await googleDashboard(sql, start, end, prev.start),
     previous: prev,
     segments,
     segmentDaily: daily.map(r => ({ date: String(r.date), segment: String(r.segment), ...additive(r) })),
