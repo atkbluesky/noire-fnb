@@ -20,6 +20,9 @@
 > ETL Excel không nhận ra mã này nên gộp vào `Không xác định`: T8/2026 là **6.521.370đ (13,7%)**.
 > Doanh thu tiệc do M10 theo dõi riêng, **không** nằm trong `store_month.net` ở mẫu số ACR.
 > Bảng gán brand + phễu đầy đủ: [`M5_1_Ads_Auto.md` §2b-bis](M5_1_Ads_Auto.md).
+>
+> 🖥 **Màn hình đã dựng lại thành BA TẦNG (28/09/2026)** — Tổng quan → Meta → Google, 4 mảng NCB · NDC · NJFB · Tiệc.
+> Thiết kế, định nghĩa chỉ số, giả định: [`M5_1_Ads_Auto.md` §9](M5_1_Ads_Auto.md). Màn hình mô tả trong file này nay là bản **dự phòng** (nút EXPORT).
 
 ---
 

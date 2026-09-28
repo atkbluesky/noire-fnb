@@ -99,3 +99,109 @@ export interface AdsNotReadyResponse {
   code: 'NOT_CONFIGURED' | 'NO_DATA';
   message?: string;
 }
+
+/* ═══ M5 ba tầng (28/09/2026) — bổ sung, không đổi các kiểu phía trên ═══════════ */
+
+/**
+ * Bốn MẢNG kinh doanh + HR. Đây là trục phân tách chính của tab M5.
+ *   NCB · NDC · NJFB — ăn tại chỗ (funnel `store`), theo brand của page
+ *   TIEC            — booking tiệc/catering (funnel `booking`), BẤT KỂ chạy trên page nào.
+ *                     Page NEC mở từ T7/2026; trước đó chạy nhờ page brand, nhận diện
+ *                     bằng tên chiến dịch (tiệc · YEP · party · sự kiện…). Xem M5_1 §2b-bis.
+ *   HR              — tuyển dụng, ngoài ACR.
+ */
+export type AdsSegment = 'NCB' | 'NDC' | 'NJFB' | 'TIEC' | 'HR' | 'KHAC';
+
+/** Số cộng được. Mọi tỉ lệ (CPM, CTR, CPTB…) tính ở view từ các số này — không cộng tỉ lệ. */
+export interface AdsAdditive {
+  spend: number;
+  impressions: number;
+  clicks: number;
+  linkClicks: number;
+  messages: number;
+  leads: number;
+  videoViews: number;
+  thruplays: number;
+  conversions: number;
+}
+
+export interface AdsSegmentBlock {
+  segment: AdsSegment;
+  current: AdsAdditive;
+  previous: AdsAdditive;
+}
+
+export interface AdsSegmentDaily extends AdsAdditive {
+  date: string;
+  segment: AdsSegment;
+}
+
+export interface AdsSegmentMonthly extends AdsAdditive {
+  month: string;
+  segment: AdsSegment;
+}
+
+/** Chi tiệc theo PAGE chạy — cho thấy dịch chuyển sang page NEC từ T7/2026. */
+export interface AdsTiecByPage {
+  month: string;
+  page: string;
+  spend: number;
+}
+
+export interface AdsCampaignRow extends AdsAdditive {
+  platform: string;
+  campaignId: string;
+  campaignName: string;
+  brand: string;
+  segment: AdsSegment;
+  objective: string;
+  locked: boolean;
+  /** Reach/tần suất của chiến dịch trong THÁNG CUỐI của kỳ đang xem (không cộng được qua tháng). */
+  monthReach: number | null;
+  monthFrequency: number | null;
+}
+
+export interface AdsReachWindow {
+  periodStart: string;
+  periodEnd: string;
+  reach: number | null;
+  impressions: number | null;
+  frequency: number | null;
+}
+
+export interface AdsDashboardExtras {
+  previous: { start: string; end: string };
+  segments: AdsSegmentBlock[];
+  segmentDaily: AdsSegmentDaily[];
+  /** TOÀN BỘ các tháng có dữ liệu — cho biểu đồ ACR & kế hoạch, không bị cắt theo kỳ. */
+  segmentMonthly: AdsSegmentMonthly[];
+  tiecByPage: AdsTiecByPage[];
+  campaigns: AdsCampaignRow[];
+  reach: {
+    /** Tài khoản, tháng cuối của kỳ đang xem. */
+    month: AdsReachWindow | null;
+    /** Tài khoản, 7 ngày gần nhất — thước đo bão hoà tệp. */
+    last7d: AdsReachWindow | null;
+  };
+  syncedThrough: string | null;
+  /** Mẫu số đúng cho CPTB / CPL — xem `efficiency()` ở api/ads/_dashboard.ts. */
+  efficiency: AdsEfficiencyBlock[];
+}
+
+export interface AdsEfficiency {
+  /** Chi của chiến dịch mục tiêu "Tin nhắn". */
+  msgSpend: number;
+  /** Tin nhắn của CHÍNH các chiến dịch đó. */
+  msgMessages: number;
+  /** Chi của chiến dịch có phát sinh lead. */
+  leadSpend: number;
+  leads: number;
+}
+
+export interface AdsEfficiencyBlock {
+  segment: AdsSegment;
+  current: AdsEfficiency;
+  previous: AdsEfficiency;
+}
+
+export type AdsDashboardResponse = AdsPerformanceResponse & AdsDashboardExtras;

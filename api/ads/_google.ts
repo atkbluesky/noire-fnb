@@ -171,6 +171,10 @@ export async function fetchCampaignDaily(
     results: null,
     resultType: null,
     messagingConversations: 0,
+    linkClicks: 0,          // Google không tách link click — dùng `clicks`
+    leads: 0,
+    videoViews: 0,
+    thruplays: 0,
     status: c(r).status == null ? null : String(c(r).status),
     raw: {},
   }));

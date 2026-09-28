@@ -133,6 +133,14 @@ export interface CampaignDailyRow {
   results: number | null;
   resultType: string | null;
   messagingConversations: number;
+  /** Meta action `link_click`. Google: 0 (Google dùng `clicks`). */
+  linkClicks: number;
+  /** Meta action `lead` — form đặt tiệc. */
+  leads: number;
+  /** Meta action `video_view` = lượt xem video ≥ 3 giây. */
+  videoViews: number;
+  /** Meta trường `video_thruplay_watched_actions` = xem hết / ≥ 15 giây. */
+  thruplays: number;
   status: string | null;
   raw: Record<string, unknown>;
 }
@@ -270,38 +278,98 @@ export async function upsertCampaignDaily(sql: Sql, rows: CampaignDailyRow[]): P
 
   let written = 0;
   for (const part of chunked(rows)) {
+    /* Cả lô đi dưới dạng MỘT tài liệu JSON, bóc bằng `jsonb_to_recordset` với kiểu
+       từng cột khai tường minh.
+
+       ⚠ Truyền MẢNG OBJECT, tuyệt đối không truyền chuỗi đã JSON.stringify.
+       postgres.js hỏi server kiểu tham số, thấy `jsonb` thì TỰ stringify thêm một
+       lần. Bản trước (unnest + `JSON.stringify(raw)::jsonb[]`) vì thế lưu `raw`
+       thành chuỗi-bọc-chuỗi trên cả 2.224 dòng — sửa dữ liệu ở 006_ads_meta_detail.sql.
+       Đã thử cả ba cách trên Neon 28/09/2026 trước khi chọn cách này. */
+    const payload = part.map(r => ({
+      platform: r.platform,
+      campaign_id: r.campaignId,
+      stat_date: r.statDate,
+      account_id: r.accountId,
+      spend: r.spend,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      reach: r.reach,
+      frequency: r.frequency,
+      conversions: r.conversions,
+      results: r.results,
+      result_type: r.resultType,
+      messaging_conversations: r.messagingConversations,
+      link_clicks: r.linkClicks,
+      leads: r.leads,
+      video_views: r.videoViews,
+      thruplays: r.thruplays,
+      status: r.status,
+      raw: r.raw ?? {},
+    }));
     await sql`insert into ads_campaign_daily (
         platform, campaign_id, stat_date, account_id, spend, impressions, clicks, reach,
-        frequency, conversions, results, result_type, messaging_conversations, status, raw, synced_at
+        frequency, conversions, results, result_type, messaging_conversations,
+        link_clicks, leads, video_views, thruplays, status, raw, synced_at
       )
-      select t.*, now() from unnest(
-        ${part.map(r => r.platform)}::text[],
-        ${part.map(r => r.campaignId)}::text[],
-        ${part.map(r => r.statDate)}::date[],
-        ${part.map(r => r.accountId)}::text[],
-        ${part.map(r => r.spend)}::numeric[],
-        ${part.map(r => r.impressions)}::bigint[],
-        ${part.map(r => r.clicks)}::bigint[],
-        ${part.map(r => r.reach)}::bigint[],
-        ${part.map(r => r.frequency)}::numeric[],
-        ${part.map(r => r.conversions)}::numeric[],
-        ${part.map(r => r.results)}::numeric[],
-        ${part.map(r => r.resultType)}::text[],
-        ${part.map(r => r.messagingConversations)}::bigint[],
-        ${part.map(r => r.status)}::text[],
-        ${part.map(r => JSON.stringify(r.raw ?? {}))}::jsonb[]
-      ) as t(platform, campaign_id, stat_date, account_id, spend, impressions, clicks, reach,
-             frequency, conversions, results, result_type, messaging_conversations, status, raw)
+      select t.platform, t.campaign_id, t.stat_date, t.account_id, t.spend, t.impressions,
+             t.clicks, t.reach, t.frequency, t.conversions, t.results, t.result_type,
+             t.messaging_conversations, t.link_clicks, t.leads, t.video_views, t.thruplays,
+             t.status, t.raw, now()
+        from jsonb_to_recordset(${payload as never}::jsonb) as t(
+          platform text, campaign_id text, stat_date date, account_id text,
+          spend numeric, impressions bigint, clicks bigint, reach bigint, frequency numeric,
+          conversions numeric, results numeric, result_type text, messaging_conversations bigint,
+          link_clicks bigint, leads bigint, video_views bigint, thruplays bigint,
+          status text, raw jsonb)
       on conflict (platform, campaign_id, stat_date) do update set
         account_id = excluded.account_id, spend = excluded.spend,
         impressions = excluded.impressions, clicks = excluded.clicks, reach = excluded.reach,
         frequency = excluded.frequency, conversions = excluded.conversions,
         results = excluded.results, result_type = excluded.result_type,
         messaging_conversations = excluded.messaging_conversations,
+        link_clicks = excluded.link_clicks, leads = excluded.leads,
+        video_views = excluded.video_views, thruplays = excluded.thruplays,
         status = excluded.status, raw = excluded.raw, synced_at = now()`;
     written += part.length;
   }
   return written;
+}
+
+/* ─── Reach & tần suất theo kỳ (M5_1 §2h) ──────────────────────────────────── */
+
+export interface PeriodReachRow {
+  level: 'account' | 'campaign';
+  entityId: string;
+  periodKind: 'month' | 'last7d';
+  periodStart: string;
+  periodEnd: string;
+  reach: number | null;
+  impressions: number | null;
+  frequency: number | null;
+  spend: number | null;
+}
+
+export async function upsertPeriodReach(sql: Sql, rows: PeriodReachRow[]): Promise<number> {
+  if (!rows.length) return 0;
+  const payload = rows.map(r => ({
+    level: r.level, entity_id: r.entityId, period_kind: r.periodKind,
+    period_start: r.periodStart, period_end: r.periodEnd,
+    reach: r.reach, impressions: r.impressions, frequency: r.frequency, spend: r.spend,
+  }));
+  await sql`insert into ads_period_reach (
+      platform, level, entity_id, period_kind, period_start, period_end,
+      reach, impressions, frequency, spend, synced_at
+    )
+    select 'meta', t.level, t.entity_id, t.period_kind, t.period_start, t.period_end,
+           t.reach, t.impressions, t.frequency, t.spend, now()
+      from jsonb_to_recordset(${payload as never}::jsonb) as t(
+        level text, entity_id text, period_kind text, period_start date, period_end date,
+        reach bigint, impressions bigint, frequency numeric, spend numeric)
+    on conflict (platform, level, entity_id, period_kind, period_start) do update set
+      period_end = excluded.period_end, reach = excluded.reach, impressions = excluded.impressions,
+      frequency = excluded.frequency, spend = excluded.spend, synced_at = now()`;
+  return rows.length;
 }
 
 export async function upsertNetworkDaily(sql: Sql, rows: NetworkDailyRow[]): Promise<number> {
@@ -342,6 +410,8 @@ export async function upsertSearchTermDaily(sql: Sql, rows: SearchTermDailyRow[]
 /** Dựng lại mart. Gọi SAU khi fact đã ghi xong, nếu không mart sẽ thiếu. */
 export async function refreshMart(sql: Sql, from: string, to: string): Promise<number> {
   const [row] = await sql<{ n: number }[]>`select ads_refresh_daily_metric(${from}::date, ${to}::date) as n`;
+  // Mart theo MẢNG (006) — nguồn đọc của màn hình M5 ba tầng. Dựng cùng lúc với mart cũ.
+  await sql`select ads_refresh_daily_segment(${from}::date, ${to}::date)`;
   return Number(row?.n ?? 0);
 }
 

@@ -12,6 +12,7 @@
  * TỰ RƠI về nguồn Excel thay vì để trống. Cùng khuôn `handleZaloPerformance` (M8.1).
  */
 import { getSql, ictDate, json, monthEnd, isMonth, shiftDays, type AdsEnv, type Sql } from './_shared.js';
+import { dashboardExtras } from './_dashboard.js';
 
 type Period = 'today' | '7d' | 'mtd' | 'month' | 'range';
 
@@ -189,7 +190,12 @@ export async function handleAdsPerformance(req: Request, env: AdsEnv = process.e
       metrics.mediaSpend,
     );
 
+    // Dữ liệu cho màn hình M5 ba tầng (mảng · kỳ trước · chiến dịch · reach theo kỳ).
+    // Chỉ THÊM khoá mới — các khoá phía dưới giữ nguyên cho nơi khác đang đọc.
+    const extras = await dashboardExtras(sql, start, end);
+
     return json(200, {
+      ...extras,
       ok: true,
       source: 'Meta Marketing API + Google Ads API',
       period,
