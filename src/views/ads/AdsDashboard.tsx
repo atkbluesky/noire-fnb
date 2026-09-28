@@ -99,18 +99,24 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     return { cur, prev, r: ratios(cur), rp: ratios(prev), e: effRatios(eff), ep: effRatios(effPrev), eff };
   }, [api, seg]);
 
-  const googleRows = useMemo(() => googleMonthly(), []);
+  const googleApi = api.google?.ready ? api.google : null;
+  const googleRows = useMemo(() => googleMonthly(api), [api]);
+  const googleCovered = !googleApi || googleApi.coverage.some(w => w.start <= windowStart && w.end >= windowEnd);
+  const googleLabel = googleApi ? 'Google Ads API' : 'Excel dự phòng';
   const google = useMemo(() => {
     const pick = (ms: string[]) => googleRows.filter(g =>
       ms.includes(g.month) && seg !== 'TIEC' && (seg === 'ALL' || g.brand === seg));
     const sum = (rs: typeof googleRows) => rs.reduce(
       (a, g) => ({ spend: a.spend + g.spend, conv: a.conv + g.conv, clicks: a.clicks + g.clicks, impr: a.impr + g.impr }),
       { spend: 0, conv: 0, clicks: 0, impr: 0 });
-    const cur = sum(pick(months));
-    const prev = sum(pick(prevMonths));
+    const inRange = (start: string, end: string) => (googleApi?.daily ?? [])
+      .filter(g => g.date >= start && g.date <= end && (seg === 'ALL' || g.brand === seg))
+      .map(g => ({ ...g, month: g.date.slice(0, 7) }));
+    const cur = sum(googleApi ? inRange(windowStart, windowEnd) : pick(months));
+    const prev = sum(googleApi ? inRange(api.previous.start, api.previous.end) : pick(prevMonths));
     const monthsWith = [...new Set(pick(months).map(g => g.month))].sort();
     return { cur, prev, monthsWith };
-  }, [googleRows, months, prevMonths, seg]);
+  }, [googleRows, months, prevMonths, seg, googleApi, windowStart, windowEnd, api.previous]);
 
   const hrCur = api.segments.find(s => s.segment === 'HR')?.current.spend ?? 0;
   const tiecCur = api.segments.find(s => s.segment === 'TIEC')?.current.spend ?? 0;
@@ -165,12 +171,13 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     const plans = planRows();
     const metaThrough = api.syncedThrough;
     const gMonths = googleRows.map(g => g.month).sort();
-    const googleThrough = gMonths.length ? monthEnd(gMonths[gMonths.length - 1]) : null;
+    const googleThrough = googleApi ? googleApi.syncedThrough : gMonths.length ? monthEnd(gMonths[gMonths.length - 1]) : null;
     const metaActual = (line: 'dinein' | 'tiec') => api.segmentMonthly
       .filter(r => q3.includes(r.month) && (line === 'tiec' ? r.segment === 'TIEC' : ['NCB', 'NDC', 'NJFB', 'KHAC'].includes(r.segment)))
       .reduce((a, r) => a + r.spend, 0);
-    const googleActual = (line: 'dinein' | 'tiec') => line === 'tiec' ? 0
-      : googleRows.filter(g => q3.includes(g.month)).reduce((a, g) => a + g.spend, 0);
+    const googleActual = (line: 'dinein' | 'tiec') => googleRows
+      .filter(g => q3.includes(g.month) && (line === 'tiec' ? g.brand === 'TIEC' : g.brand !== 'TIEC'))
+      .reduce((a, g) => a + g.spend, 0);
 
     const rows = plans.map(p => {
       const through = p.channel === 'Meta Ads' ? metaThrough : p.channel === 'Google Ads' ? googleThrough : null;
@@ -481,9 +488,15 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     { key: 'cplV', header: 'CP / lead', align: 'right', sortable: true, render: r => <span className="font-mono">{Number.isFinite(r.cplV) ? vnd(r.cplV) : '—'}</span> },
   ];
 
-  /* ═══ TẦNG 3 · Google (Excel) ═══════════════════════════════════════════ */
+  /* ═══ TẦNG 3 · Google API / Excel dự phòng ════════════════════════════════ */
 
   const gCampaigns = useMemo(() => {
+    if (googleApi) return googleApi.campaigns.filter(g => seg === 'ALL' || g.brand === seg).map(g => {
+      const store = g.store ?? (MKT_DATA.gads ?? []).find(x => x.campaign === g.campaign)?.store;
+      return { ...g, store: store ? HUB_DATA.stores[store]?.name || store : '—',
+        status: g.status === 'PAUSED' ? 'Tạm dừng' : g.status === 'REMOVED' ? 'Đã xoá' : g.status === 'ENABLED' ? 'Đang bật' : g.status,
+        cpa: g.conv > 0 ? g.spend / g.conv : Number.POSITIVE_INFINITY };
+    });
     const map = new Map<string, { campaign: string; store: string; status: string; spend: number; conv: number; clicks: number; impr: number }>();
     for (const g of MKT_DATA.gads ?? []) {
       if (!g.month || !months.includes(g.month)) continue;
@@ -495,11 +508,17 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     }
     return [...map.values()].map(r => ({ ...r, cpa: r.conv > 0 ? r.spend / r.conv : Number.POSITIVE_INFINITY }))
       .sort((a, b) => b.spend - a.spend);
-  }, [months, seg]);
+  }, [months, seg, googleApi]);
 
   const gChannels = useMemo(() => {
     const map = new Map<string, { channel: string; spend: number; conv: number; clicks: number; impr: number }>();
-    for (const c of MKT_DATA.gads_channel ?? []) {
+    const source = googleApi ? googleApi.channels
+      .filter(c => seg === 'ALL' || c.brand === seg).map(c => ({ ...c, month: '' })) : MKT_DATA.gads_channel ?? [];
+    const labels: Record<string, string> = { SEARCH: 'Google Tìm kiếm', SEARCH_PARTNERS: 'Đối tác tìm kiếm',
+      CONTENT: 'Mạng hiển thị', YOUTUBE: 'YouTube', DISCOVER: 'Discover', MAPS: 'Google Maps',
+      GMAIL: 'Gmail', MIXED: 'Nhiều kênh', UNSPECIFIED: 'Chưa xác định', UNKNOWN: 'Khác' };
+    for (const raw of source) {
+      const c = { ...raw, channel: labels[raw.channel] ?? raw.channel };
       if (c.month && !months.includes(c.month)) continue;
       const o = map.get(c.channel) ?? { channel: c.channel, spend: 0, conv: 0, clicks: 0, impr: 0 };
       o.spend += c.spend; o.conv += c.conv; o.clicks += c.clicks; o.impr += c.impr;
@@ -507,7 +526,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     }
     return [...map.values()].filter(c => c.spend > 0).map(c => ({ ...c, cpa: c.conv > 0 ? c.spend / c.conv : null }))
       .sort((a, b) => (a.cpa ?? Infinity) - (b.cpa ?? Infinity));
-  }, [months]);
+  }, [months, seg, googleApi]);
 
   const optGChannel = useMemo<EChartsOption>(() => ({
     tooltip: { trigger: 'item', formatter: (p: any) => {
@@ -526,7 +545,9 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
 
   const gTerms = useMemo(() => {
     const map = new Map<string, { kw: string; clicks: number; conv: number; spend: number }>();
-    for (const k of MKT_DATA.gads_kw ?? []) {
+    const source = googleApi ? googleApi.terms
+      .filter(k => seg === 'ALL' || k.brand === seg).map(k => ({ ...k, month: '' })) : MKT_DATA.gads_kw ?? [];
+    for (const k of source) {
       if (k.month && !months.includes(k.month)) continue;
       const o = map.get(k.kw) ?? { kw: k.kw, clicks: 0, conv: 0, spend: 0 };
       o.clicks += k.clicks; o.conv += k.conv; o.spend += k.spend;
@@ -535,7 +556,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     const all = [...map.values()].sort((a, b) => b.clicks - a.clicks);
     const brand = all.filter(k => /noire/i.test(k.kw));
     return { all, brand: brand.length, nonBrand: all.length - brand.length };
-  }, [months]);
+  }, [months, seg, googleApi]);
 
   /* ═══ Trình bày ═════════════════════════════════════════════════════════ */
 
@@ -572,7 +593,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
       {/* ════════ TẦNG 1 ════════ */}
       <TierHeader n={1} title="Tổng quan quảng cáo trả phí"
         question="Tiền quảng cáo có nằm trong khung cho phép so với doanh thu, và giải ngân có đúng nhịp kế hoạch không?"
-        note={<>Meta theo ngày từ API · Google theo tháng từ Excel ({google.monthsWith.length ? google.monthsWith.map(formatMonthLabel).join(', ') : 'không có tháng nào trong kỳ'}) · CẤM ROAS — dùng ACR.</>} />
+        note={<>Meta theo ngày từ API · Google từ {googleLabel} ({google.monthsWith.length ? google.monthsWith.map(formatMonthLabel).join(', ') : 'không có tháng nào trong kỳ'}) · CẤM ROAS — dùng ACR.</>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MetricCard variant={acr && acrStatus(acr.value, acr.target) === 'bad' ? 'critical' : 'hero'}
@@ -616,7 +637,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
         </Card>
         <Card title="Tỷ trọng kênh trong kỳ" description="Meta và Google chia nhau ngân sách thế nào?" chip="PHÂN BỔ">
           {blended.spend > 0 ? <EChartWrapper option={optShare} height={250} /> : <Empty text="Không có chi tiêu trong kỳ" />}
-          <p className="mt-1 text-[11px] text-brand-faint">Google chỉ có số T7–T8/2026 (Excel). Chọn kỳ khác thì Google = 0 — không phải không chạy.</p>
+          <p className="mt-1 text-[11px] text-brand-faint">{googleApi ? `Google Ads API · đã đồng bộ tới ${googleApi.syncedThrough ? dmy(googleApi.syncedThrough) : '—'}.` : 'Google đang dùng Excel dự phòng; kỳ không có dữ liệu không đồng nghĩa không chạy.'}</p>
         </Card>
       </div>
 
@@ -638,7 +659,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
           <EChartWrapper option={optPlanMonth} height={250} />
           <p className="mt-1 text-[11px] text-brand-faint">
             {brandOnly ? 'File ngân sách không chia kế hoạch theo brand × tháng — đang so TOÀN BỘ phần ăn tại chỗ. ' : ''}
-            T9 mới có số Meta tới {api.syncedThrough ? dm(api.syncedThrough) : '—'}; Google T9 chưa có số.
+            Meta tới {api.syncedThrough ? dmy(api.syncedThrough) : '—'}; Google: {googleLabel}{googleApi?.syncedThrough ? ` tới ${dmy(googleApi.syncedThrough)}` : ''}.
           </p>
         </Card>
       </div>
@@ -680,7 +701,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
         </div>
         <p className="mt-2 text-[11px] text-brand-faint">
           Kế hoạch = dòng <i>Brand MKT</i> (ăn tại chỗ) + <i>Extra Budget – Chạy Tiệc</i>. Ngân sách CRM Q3 thuộc M8, không tính ở đây.
-          Tháng đang chạy: kế hoạch chia đều theo ngày. Mỗi kênh so tới ngày <b>nó có số</b> — Google dừng ở cuối T8 nên không bị tính thiếu T9.
+          Tháng đang chạy: kế hoạch chia đều theo ngày. Mỗi kênh so tới ngày <b>nó có số</b>.
         </p>
       </Card>
 
@@ -822,17 +843,18 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
       {/* ════════ TẦNG 3 ════════ */}
       <TierHeader n={3} title="Google Ads · Performance Max"
         question="Google bắt được nhu cầu tìm quán ở kênh nào, và mỗi hành động tốn bao nhiêu?"
-        note="Số từ Excel theo tháng (T7–T8/2026). NOIRE chỉ chạy 5 chiến dịch Performance Max — bóc theo KÊNH HIỂN THỊ thay cho loại chiến dịch." />
+        note={`${googleLabel}${googleApi ? " · dữ liệu theo ngày, so với kỳ trước cùng số ngày" : " · dữ liệu theo tháng"}. Chi phí và chuyển đổi theo kênh hiển thị.`} />
 
-      {seg === 'TIEC' ? (
+      {!googleCovered && <Empty text="Google API chưa đồng bộ đủ kỳ đang chọn; số bên dưới chỉ gồm dữ liệu đã có." />}
+      {!googleApi && seg === 'TIEC' ? (
         <Empty text="Google Ads không chạy chiến dịch tiệc — chọn mảng khác để xem." />
       ) : google.cur.spend === 0 ? (
-        <Empty text="Kỳ đang xem không có số Google. Excel chỉ có T7–T8/2026; Google Ads API đang chờ refresh token." />
+        <Empty text={googleApi ? "Không có chi tiêu Google trong dữ liệu đã đồng bộ của kỳ/mảng này." : "Kỳ đang xem không có số Google trong nguồn Excel dự phòng."} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <MetricCard label="Chi Google" subLabel={`${pct(blended.googleShare)} tổng chi media`} value={formatVND(google.cur.spend)}
-              customDeltaText={<Delta d={{ ...volumeDelta(google.cur.spend, google.prev.spend), status: 'neutral' }} suffix="vs các tháng trước" />} />
+              customDeltaText={<Delta d={{ ...volumeDelta(google.cur.spend, google.prev.spend), status: 'neutral' }} suffix={googleApi ? "vs kỳ trước" : "vs các tháng trước"} />} />
             <MetricCard label="Chuyển đổi" subLabel={`CP / chuyển đổi ${vnd(google.cur.conv ? google.cur.spend / google.cur.conv : null)}`}
               value={formatNumber(google.cur.conv)}
               customDeltaText={<Delta d={costDelta(google.cur.conv ? google.cur.spend / google.cur.conv : null, google.prev.conv ? google.prev.spend / google.prev.conv : null)} suffix="CP/chuyển đổi" />} />
@@ -846,7 +868,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
             <Card title="Chi phí / chuyển đổi theo kênh hiển thị" description="Kênh nào rẻ nhất để kéo khách tới quán? Xếp tăng dần." chip="KÊNH">
               {gChannels.length ? <EChartWrapper option={optGChannel} height={Math.max(140, gChannels.length * 34)} /> : <Empty text="Không có số kênh" />}
             </Card>
-            <Card title="Khách tìm gì trên Google" description="Khách tìm theo tên quán hay theo nhu cầu? Đầu vào cho nội dung và đặt tên món." chip="CỤM TỪ">
+            <Card title="Khách tìm gì trên Google" description="Các cụm từ Google cung cấp có phát sinh hoạt động; không đại diện toàn bộ truy vấn do giới hạn báo cáo/quyền riêng tư." chip="CỤM TỪ">
               <div className="mb-3 grid grid-cols-2 gap-2.5">
                 <Tile label="Tìm theo nhu cầu" value={formatNumber(gTerms.nonBrand)} sub={pct(gTerms.all.length ? gTerms.nonBrand / gTerms.all.length : null)} />
                 <Tile label='Có chữ "noire"' value={formatNumber(gTerms.brand)} sub={pct(gTerms.all.length ? gTerms.brand / gTerms.all.length : null)} />
@@ -875,8 +897,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
 
       <div className="rounded-xl border border-dashed border-brand-border p-3 text-xs text-brand-muted">
         <b className="text-brand-text">Chưa có: chỉ đường Maps · cuộc gọi · lượt xem menu của Google.</b>{' '}
-        Excel chỉ trả tổng "chuyển đổi", không tách theo loại hành động. Cần Google Ads API (đang chờ refresh token) — khi nối xong,
-        khối này thay bằng bảng hành động tại điểm bán theo từng cửa hàng.
+        {googleApi ? 'API hiện lấy tổng chuyển đổi; chưa triển khai báo cáo tách theo loại hành động.' : 'Excel chỉ trả tổng chuyển đổi, không tách theo loại hành động.'}
       </div>
     </div>
   );

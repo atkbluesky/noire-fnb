@@ -170,6 +170,7 @@ export interface AdsReachWindow {
 }
 
 export interface AdsDashboardExtras {
+  google?: AdsGoogleDashboard;
   previous: { start: string; end: string };
   segments: AdsSegmentBlock[];
   segmentDaily: AdsSegmentDaily[];
@@ -205,3 +206,17 @@ export interface AdsEfficiencyBlock {
 }
 
 export type AdsDashboardResponse = AdsPerformanceResponse & AdsDashboardExtras;
+
+/** Google API uses daily data; coverage distinguishes missing data from zero spend. */
+export interface AdsGoogleMetrics { spend: number; conv: number; clicks: number; impr: number }
+export interface AdsGoogleDashboard {
+  ready: boolean;
+  coverage: Array<{ start: string; end: string }>;
+  syncedThrough: string | null;
+  lastSuccess: string | null;
+  monthly: Array<AdsGoogleMetrics & { month: string; brand: string }>;
+  daily: Array<AdsGoogleMetrics & { date: string; brand: string }>;
+  campaigns: Array<AdsGoogleMetrics & { campaignId: string; campaign: string; store: string | null; brand: string; status: string }>;
+  channels: Array<AdsGoogleMetrics & { channel: string; brand: string }>;
+  terms: Array<AdsGoogleMetrics & { kw: string; brand: string }>;
+}

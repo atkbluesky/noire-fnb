@@ -301,7 +301,7 @@ async function gaql(version, customerId, query, token) {
       method: 'POST',
       headers: {
         authorization: `Bearer ${token}`,
-        'developer-token': GADS_DEV_TOKEN,
+        ...(GADS_DEV_TOKEN ? { 'developer-token': GADS_DEV_TOKEN } : {}),
         ...(GADS_LOGIN_CID ? { 'login-customer-id': GADS_LOGIN_CID } : {}),
         'content-type': 'application/json',
       },
@@ -323,7 +323,6 @@ async function gaql(version, customerId, query, token) {
 
 async function cmdGoogle() {
   head('GOOGLE ADS · TOKEN + API VERSION');
-  if (!GADS_DEV_TOKEN) fail('Thiếu GADS_DEVELOPER_TOKEN — xin ở Google Ads › Tools › API Center');
   if (!GADS_CUSTOMERS.length) fail('Thiếu GADS_CUSTOMER_IDS (customer id 10 số, không dấu gạch)');
   console.log(`developer-token   : ${mask(GADS_DEV_TOKEN)}`);
   console.log(`login-customer-id : ${GADS_LOGIN_CID || '(không dùng MCC)'}`);
@@ -345,7 +344,7 @@ async function cmdGoogle() {
       console.log(`API version       : ${v}  ✖ ${msg.slice(0, 110)}`);
       // Lỗi quyền/token thì đổi version cũng vô ích — dừng luôn và nói rõ.
       if (/DEVELOPER_TOKEN|PERMISSION_DENIED|NOT_APPROVED|not.*approved|test account|does not have permission|GADS_HTTP_40[13]/i.test(msg)) {
-        fail(`Không phải lỗi version mà là lỗi quyền:\n  ${msg}\n\n  → Nếu developer token đang ở mức TEST thì chỉ gọi được tài khoản test.\n    Xin Basic access ở Google Ads › Tools › API Center (thường 1–3 ngày). M5_1 §8.`);
+        fail(`Không phải lỗi version mà là lỗi quyền:\n  ${msg}\n\n  → Kiểm tra quyền tài khoản Ads và Google Cloud project chứa OAuth client.\n    CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION: Google Ads API Overview → Upgrade access level → Explorer.`);
       }
     }
   }
@@ -353,13 +352,14 @@ async function cmdGoogle() {
 
   for (const cid of GADS_CUSTOMERS) {
     const rows = await gaql(ok, cid,
-      'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone FROM customer LIMIT 1', token);
+      'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager FROM customer LIMIT 1', token);
     const c = rows[0]?.customer || {};
+    if (c.manager) fail('GADS_CUSTOMER_IDS đang là MCC. Điền tài khoản quảng cáo con; chuyển MCC sang GADS_LOGIN_CUSTOMER_ID.');
     const flag = c.currencyCode === 'VND' ? '✔' : '✖';
     console.log(`\n   ${flag} ${cid} · ${c.descriptiveName || '?'}`);
     console.log(`        currency=${c.currencyCode}  timezone=${c.timeZone}`);
     if (c.currencyCode && c.currencyCode !== 'VND') gateBreak(`QA gate 3 VỠ: customer ${cid} dùng ${c.currencyCode}, không phải VND`);
-    if (c.timeZone && c.timeZone !== 'Asia/Ho_Chi_Minh') {
+    if (c.timeZone && !['Asia/Ho_Chi_Minh', 'Asia/Saigon'].includes(c.timeZone)) {
       warn(`timezone ${c.timeZone} ≠ Asia/Ho_Chi_Minh — ngày lệch ICT (M5_1 §3c.3)`);
     }
   }

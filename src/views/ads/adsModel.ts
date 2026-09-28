@@ -137,7 +137,8 @@ export function acrTarget(brand: string | null): number | null {
 export interface GoogleMonth { month: string; brand: string; spend: number; conv: number; clicks: number; impr: number }
 
 /** Google chỉ có ở nhánh Excel, grain THÁNG, T7–T8/2026. Không có mảng Tiệc. */
-export function googleMonthly(): GoogleMonth[] {
+export function googleMonthly(api?: AdsDashboardResponse | null): GoogleMonth[] {
+  if (api?.google?.ready) return api.google.monthly;
   const map = new Map<string, GoogleMonth>();
   for (const g of MKT_DATA.gads ?? []) {
     if (!g.month) continue;
@@ -268,7 +269,7 @@ export function monthSegmentSpend(api: AdsDashboardResponse | null): MonthSegmen
     if (r.segment === 'HR') o.hr += r.spend;
     else o.meta[r.segment] = (o.meta[r.segment] || 0) + r.spend;
   }
-  for (const g of googleMonthly()) {
+  for (const g of googleMonthly(api)) {
     const o = get(g.month);
     o.google[g.brand] = (o.google[g.brand] || 0) + g.spend;
   }

@@ -100,7 +100,7 @@ export const DigitalAdsView: React.FC = () => {
           </div>
           <span className="text-[11px] text-brand-faint">
             {state === 'loading' ? 'đang gọi API…'
-              : useApi ? 'Meta Marketing API (grain ngày × chiến dịch) + Google từ Excel'
+              : useApi ? (api?.google?.ready ? 'Meta + Google Ads API · theo ngày × chiến dịch' : 'Meta Marketing API + Google từ Excel dự phòng')
                 : state === 'unavailable' ? 'API chưa nối — đang chạy bằng Excel' : 'Excel export tay (grain tháng)'}
           </span>
         </div>
@@ -119,7 +119,7 @@ export const DigitalAdsView: React.FC = () => {
 
       {/* Đang gọi API thì hiện khung chờ — không nhấp nháy màn hình Excel cũ rồi mới đổi. */}
       {state === 'loading' && preferApi
-        ? <div className="rounded-xl border border-brand-border bg-brand-surface p-10 text-center text-xs text-brand-muted animate-pulse">Đang tải số liệu Meta…</div>
+        ? <div className="rounded-xl border border-brand-border bg-brand-surface p-10 text-center text-xs text-brand-muted animate-pulse">Đang tải số liệu quảng cáo…</div>
         : useApi && api
           ? <AdsDashboard api={api} months={months} prevMonths={prevPeriodMonths} windowStart={windowStart} windowEnd={windowEnd} />
           : <DigitalAdsExcelView />}

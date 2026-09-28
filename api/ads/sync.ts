@@ -12,7 +12,7 @@
  * đúng khoảng ngày. Chạy hai lần liền ra cùng kết quả (QA gate 8).
  */
 import {
-  accountList, getSql, isoDate, json, monthEnd, isMonth, refreshMart, requireCron, shiftDays,
+  accountList, getSql, ictDate, json, monthEnd, isMonth, refreshMart, requireCron, shiftDays,
   upsertAccount, upsertCampaignDaily, upsertCampaignDim, upsertNetworkDaily, upsertPeriodReach, upsertSearchTermDaily,
   type AdsEnv, type CampaignDailyRow, type PeriodReachRow, type Sql,
 } from './_shared.js';
@@ -45,7 +45,7 @@ function resolveWindow(url: URL, env: AdsEnv): { from: string; to: string } {
 
   const explicitFrom = url.searchParams.get('from');
   const explicitTo = url.searchParams.get('to');
-  const yesterday = shiftDays(isoDate(new Date()), -1);
+  const yesterday = shiftDays(ictDate(), -1);
   const to = explicitTo && /^\d{4}-\d{2}-\d{2}$/.test(explicitTo) ? explicitTo : yesterday;
 
   if (explicitFrom && /^\d{4}-\d{2}-\d{2}$/.test(explicitFrom)) return { from: explicitFrom, to };
@@ -63,7 +63,7 @@ function accountWarnings(label: string, currency: string | null, timezone: strin
   if (currency && currency !== 'VND') {
     out.push(`${label}: currency=${currency} KHÔNG phải VND — QA gate 3 vỡ, số không được cộng vào báo cáo VND`);
   }
-  if (timezone && timezone !== 'Asia/Ho_Chi_Minh') {
+  if (timezone && !['Asia/Ho_Chi_Minh', 'Asia/Saigon'].includes(timezone)) {
     out.push(`${label}: timezone=${timezone} lệch ICT — ngày của API không trùng ngày ICT (M5_1 §3c.3)`);
   }
   return out;
@@ -101,7 +101,7 @@ async function writeCampaignRows(sql: Sql, rows: CampaignDailyRow[]): Promise<nu
  * Mỗi cửa sổ hỏi hai cấp: tài khoản (một dòng) và chiến dịch (một dòng/chiến dịch).
  */
 async function syncWindowReach(sql: Sql, accountId: string, from: string, to: string, env: AdsEnv): Promise<number> {
-  const yesterday = shiftDays(isoDate(new Date()), -1);
+  const yesterday = shiftDays(ictDate(), -1);
   const cap = (d: string) => (d > yesterday ? yesterday : d);
   const windows: Array<{ kind: 'month' | 'last7d'; start: string; end: string }> = [];
 
@@ -176,7 +176,7 @@ async function syncGoogle(sql: Sql, from: string, to: string, env: AdsEnv): Prom
   if (!isGoogleConfigured(env)) {
     return {
       platform: 'google', ok: true, code: 'NOT_CONFIGURED',
-      warnings: ['Thiếu GADS_DEVELOPER_TOKEN / OAuth / GADS_CUSTOMER_IDS — xem M5_1 §8'],
+      warnings: ['Thiếu Google OAuth / GADS_CUSTOMER_IDS'],
     };
   }
   const runId = await openRun(sql, 'google', from, to);
@@ -189,6 +189,7 @@ async function syncGoogle(sql: Sql, from: string, to: string, env: AdsEnv): Prom
     const customers = customerList(env);
     for (const customerId of customers) {
       const customer = await fetchCustomer(customerId, env);
+      if (customer.currency !== 'VND') throw new Error(`GADS_CURRENCY_NOT_VND:${customerId}:${customer.currency}`);
       await upsertAccount(sql, {
         platform: 'google', accountId: customerId,
         name: customer.name, currency: customer.currency, timezone: customer.timezone,
