@@ -55,7 +55,7 @@ const GADS_LOGIN_CID = (ENV.GADS_LOGIN_CUSTOMER_ID || '').trim().replace(/-/g, '
    thử từ mới về cũ và báo cái nào gọi được. Đặt GADS_API_VERSION để ghim một version. */
 const GADS_VERSIONS = ENV.GADS_API_VERSION?.trim()
   ? [ENV.GADS_API_VERSION.trim()]
-  : ['v21', 'v20', 'v19', 'v18', 'v17'];
+  : ['v25', 'v24', 'v23', 'v22'];   // đo 28/09/2026: ≤ v21 đã gỡ (404), v26+ chưa có
 
 /* ─── in ra ───────────────────────────────────────────────────────────────── */
 const mask = t => (!t ? '(trống)' : `${t.slice(0, 8)}…${t.slice(-4)} (${t.length} ký tự)`);
@@ -314,7 +314,8 @@ async function gaql(version, customerId, query, token) {
   try { body = JSON.parse(text); } catch { throw new Error(`GADS_BAD_JSON ${res.status}: ${text.slice(0, 200)}`); }
   if (!res.ok) {
     const err = Array.isArray(body) ? body[0]?.error : body?.error;
-    throw new Error(`GADS_HTTP_${res.status}: ${err?.message || text.slice(0, 200)}`);
+    const codes = (err?.details ?? []).flatMap(d => d.errors ?? []).map(e => Object.values(e.errorCode ?? {}).join('/')).filter(Boolean);
+    throw new Error(`GADS_HTTP_${res.status}: ${codes.length ? codes.join(',') + ' — ' : ''}${err?.message || text.slice(0, 200)}`);
   }
   // searchStream trả MẢNG các chunk, mỗi chunk có .results
   return (Array.isArray(body) ? body : [body]).flatMap(c => c.results || []);
@@ -343,7 +344,7 @@ async function cmdGoogle() {
       const msg = String(e.message);
       console.log(`API version       : ${v}  ✖ ${msg.slice(0, 110)}`);
       // Lỗi quyền/token thì đổi version cũng vô ích — dừng luôn và nói rõ.
-      if (/DEVELOPER_TOKEN|PERMISSION_DENIED|not.*approved|test account/i.test(msg)) {
+      if (/DEVELOPER_TOKEN|PERMISSION_DENIED|NOT_APPROVED|not.*approved|test account|does not have permission|GADS_HTTP_40[13]/i.test(msg)) {
         fail(`Không phải lỗi version mà là lỗi quyền:\n  ${msg}\n\n  → Nếu developer token đang ở mức TEST thì chỉ gọi được tài khoản test.\n    Xin Basic access ở Google Ads › Tools › API Center (thường 1–3 ngày). M5_1 §8.`);
       }
     }

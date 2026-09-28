@@ -902,6 +902,15 @@ Refresh token mang quyền của người bấm đồng ý — tài khoản ch�
 
 ---
 
+**Thêm 28/09/2026 — ba vướng cuối khi lấy token:**
+
+| Vướng | Cách xử |
+|---|---|
+| `403 org_internal` | Consent screen đang **Internal** → Audience › **Make external** + **Publish app** (In production). Để *Testing* thì refresh token hết hạn sau 7 ngày |
+| Trang "refused to connect" ở `localhost:8787` dù Google đã cho qua | Listener đã hết giờ. Bật lại rồi bấm link lại — KHÔNG chép `code=` từ ảnh chụp |
+| Mọi phiên bản API trả 404 | Danh sách thử cũ: v17–v21 đã bị gỡ. Hiện hành **v22–v25** (v26+ chưa có). Cập nhật trong `_google.ts` + probe |
+| `403 The caller does not have permission` | Câu chung chung. Mã thật nằm ở `details[].errors[].errorCode` — nay code in ra luôn: `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` = developer token mức Test |
+
 ### 5c. Cron
 
 ```json
@@ -952,7 +961,7 @@ Ghi ra để không ai tưởng là bỏ sót.
 
 | Mức | Việc | Ghi chú |
 |---|---|---|
-| 🔴 **chặn** | **Google Ads — thiếu `GADS_REFRESH_TOKEN`** *(cập nhật 28/09/2026)* | Đã có 4/5 khoá: developer token · client ID/secret (client **mới**, không phải cái lộ trong ảnh) · customer `1956330376`. Kẹt ở bước **xác minh danh tính Google** khi đăng nhập để cấp quyền: `noirecafeandbistro` đòi passkey qua Bluetooth (hỏng), `quangdai122` đòi mã bảo mật từ **Galaxy S20** (không mang theo). Việc của Google, code không can thiệp — **chờ có S20**, rồi chạy `npm run probe:ads google-auth`. Xem §5e |
+| 🔴 **chặn** | **Google Ads — developer token ở mức TEST** *(cập nhật 28/09/2026)* | OAuth ĐÃ XONG: refresh token có, `listAccessibleCustomers` thấy 3 tài khoản gồm `1956330376`. Nhưng đọc số trả `403 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` — token Test chỉ đọc được tài khoản test. **Việc còn lại: xin Explorer/Basic access** ở Google Ads (MCC) › Tools › API Center. Không cần sửa code. Duyệt xong chạy `npm run probe:ads reconcile --month=2026-08` rồi sync |
 | 🟡 chờ | `quangdai122` phải được mời vào Google Ads `195-633-0376` quyền **Chỉ đọc** và **chấp nhận** | Không cần để LẤY token, nhưng cần để token ĐỌC được số. Làm song song được |
 | 🟡 chưa rõ | Developer token đang ở mức **Test** hay **Basic** | Probe `google` sẽ nói rõ khi có refresh token. Test thì chỉ gọi được tài khoản test — xin Basic ở API Center, 1–3 ngày |
 | 🔴 **chặn** | **Meta System User token** cần quyền admin Business Manager | User token 60 ngày dùng **tạm cho probe** được, **không** dùng cho cron |
