@@ -5,6 +5,7 @@
   "crons": [
     { "path": "/api/zalo/snapshot", "schedule": "5 17 * * *" },
     { "path": "/api/ipos/sync", "schedule": "15 17 * * *" },
+    { "path": "/api/social/reconcile", "schedule": "25 17 * * *" },
     { "path": "/api/ads/sync", "schedule": "35 17 * * *" }
   ],
   "rewrites": [
