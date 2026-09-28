@@ -39,7 +39,7 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | └ **M7.1** | Pre-Analytics · Plan | `m71` | `PreAnalyticsView.tsx` | campaign | `CAMPAIGN.plan` *(pre_plan ← S16)* | P5.5 | ✅ |
 | └ **M7.2** | Promotion Tracking | `m72` | `CampaignTrackingView.tsx` | campaign | `CAMPAIGN.campaigns · daily · issues` | P5.5 | 🟡 chờ ô CAM |
 | **M8** | CRM · Voucher | `m8` | `CRMView.tsx` | hub K + mkt §2·§4 | `identify · repeat · repeat_stat` + `voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
-| └ **M8.1** | Zalo OA Performance *(đọc)* | `m81` | `ZaloOAView.tsx` | OpenAPI + Webhook + PostgreSQL | `zalo_oa_daily_metric` | P6.1 | 🟡 chờ credential + DB |
+| └ **M8.1** | Zalo OA Performance *(đọc)* | `m81` | `ZaloOAView.tsx` | Export S12 + OpenAPI/Webhook (PostgreSQL) | `oa_daily` + `zalo_oa_daily_metric` | P6.1 | 🟢 gộp export + API |
 | └ **M8.2** | Social Auto — Fanpage → Zalo OA *(ghi)* | `m82` | `SocialAutoView.tsx` | Graph API + Claude API + Zalo Article API + PostgreSQL | `social_post · social_draft · social_broadcast` | P6.3 | 🔵 thiết kế xong · chờ `probe:fb` |
 | **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_campaigns · partner_check` | P7 | ✅ chung số với M7 |
 | **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |

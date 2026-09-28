@@ -5,7 +5,7 @@
 | **Câu hỏi** | Nội dung đã sản xuất cho Fanpage có được tái sử dụng sang kênh sở hữu Zalo OA không, và bài nào đáng đốt quota broadcast? |
 | **`activeView`** | `m82` |
 | **View** | `src/views/SocialAutoView.tsx` *(chưa dựng)* |
-| **Server** | `api/social/` — `_shared.ts` · `_steps.ts` · `_media.ts` · `_transform.ts` · `_zalo-article.ts` · `webhook-fb.ts` · `tick.ts` · `review.ts` · `performance.ts` · `reconcile.ts` · `database/migrations/004_social_auto.sql` |
+| **Server** | `api/social/` — `_shared.ts` · `_steps.ts` · `_media.ts` · `_transform.ts` · `_zalo-article.ts` · `_webhook-fb.ts` · `_tick.ts` · `_review.ts` · `_performance.ts` · `_reconcile.ts` · `[action].ts` (Vercel Function DUY NHẤT, rẽ nhánh theo URL) · `database/migrations/004_social_auto.sql` |
 | **Nguồn** | Facebook Graph API (Page webhook `feed` + `video_reels`) → Claude API → Zalo OA Article API |
 | **Grain** | 1 `fb_post_id` (một bài gốc trên Fanpage) |
 | **Phạm vi** | **Ghi** — module DUY NHẤT trong hệ thống được phép tạo nội dung trên Zalo OA. Không CRM, không gửi tin 1-1, không trả lời bình luận |
@@ -40,7 +40,7 @@
 **Quy trình bắt buộc trước mỗi commit:**
 
 ```bash
-node --check api/social/tick.ts 2>/dev/null || npx tsc --noEmit
+node --check api/social/_tick.ts 2>/dev/null || npx tsc --noEmit
 npm run build
 ```
 
@@ -148,16 +148,22 @@ Số dòng gồm cả khối chú thích tiếng Việt, vốn là phong cách s
 | File | Trách nhiệm DUY NHẤT | Thực tế | Trần | **Cấm** |
 |---|---|:-:|:-:|---|
 | `api/social/_shared.ts` | env · kiểu dữ liệu · ký SigV4 cho R2 · tải có trần · masking | 251 | 290 | Cấm gọi Graph/Zalo API trực tiếp |
-| `api/social/webhook-fb.ts` | Verify chữ ký · dedupe · `insert … on conflict do nothing` | 148 | 170 | Cấm gọi API ngoài, cấm xử lý nặng. Webhook phải trả 200 trong <1s |
-| `api/social/tick.ts` | Nhặt job `for update skip locked` · lease · attempt/backoff · `social_run` | **129** | 200 | **Cấm nhét logic nghiệp vụ.** Nó là bộ điều phối |
+| `api/social/_webhook-fb.ts` | Verify chữ ký · dedupe · `insert … on conflict do nothing` | 148 | 170 | Cấm gọi API ngoài, cấm xử lý nặng. Webhook phải trả 200 trong <1s |
+| `api/social/_tick.ts` | Nhặt job `for update skip locked` · lease · attempt/backoff · `social_run` | **129** | 200 | **Cấm nhét logic nghiệp vụ.** Nó là bộ điều phối |
 | `api/social/_steps.ts` | 9 hàm `step*` — mỗi hàm đẩy 1 bài đi đúng 1 bước | 321 | 370 | Cấm biết về hàng đợi, lease, attempt, audit |
 | `api/social/_media.ts` | Tải media · chọn rendition ≤1MB · ffmpeg ≤50MB · đẩy R2 | 297 | 340 | Cấm ghi DB. Nhận id, trả mô tả asset |
 | `api/social/_transform.ts` | Prompt · gọi Claude · validate · retry | 256 | 300 | Cấm gọi Zalo. Nhận bài thô, trả draft |
 | `api/social/_zalo-article.ts` | 6 lệnh Zalo, từ `preparevideo` tới `oa/message` | 245 | 280 | Cấm tự quyết `show`/`hide`. Nhận tham số, không nghĩ hộ |
-| `api/social/review.ts` | `approve`·`reject`·`edit`·`broadcast`·`retry` | 154 | 180 | **Cấm đăng trực tiếp** — chỉ đổi state |
-| `api/social/performance.ts` | Đọc số cho dashboard | 113 | 160 | Cấm ghi |
-| `api/social/reconcile.ts` | Quét bài sót 7 ngày + refresh engagement | 96 | 120 | Cấm đăng. Chỉ đẩy vào `INGESTED` |
+| `api/social/_review.ts` | `approve`·`reject`·`edit`·`broadcast`·`retry` | 154 | 180 | **Cấm đăng trực tiếp** — chỉ đổi state |
+| `api/social/_performance.ts` | Đọc số cho dashboard | 113 | 160 | Cấm ghi |
+| `api/social/_reconcile.ts` | Quét bài sót 7 ngày + refresh engagement | 96 | 120 | Cấm đăng. Chỉ đẩy vào `INGESTED` |
 | `src/views/SocialAutoView.tsx` | Hàng chờ duyệt · phễu · quota | — | 400 | Cấm gọi Graph/Zalo trực tiếp từ browser |
+
+> **Một function cho cả cụm (28/09/2026).** Gói Vercel Hobby chỉ cho **12 Serverless Function**
+> mỗi deployment; 5 file endpoint riêng đẩy repo lên 14 → build lỗi *"No more than 12 Serverless
+> Functions…"*. Handler đổi tên thành `_<action>.ts` (tiền tố `_` = không phải function) và
+> `api/social/[action].ts` rẽ nhánh theo đoạn cuối URL — URL, cron, webhook FB giữ nguyên.
+> **Endpoint social mới: thêm handler `_<tên>.ts` + một dòng vào `ROUTES`, KHÔNG tạo file function mới.**
 
 **Luật một chiều phụ thuộc** — vẽ thành mũi tên, không được có vòng:
 
