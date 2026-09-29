@@ -756,6 +756,10 @@ def main():
                              if path else ([], [], []))
     opex = read_sheet(path, "ty_le_chi_phi") if path else []
     progs, costs, issues = merge_inputs(progs, costs)
+    n_rej = len(progs)
+    progs = [p for p in progs if str(p.get("status") or "").upper() != "TU_CHOI"]   # TU_CHOI = bỏ, không đánh giá
+    if n_rej != len(progs):
+        log(f"  bỏ {n_rej - len(progs)} chương trình status = TU_CHOI")
     if not progs:
         log("  – chưa có sổ Pre_Analysis_*.xlsx và file deck quý — bỏ qua M7.1 đánh giá")
         write_workbook(OUT, {"pre_eval": [], "pre_eval_scheme": [], "pre_eval_fin": [], "pre_eval_base": [],
