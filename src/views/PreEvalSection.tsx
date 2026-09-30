@@ -6,7 +6,7 @@ import { Card } from '../components/common/Card';
 import { StatusBadge, BadgeVariant } from '../components/common/StatusBadge';
 import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
-import { PlanVsActual } from '../components/common/PlanVsActual';
+import { PromoScoreTable } from '../components/common/PromoScoreTable';
 import { formatVND, formatNumber, formatPercent } from '../utils/formatters';
 import type { PreEvalInput, PreEvalProgram, TaxItem } from '../types/campaign';
 
@@ -569,7 +569,7 @@ const EvalCard: React.FC<{
         {actual?.m71 && (
           <section>
             <H n="F" t="Đã chạy — kế hoạch đã khoá ↔ thực tế (M7.2)" />
-            <PlanVsActual c={actual} />
+            <PromoScoreTable c={actual} />
           </section>
         )}
         {actual && !actual.m71 && (

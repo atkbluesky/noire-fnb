@@ -2034,7 +2034,10 @@
         "act_cannib",
         "act_net_incr_ex",
         "act_ebitda",
-        "act_roi_m71"
+        "act_roi_m71",
+        "u",
+        "basis",
+        "cannib_used"
       ],
       "desc": "M7.2 · kết quả đo mỗi chương trình (tools/campaign.py tính)."
     },
@@ -2263,7 +2266,16 @@
         "safety_bills",
         "input_source",
         "missing",
-        "gift_cost"
+        "gift_cost",
+        "guests",
+        "cogs_cost",
+        "gift_total",
+        "gift_fixed",
+        "cost_ads",
+        "cost_kol",
+        "cost_posm",
+        "cost_other",
+        "disc_cost"
       ],
       "desc": "M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py."
     },
@@ -2429,7 +2441,17 @@
         "program_cost",
         "gift_per_bill",
         "other_cogs_pct",
-        "opex_pct"
+        "opex_pct",
+        "guests",
+        "cogs",
+        "gift",
+        "gift_fixed",
+        "cost_ads",
+        "cost_kol",
+        "cost_posm",
+        "cost_other",
+        "disc",
+        "backfill"
       ],
       "desc": "M7.1 · kế hoạch ĐÃ KHOÁ (data_input/05_plan_lock.xlsx) — dự báo Cơ sở/Thận trọng chụp khi chương trình DA_DUYET hoặc tới ngày bắt đầu. M7.2 chỉ so thực tế với bản này. lock_reason: DA_DUYET · BAT_DAU · KHOA_MUON (khoá sau ngày bắt đầu — kỳ nền có thể đã chứa kỳ chạy). Sinh bởi tools/preeval.py, giữ nguyên qua các lần cập nhật."
     }
@@ -3249,5 +3271,299 @@
     "fix_max_change": 0.5,
     "fix_levers_doc": "tier 1 = hành động bằng tiền (giảm chi ưu đãi · cắt chi phí) · 2 = thu hẹp đối tượng (%cannib) · 3 = kết quả phụ thuộc khách (giá trị hoá đơn · số hoá đơn). Việc cần làm lấy tầng thấp nhất có đòn bẩy đổi ≤ fix_max_change.",
     "calib_min_n": 3
+  },
+  "$metrics": {
+    "$doc": "QUY CHUẨN M7 — MỘT chỉ số = MỘT mã · MỘT tên · MỘT công thức · MỘT nơi tính. Engine (tools/promo_eval.py) ghi kết quả theo đúng mã ở `rows`; màn hình (PromoScoreTable) chỉ đọc danh sách này để dựng bảng — KHÔNG tự khai lại tên hay công thức. Đổi tên/thứ tự dòng ở ĐÂY. Đặc tả đầy đủ: docs/modules/M7_QUY_CHUAN.md",
+    "empty": {
+      "na": "—",
+      "undeclared": "chưa khai",
+      "estimate": "≈"
+    },
+    "opex_default": 0.09,
+    "opex_default_note": "Tỷ lệ opex biến đổi/DT thuần dùng khi brand chưa có ở sổ M7.1 (ty_le_chi_phi, số tạm ~9%) — Finance khoá.",
+    "groups": [
+      {
+        "code": "I",
+        "label": "I · Bán hàng",
+        "note": "Phạm vi = hoá đơn gắn CTKM. Tiền gồm VAT, sau giảm giá (Tổng tiền)."
+      },
+      {
+        "code": "II",
+        "label": "II · Lợi nhuận tăng thêm",
+        "note": "Quy về ex-VAT (÷ 1,08). COGS thực tế là ước tính theo % đã khoá ở kế hoạch."
+      },
+      {
+        "code": "III",
+        "label": "III · Chi phí",
+        "note": "Target = ngân sách kế hoạch · % = dùng ÷ ngân sách (≤ 100% là tốt)."
+      },
+      {
+        "code": "IV",
+        "label": "IV · Kết quả",
+        "note": "EBITDA tăng thêm = Lãi gộp − Quà tặng − Chi phí CT − Opex. Giảm giá KHÔNG trừ lần hai."
+      }
+    ],
+    "rows": [
+      {
+        "code": "rev",
+        "group": "I",
+        "label": "Doanh thu CTKM",
+        "short": "DT CTKM",
+        "unit": "money",
+        "dir": "up",
+        "nen": true,
+        "formula": "Σ Tổng tiền cả hoá đơn có CT (sau giảm giá, gồm phí + VAT; Phiếu GG là cách thanh toán, đã nằm trong Tổng tiền)"
+      },
+      {
+        "code": "tc",
+        "group": "I",
+        "label": "TC (hoá đơn)",
+        "short": "TC",
+        "unit": "count",
+        "dir": "up",
+        "nen": true,
+        "formula": "Số hoá đơn gắn CT"
+      },
+      {
+        "code": "guest",
+        "group": "I",
+        "label": "Guest",
+        "short": "Guest",
+        "unit": "count",
+        "dir": "up",
+        "nen": true,
+        "formula": "Σ Số khách của hoá đơn gắn CT"
+      },
+      {
+        "code": "aov",
+        "group": "I",
+        "label": "AOV",
+        "short": "AOV",
+        "unit": "money",
+        "dir": "up",
+        "formula": "DT CTKM ÷ TC"
+      },
+      {
+        "code": "ta",
+        "group": "I",
+        "label": "TA (DT/khách)",
+        "short": "TA",
+        "unit": "money",
+        "dir": "up",
+        "formula": "DT CTKM ÷ Guest"
+      },
+      {
+        "code": "incr",
+        "group": "I",
+        "label": "Tăng thêm",
+        "short": "Tăng thêm",
+        "unit": "money",
+        "dir": "up",
+        "bold": true,
+        "formula": "DT CTKM × (1 − %cannib). %cannib đo từ TC cửa hàng khi đủ tin cậy (ĐO), không thì lấy của kế hoạch (≈)"
+      },
+      {
+        "code": "net",
+        "group": "II",
+        "label": "DT thuần tăng thêm",
+        "short": "DT thuần",
+        "unit": "money",
+        "dir": "up",
+        "formula": "Tăng thêm ÷ 1,08"
+      },
+      {
+        "code": "cogs",
+        "group": "II",
+        "label": "Giá vốn (COGS)",
+        "short": "COGS",
+        "unit": "money",
+        "dir": "neutral",
+        "formula": "Kế hoạch: BOM món bắt buộc + % theo brand cho phần còn lại. Thực tế: DT thuần tăng thêm × % đã khoá ở kế hoạch (≈)"
+      },
+      {
+        "code": "gp",
+        "group": "II",
+        "label": "Lãi gộp tăng thêm",
+        "short": "Lãi gộp",
+        "unit": "money",
+        "dir": "up",
+        "bold": true,
+        "formula": "DT thuần tăng thêm − COGS"
+      },
+      {
+        "code": "gift",
+        "group": "II",
+        "label": "Quà tặng",
+        "short": "Quà",
+        "unit": "money",
+        "dir": "down",
+        "formula": "Giá vốn món tặng (GIFT_COGS) + vật phẩm (MERCH)"
+      },
+      {
+        "code": "disc",
+        "group": "III",
+        "label": "Giảm giá & phiếu (ghi nhớ)",
+        "short": "Giảm giá",
+        "unit": "money",
+        "dir": "memo",
+        "formula": "Giảm giá + chiết khấu (+ Phiếu GG khi CT là voucher) trên POS × phần NOIRE gánh. ĐÃ nằm trong DT CTKM nên không trừ lần hai; chỉ nằm ở mẫu số ROI"
+      },
+      {
+        "code": "ads",
+        "group": "III",
+        "label": "Chi phí ads",
+        "short": "Ads",
+        "unit": "money",
+        "dir": "down",
+        "formula": "ADS: Meta ghép tự động + khai tay"
+      },
+      {
+        "code": "kol",
+        "group": "III",
+        "label": "Chi phí KOL",
+        "short": "KOL",
+        "unit": "money",
+        "dir": "down",
+        "formula": "KOL: khai tay"
+      },
+      {
+        "code": "posm",
+        "group": "III",
+        "label": "Chi phí POSM",
+        "short": "POSM",
+        "unit": "money",
+        "dir": "down",
+        "formula": "PRINT (in ấn · POSM): khai tay"
+      },
+      {
+        "code": "other",
+        "group": "III",
+        "label": "Chi phí khác",
+        "short": "Khác",
+        "unit": "money",
+        "dir": "down",
+        "formula": "AGENCY + PARTNER_SHARE (số âm nếu đối tác bù) + khoản chưa phân loại"
+      },
+      {
+        "code": "cost",
+        "group": "III",
+        "label": "Tổng chi phí CT",
+        "short": "Tổng CP",
+        "unit": "money",
+        "dir": "down",
+        "bold": true,
+        "formula": "Ads + KOL + POSM + Khác (không gồm Quà tặng và Giảm giá)"
+      },
+      {
+        "code": "opex",
+        "group": "IV",
+        "label": "Opex biến đổi",
+        "short": "Opex",
+        "unit": "money",
+        "dir": "down",
+        "formula": "% opex theo brand (ty_le_chi_phi, Finance khoá) × DT thuần tăng thêm (chỉ khi > 0)"
+      },
+      {
+        "code": "ebitda",
+        "group": "IV",
+        "label": "EBITDA tăng thêm",
+        "short": "EBITDA",
+        "unit": "money",
+        "dir": "up",
+        "bold": true,
+        "diff": true,
+        "formula": "Lãi gộp − Quà tặng − Chi phí CT − Opex"
+      },
+      {
+        "code": "roi",
+        "group": "IV",
+        "label": "ROI",
+        "short": "ROI",
+        "unit": "x",
+        "dir": "neutral",
+        "nopct": true,
+        "formula": "EBITDA tăng thêm ÷ (Giảm giá & phiếu + Quà tặng + Chi phí CT)"
+      }
+    ],
+    "abbr": [
+      {
+        "code": "CTKM",
+        "meaning": "Chương trình khuyến mãi — chuỗi ở cột Tên CTKM trên POS"
+      },
+      {
+        "code": "CT",
+        "meaning": "Chương trình — một dòng dim_campaign (có campaign_id)"
+      },
+      {
+        "code": "KH",
+        "meaning": "Kế hoạch — số M7.1 đã khoá"
+      },
+      {
+        "code": "Nền",
+        "meaning": "Phần vốn sẽ xảy ra dù không có CT (= Target × %cannib)"
+      },
+      {
+        "code": "TC",
+        "meaning": "Transaction count — số hoá đơn"
+      },
+      {
+        "code": "TA",
+        "meaning": "Trung bình chi tiêu / khách = DT ÷ Guest"
+      },
+      {
+        "code": "AOV",
+        "meaning": "Average order value = DT ÷ TC"
+      },
+      {
+        "code": "COGS",
+        "meaning": "Giá vốn"
+      },
+      {
+        "code": "POSM",
+        "meaning": "In ấn / vật phẩm quảng bá = PRINT"
+      },
+      {
+        "code": "EBITDA",
+        "meaning": "Lợi nhuận trước lãi vay, thuế, khấu hao — ở đây là phần TĂNG THÊM do CT"
+      },
+      {
+        "code": "pb",
+        "meaning": "Phân bổ theo tỷ trọng DT CTKM vào tháng/brand đang lọc"
+      },
+      {
+        "code": "ĐO",
+        "meaning": "Tăng thêm dựa trên %cannib đo từ TC cửa hàng (đủ tin cậy)"
+      },
+      {
+        "code": "≈",
+        "meaning": "Ước tính — %cannib lấy của kế hoạch, hoặc COGS/chi phí lấy theo kế hoạch"
+      }
+    ],
+    "deprecated": [
+      {
+        "old": "Doanh thu chạm",
+        "use": "DT CTKM"
+      },
+      {
+        "old": "Lãi thực thêm · Đóng góp ròng · Flow-through · Net contribution",
+        "use": "EBITDA tăng thêm"
+      },
+      {
+        "old": "Nền KH · Kỳ vọng (khối chấm)",
+        "use": "Nền"
+      },
+      {
+        "old": "Target KH",
+        "use": "Target"
+      },
+      {
+        "old": "Biên LN (cm_pct) trên màn hình",
+        "use": "COGS + Opex (hai dòng riêng)"
+      },
+      {
+        "old": "Vật phẩm (đứng riêng)",
+        "use": "Quà tặng"
+      }
+    ]
   }
 }

@@ -38,6 +38,7 @@ from monthly_lib import (  # noqa: E402
     l0_dir, l0_files, norm, read_workbook, to_num, write_workbook,
 )
 import pre_analysis  # noqa: E402
+import promo_eval  # noqa: E402
 
 C = CONTRACT["$campaign"]
 OUT = os.path.join(DATA_INPUT, "03_campaign.xlsx")
@@ -716,132 +717,6 @@ def store_gate(res, c, daily):
                               f"{store_net:,.0f}".replace(",", "."))))
 
 
-def program_eval(res, c, p, costs, last):
-    """Chấm chương trình có kế hoạch Pre-Analysis THEO ĐÚNG MÔ HÌNH CỦA KẾ HOẠCH — phạm vi
-    chương trình, không phải cả cửa hàng.
-
-    Pre-Analysis đặt Base/Target cho PHẦN DOANH THU CỦA CHƯƠNG TRÌNH (vd Tataki Wagyu: nền
-    9 tr, target 10,4 tr, 3 lượt). So target đó với doanh thu CẢ cửa hàng (1,35 tỷ) ra tỉ lệ
-    vô nghĩa. Vế thực tế cùng phạm vi = các hoá đơn gắn CTKM trên POS:
-
-      Sales thực tế   = promo_sales = Thanh toán trước giảm giá × hệ số thuế/phí của chính các hoá đơn đó
-                        (trước ưu đãi, gồm VAT — cùng nền "Sales gross" của kế hoạch). KHÔNG cộng Phiếu GG:
-                        phiếu là cách thanh toán, đã nằm trong Tổng tiền.
-      Tăng thêm       = Sales thực tế × (Target − Nền) ÷ Target  (Voucher: Sales × % incremental kế hoạch)
-      Promo cost      = DISCOUNT · COMBO: giảm giá + chiết khấu trên POS · VOUCHER: + phần thanh toán bằng phiếu
-                        GIFT: giá vốn quà khai thực tế, không có → đơn giá quà kế hoạch × số hoá đơn thực
-                        LTO: 0 (chi phí nằm ở giá vốn món + cố định)
-      Đóng góp ròng   = Tăng thêm ÷ 1,08 × (1 − COGS%) − (Promo cost + chi phí cố định)
-
-    Lift cả cửa hàng vẫn giữ (store_*) để KIỂM CHỨNG: chương trình chỉ chiếm vài % doanh thu
-    cửa hàng thì lift cửa hàng chìm trong dao động ngày — không đọc được, màn hình nói rõ."""
-    kind = p["kind"]
-    res["eval_scope"] = "PROGRAM"
-    if "store_net" not in res:          # store_gate đã lưu lift cửa hàng trước khi xoá số tiêu đề
-        res["store_incr_net"], res["store_lift_pct"] = res.get("incr_net"), res.get("lift_pct")
-        res["store_flow_through"] = res.get("flow_through")
-    bills = res.get("promo_bills") or 0
-    sales = promo_sales(res)
-    res.update(plan_sales=p.get("target_gross"), base_sales=p.get("base_gross"), plan_tc=p.get("est_tc"),
-               act_sales=round(sales) if bills else None)
-    res["promo_share"] = _div(res.get("promo_net"), res.get("store_net") or res.get("act_net"))
-    res["promo_sales"] = promo_sales(res)
-    for k in ("incr_net", "lift_pct", "flow_through", "roi", "breakeven_lift",
-              "att_net", "att_tc", "att_aov", "att_ta", "att_incr"):
-        res[k] = None
-    if kind == "ACTIVATION":
-        res.update(label="CHUA_DO", measurable=0,
-                   reason="chương trình branding — đo bằng reach · tương tác · UGC, không đo bằng doanh thu")
-        return
-    if not res.get("period_from"):
-        return
-    if not bills:
-        res.update(label="CHUA_DO", measurable=0,
-                   reason="chưa thấy hoá đơn gắn tên CTKM trong kỳ chạy — kiểm tra name_pos · store_scope · ngày")
-        return
-
-    share = res.get("noire_share", 1.0)
-    manual = {}
-    for k in costs:
-        v = to_num(k.get("actual"))
-        manual[k["cost_type"]] = manual.get(k["cost_type"], 0) + (v if v is not None else (to_num(k.get("planned")) or 0))
-    gift_actual = next((to_num(k.get("actual")) for k in costs
-                        if k["cost_type"] == "GIFT_COGS" and to_num(k.get("actual")) is not None), None)
-    notes = []
-    if kind in ("DISCOUNT", "COMBO", "VOUCHER"):
-        promo_cost = ((res.get("promo_disc") or 0)
-                      + ((res.get("promo_voucher") or 0) if kind == "VOUCHER" else 0)) * share
-    elif kind == "GIFT":
-        if gift_actual is not None:
-            promo_cost = gift_actual
-        else:
-            promo_cost = (p.get("driver") or 0) * bills
-            notes.append("giá vốn quà = đơn giá kế hoạch × %d hoá đơn thực" % bills)
-        manual.pop("GIFT_COGS", None)
-        # Cộng chiết khấu trực tiếp trên POS nếu hoá đơn có cả giảm giá kèm quà
-        pos_disc = (res.get("promo_disc") or 0) * share
-        if pos_disc > 0:
-            promo_cost += pos_disc
-            notes.append("chiết khấu POS = %s đ" % f"{round(pos_disc):,}".replace(",", "."))
-    else:
-        promo_cost = (res.get("promo_disc") or 0) * share
-    fixed = sum(manual.values()) + (res.get("cost_ads_auto") or 0)
-    total = promo_cost + fixed
-    cogs = p.get("cogs_pct")
-    if kind == "VOUCHER":
-        share_incr = p.get("incr_share")
-        incr = sales * share_incr if share_incr is not None else None
-        notes.append("tăng thêm = doanh thu gắn voucher × %.0f%% incremental (giả định kế hoạch — cần nhóm đối chứng)"
-                     % ((share_incr or 0) * 100))
-    else:
-        base, tgt_ = p.get("base_gross"), p.get("target_gross")
-        # Nền kế hoạch là doanh thu CẢ PHÂN KHÚC (vd mọi bàn nhóm 6 trong kỳ), còn hoá đơn gắn CTKM chỉ là
-        # phần khách tham gia → "thực tế − nền" ra số âm vô nghĩa (Obon: 10 tr − 58,7 tr). Dùng đúng tỷ lệ
-        # của kế hoạch: phần tăng thêm = (Target − Nền) ÷ Target doanh thu chương trình. Không bao giờ vượt
-        # doanh thu của chính chương trình; xác nhận lại bằng lift cửa hàng khi CTKM đủ lớn.
-        if base is not None and tgt_:
-            incr = sales * (tgt_ - base) / tgt_
-            notes.append("tăng thêm = doanh thu CTKM × %.0f%% (tỷ lệ tăng thêm của kế hoạch: (Target − Nền) ÷ Target)"
-                         % ((tgt_ - base) / tgt_ * 100))
-        else:
-            incr = None
-    if cogs is None:
-        cogs = 1 - C["default_cm_pct"]
-    nc = (incr / pre_analysis.VAT * (1 - cogs) - total) if incr is not None else None
-    base = p.get("base_gross")
-    res.update(measurable=1, incr_net=round(incr) if incr is not None else None,
-               lift_pct=_div(incr, base) if (incr is not None and base) else None,
-               cost_promo_actual=round(promo_cost), cost_fixed_actual=round(fixed), cost_total=round(total),
-               cm_pct=(1 - cogs) / pre_analysis.VAT,
-               flow_through=round(nc) if nc is not None else None,
-               roi=_div(nc, total) if (nc is not None and total) else None,
-               breakeven_sales=round((base or 0) + total / (1 - cogs) * pre_analysis.VAT) if cogs < 1 else None,
-               eval_note=" · ".join(notes) or None)
-    tgt = p.get("target_gross")
-    res["att_net"] = _div(sales, tgt) if tgt else None
-    res["att_tc"] = _div(bills, p.get("est_tc")) if p.get("est_tc") else None
-    if p.get("est_tc") and tgt:
-        res["att_aov"] = _div(sales / bills, tgt / p["est_tc"])
-    if incr is not None and tgt and base is not None and tgt > base:
-        res["att_incr"] = _div(incr, tgt - base)
-    elif kind == "VOUCHER" and p.get("incr_net_exvat") and incr is not None:
-        res["att_incr"] = _div(incr / pre_analysis.VAT, p["incr_net_exvat"])
-
-    d1 = _d(c.get("date_to"))
-    running = (c.get("cadence") or "BURST").upper() == "BURST" and (not d1 or (last and d1 > last))
-    if running:
-        res["label"] = "CHUA_CHIN"
-    elif res.get("att_incr") is None or res.get("target_verified") == 0:
-        res["label"] = "CHUA_TARGET"
-    elif res["att_incr"] >= 1:
-        res["label"] = "DAT" if (nc or 0) > 0 else "DAT_LO"
-    elif res["att_incr"] >= 0.8:
-        res["label"] = "GAN_DAT"
-    else:
-        res["label"] = "KHONG_DAT"
-    res["reason"] = None
-
-
 def plan_rows(plan, camps, results):
     res = {r["campaign_id"]: r for r in results}
     link = {}
@@ -936,11 +811,9 @@ def apply_m71(camps, targets, m71, plan_by):
 
 
 def plan_vs_actual(results, m71, camps):
-    """Đặt kế hoạch M7.1 (đã khoá) cạnh thực tế — thực tế tính bằng CÙNG công thức EBITDA của M7.1:
-        EBITDA = DT thuần tăng thêm × (1 − COGS%) − opex biến đổi − quà/vật phẩm − chi phí chương trình
-    DT tăng thêm đo ở M7.2 (thực tế − kỳ vọng, đã khử mùa vụ) đã trừ giảm giá POS → không trừ giảm giá lần nữa.
-    Quà/vật phẩm: đơn giá kế hoạch × hoá đơn thực tế (POS chưa tách giá vốn quà theo chương trình).
-    Trả về bảng hiệu chỉnh (pre_calib) — mỗi chương trình đã nối một dòng."""
+    """Kế hoạch M7.1 (đã khoá) cạnh thực tế — số Thực tế lấy từ bảng chuẩn `u` (tools/promo_eval.py), cùng số
+    với bảng chấm M7.2 và khối "Thực tế" của phiếu M7.1 (M7_QUY_CHUAN: một công thức, một nơi tính).
+    Trả về bảng hiệu chỉnh (pre_calib) — mỗi chương trình M7.1 đã nối một dòng."""
     by_c = {c["campaign_id"]: c for c in camps}
     calib = []
     for r in results:
@@ -951,24 +824,21 @@ def plan_vs_actual(results, m71, camps):
         if not x:
             continue
         lk = x["lock"] or {}
-        oc, ox = to_num(lk.get("other_cogs_pct"), 0) or 0, to_num(lk.get("opex_pct"), 0) or 0
+        u = r.get("_u") or {}
+        rows = u.get("rows") or {}
         pb = to_num(lk.get("bills"))
         r.update(plan_program_id=x["program_id"], plan_locked_at=lk.get("locked_at"),
                  plan_lock_reason=lk.get("lock_reason"), plan_bills=pb, plan_part=to_num(lk.get("tc_share")),
                  plan_cannib=to_num(lk.get("cannib_pct")), plan_net_incr=to_num(lk.get("net_incr")),
                  plan_ebitda=to_num(lk.get("ebitda")), plan_ebitda_low=to_num(lk.get("ebitda_low")),
                  plan_roi=to_num(lk.get("roi")), plan_decision=lk.get("decision"))
-        ok = bool(lk) and int(to_num(r.get("measurable"), 0) or 0) == 1 and r.get("label") not in ("CHUA_CHIN", "CHUA_DO")
         ab = to_num(r.get("promo_bills"), 0) or 0
-        if int(to_num(r.get("measurable"), 0) or 0) == 1:
-            exp_tc, act_tc = to_num(r.get("exp_tc"), 0) or 0, to_num(r.get("act_tc"), 0) or 0
-            net = (to_num(r.get("incr_net"), 0) or 0) / pre_analysis.VAT
-            fixed = (to_num(r.get("cost_manual"), 0) or 0) + (to_num(r.get("cost_ads_auto"), 0) or 0)
-            gift = (to_num(lk.get("gift_per_bill"), 0) or 0) * ab
-            eb = net * (1 - oc) - max(0.0, net) * ox - gift - fixed
-            disc = ((to_num(r.get("cost_discount"), 0) or 0) + (to_num(r.get("cost_voucher"), 0) or 0)) / pre_analysis.VAT
-            r.update(act_part=_div(ab, exp_tc), act_cannib=(1 - min(1.0, max(0.0, act_tc - exp_tc) / ab)) if ab else None,
-                     act_net_incr_ex=round(net), act_ebitda=round(eb), act_roi_m71=_div(eb, disc + gift + fixed))
+        exp_tc = to_num(r.get("exp_tc"), 0) or 0
+        if rows:
+            r.update(act_part=_div(ab, exp_tc), act_cannib=(u.get("cannib") or {}).get("act"),
+                     act_net_incr_ex=round(rows["net"]["a"]) if rows["net"]["a"] is not None else None,
+                     act_ebitda=round(rows["ebitda"]["a"]), act_roi_m71=rows["roi"]["a"])
+        ok = bool(lk) and bool(rows) and r.get("label") not in ("CHUA_CHIN", "CHUA_DO")
         why = None if ok else ("chưa khoá kế hoạch" if not lk else r.get("reason") or
                                {"CHUA_CHIN": "đang chạy — chưa chốt", "CHUA_DO": "chưa đo được lift"}.get(r.get("label")))
         calib.append(dict(
@@ -980,9 +850,60 @@ def plan_vs_actual(results, m71, camps):
             plan_net_incr=r.get("plan_net_incr"), act_net_incr=r.get("act_net_incr_ex"),
             plan_ebitda=r.get("plan_ebitda"), act_ebitda=r.get("act_ebitda"),
             err_ebitda=(r["act_ebitda"] - r["plan_ebitda"]) if (r.get("act_ebitda") is not None and r.get("plan_ebitda") is not None) else None,
-            usable=1 if (ok and r.get("act_cannib") is not None and lk.get("lock_reason") != "KHOA_MUON") else 0,
-            note=why or ("khoá sau ngày bắt đầu — chỉ tham khảo, không dùng hiệu chỉnh" if lk.get("lock_reason") == "KHOA_MUON" else None)))
+            # chỉ dùng hiệu chỉnh khi %cannib thực tế ĐO được (basis = DO), đã chốt, khoá TRƯỚC ngày chạy
+            usable=1 if (ok and r.get("act_cannib") is not None and u.get("basis") == "DO" and lk.get("lock_reason") != "KHOA_MUON") else 0,
+            note=why or ("khoá sau ngày bắt đầu — chỉ tham khảo, không dùng hiệu chỉnh" if lk.get("lock_reason") == "KHOA_MUON"
+                         else ("%cannib ≈ ước tính theo kế hoạch — không dùng hiệu chỉnh" if u.get("basis") != "DO" else None))))
     return calib
+
+
+def qa_gates(results, lock_of, camp_by):
+    """Cổng QA của bộ quy chuẩn M7 (docs/modules/M7_QUY_CHUAN.md §6) — ghi vào campaign_issue, không chặn build.
+      G1 · kế hoạch khoá phải thoả đẳng thức  Tăng thêm(ex-VAT) − COGS − Quà − Chi phí CT − Opex = EBITDA
+      G2 · DT CTKM của bảng chuẩn (Thực tế) = Σ campaign_month.net của chương trình (cùng số với M7 và scorecard)
+      G3 · không dòng chi phí nào hiện 0 khi chưa khai (Thực tế = None ⇔ chưa khai)"""
+    iss = []
+    for cid, L in lock_of.items():
+        if L.get("ebitda") is None or L.get("cogs") is None:
+            continue
+        cost = sum((L.get(k) or 0) for k in ("ads", "kol", "posm", "other"))
+        eb = (L["net_incr"] or 0) - L["cogs"] - (L.get("gift") or 0) - cost - max(0.0, L["net_incr"] or 0) * (L.get("opex_pct") or 0)
+        if abs(eb - L["ebitda"]) > 5:
+            iss.append((cid, "plan_lock", "CẢNH BÁO",
+                        "G1 kế hoạch %s không thoả đẳng thức EBITDA (lệch %s đ)" % (L["program_id"], f"{eb - L['ebitda']:,.0f}".replace(",", "."))))
+    month_net = defaultdict(float)
+    for r in results:
+        for x in (r.get("_split") or []):
+            month_net[r["campaign_id"]] += x["net"]
+    bad = 0
+    for r in results:
+        u = r.get("_u")
+        if not u:
+            continue
+        cid = r["campaign_id"]
+        c = camp_by.get(cid, {})
+        if r.get("plan_group") or str(r.get("cadence") or "").upper() == "RECURRING":
+            continue                                   # nhóm tên POS / lặp theo thứ: tổng tháng khác phạm vi đo (đã ghi ở §⓪)
+        a = u["rows"]["rev"]["a"]
+        if a is not None and abs(a - month_net.get(cid, 0)) > 1:
+            bad += 1
+            iss.append((cid, "promo_net", "CẢNH BÁO", "G2 DT CTKM %s ≠ Σ theo tháng %s" % (round(a), round(month_net.get(cid, 0)))))
+        for k in ("ads", "kol", "posm", "other"):
+            if u["rows"][k]["a"] == 0 and u["rows"][k]["miss"]:
+                iss.append((cid, "cost_" + k, "LỖI", "G3 chi phí chưa khai nhưng hiện 0"))
+    return iss
+
+
+def opex_by_brand():
+    """% opex biến đổi/DT thuần theo brand — lấy đúng số M7.1 đang dùng (04_preeval.pre_eval.opex_pct)."""
+    out = {}
+    if os.path.exists(PREEVAL):
+        for r in read_workbook(PREEVAL, {"pre_eval"}).get("pre_eval", []):
+            b, o = str(r.get("brand") or "").upper(), to_num(r.get("opex_pct"))
+            if b and o is not None and b not in out:
+                out[b] = o
+    out.setdefault("_default", CONTRACT["$metrics"]["opex_default"])
+    return out
 
 
 def main():
@@ -1058,44 +979,14 @@ def main():
     for r in results:
         store_gate(r, camp_by_id[r["campaign_id"]], daily)
 
-    # ── chấm theo kế hoạch: các dòng CÙNG pre_id là các tên POS của MỘT kế hoạch (vd Noire Passport
-    #    50K · 100K · 150K) → cộng hoá đơn / doanh thu / giảm giá rồi chấm MỘT lần; mọi dòng nhận chung
-    #    kết quả, chỉ dòng đầu `plan_primary=1` được cộng vào tổng (không đếm trùng).
     camp_by = {c["campaign_id"]: c for c in camps}
+    # các dòng CÙNG pre_id là các tên POS của MỘT kế hoạch (vd Noire Passport 50K · 100K · 150K) → cộng hoá đơn /
+    # doanh thu / giảm giá rồi chấm MỘT lần; mọi dòng nhận chung kết quả, chỉ dòng đầu `plan_primary=1` cộng vào tổng.
     groups = defaultdict(list)
     for r in results:
         pid = camp_by[r["campaign_id"]].get("pre_id")
         if pid and pid in plan_by and r.get("label") != "KE_HOACH":
             groups[pid].append(r)
-    SUM = ("promo_bills", "promo_guests", "promo_net", "promo_gross", "promo_disc", "promo_voucher", "cost_ads_auto")
-    PROG = ("eval_scope", "store_incr_net", "store_lift_pct", "store_flow_through", "plan_sales", "base_sales",
-            "plan_tc", "act_sales", "promo_share", "incr_net", "lift_pct", "flow_through", "roi", "breakeven_lift",
-            "att_net", "att_tc", "att_aov", "att_ta", "att_incr", "label", "measurable", "reason",
-            "cost_promo_actual", "cost_fixed_actual", "cost_total", "cm_pct", "breakeven_sales", "eval_note")
-    # promo_share nhóm = Σ hoá đơn CTKM ÷ doanh thu cửa hàng (lấy dòng lớn nhất)
-    for pid, rows in groups.items():
-        rows.sort(key=lambda x: (str(x.get("period_from") or "9999"), x["campaign_id"]))
-        head = rows[0]
-        m = dict(head)
-        for k in SUM:
-            m[k] = sum(to_num(x.get(k), 0) or 0 for x in rows)
-        froms = [x["period_from"] for x in rows if x.get("period_from")]
-        m["period_from"] = min(froms) if froms else None
-        m["act_net"] = max((to_num(x.get("act_net"), 0) or 0) for x in rows) or None
-        m["store_net"] = max((to_num(x.get("store_net"), 0) or 0) for x in rows) or None
-        cs = [camp_by[x["campaign_id"]] for x in rows]
-        mc = dict(camp_by[head["campaign_id"]], cadence="BURST",
-                  date_to=None if any(not x.get("date_to") for x in cs) else max(str(x["date_to"]) for x in cs))
-        program_eval(m, mc, plan_by[pid], costs.get(head["campaign_id"], []), last)
-        names = len(rows)
-        for x in rows:
-            for k in PROG:
-                x[k] = m.get(k)
-            x["plan_group"] = pid
-            x["plan_primary"] = 1 if x is head else 0
-            if names > 1:
-                x["eval_note"] = ((m.get("eval_note") + " · ") if m.get("eval_note") else "") + \
-                    f"chấm chung {names} tên POS của kế hoạch {pid}"
 
     # Chương trình CHỒNG KỲ trên cùng cửa hàng — lift đo ở cấp cửa hàng nên KHÔNG tách
     # được phần của từng chương trình. Ghi rõ để màn hình cảnh báo, không im lặng cộng dồn.
@@ -1116,6 +1007,84 @@ def main():
               if k != r["campaign_id"] and st & me[2] and f0 <= me[1] and me[0] <= t0
               and not (same_plan.get(k) and same_plan.get(k) == same_plan.get(r["campaign_id"]))]
         r["overlap"] = "|".join(sorted(ov)) or None
+
+    # ── CHẤM CHUNG (tools/promo_eval.py · docs/modules/M7_QUY_CHUAN.md) ──
+    # Mọi chương trình — có kế hoạch M7.1, kế hoạch Q3 (quy về mẫu M7.1) hay chưa có kế hoạch — đi qua CÙNG một hàm.
+    opex_map = opex_by_brand()
+    lock_of = {}
+    for cid, x in m71.items():
+        if x["lock"]:
+            lock_of[cid] = promo_eval.m71_lock(x["lock"])
+    for c in camps:
+        pid = c.get("pre_id")
+        if pid in plan_by and c["campaign_id"] not in lock_of:                 # M7.1 thắng; Q3 chỉ khi chưa có bản khoá
+            q = promo_eval.q3_lock(plan_by[pid], plan_date, opex_map.get(str(c.get("brand") or "").upper(), opex_map["_default"]))
+            if q:
+                lock_of[c["campaign_id"]] = q
+    SUM = ("promo_bills", "promo_guests", "promo_net", "promo_gross", "promo_disc", "promo_voucher", "cost_ads_auto")
+    HEADS = ("incr_net", "lift_pct", "flow_through", "roi", "breakeven_lift", "att_net", "att_tc", "att_aov", "att_ta",
+             "att_incr", "d_tc", "d_aov", "d_party", "d_ta", "d_mix")
+
+    def chung(r, c, rows=None):
+        """Chấm một chương trình (hoặc một nhóm tên POS của cùng kế hoạch — `rows`)."""
+        m, mc = r, c
+        if rows:
+            m = dict(rows[0])
+            for k in SUM:
+                m[k] = sum(to_num(x.get(k), 0) or 0 for x in rows)
+            m["store_net"] = max((to_num(x.get("store_net"), 0) or 0) for x in rows) or None
+            m["promo_share"] = _div(m["promo_net"], m["store_net"])
+            m["overlap"] = "|".join(sorted({o for x in rows for o in str(x.get("overlap") or "").split("|") if o})) or None
+            m["days_run"] = max((to_num(x.get("days_run"), 0) or 0) for x in rows)
+            cs = [camp_by[x["campaign_id"]] for x in rows]
+            mc = dict(c, cadence="BURST", date_to=None if any(not x.get("date_to") for x in cs) else max(str(x["date_to"]) for x in cs))
+        out = promo_eval.evaluate(m, mc, lock_of.get(c["campaign_id"]), targets.get(c["campaign_id"]),
+                                  costs.get(c["campaign_id"], []), last, opex_map)
+        return m, out
+
+    def apply(r, out, m):
+        u, patch = out
+        patch = dict(patch, u=json.dumps(u, ensure_ascii=False, default=str))
+        for k in ("promo_bills", "promo_guests", "promo_net", "promo_gross", "promo_disc", "promo_voucher", "cost_ads_auto"):
+            if r is not m:
+                patch[k] = m[k]                                                  # nhóm: mọi dòng nhận tổng nhóm
+        r.update(patch)
+        r["_u"] = u
+        r["promo_share"] = m.get("promo_share")
+        r["store_net"] = m.get("store_net") or r.get("store_net")
+
+    def cannot(r):
+        """Không tính được %cannib (không có kế hoạch để ước tính, cửa hàng không đủ tin cậy): bỏ số lift cũ."""
+        if r.get("label") in ("KE_HOACH", "BRANDING", "CHUA_DO"):
+            return
+        ok, why = promo_eval._reliability(r)
+        for k in HEADS:
+            r[k] = None
+        r.update(measurable=0, label="CHUA_DO",
+                 reason="chưa có kế hoạch M7.1 để ước tính %cannib, và lift cửa hàng chưa đủ tin cậy: " + "; ".join(why))
+
+    done = set()
+    for pid, rows in groups.items():
+        rows.sort(key=lambda x: (str(x.get("period_from") or "9999"), x["campaign_id"]))
+        head = rows[0]
+        m, out = chung(head, camp_by[head["campaign_id"]], rows)
+        for x in rows:
+            x["plan_group"] = pid
+            x["plan_primary"] = 1 if x is head else 0
+            done.add(x["campaign_id"])
+            if out:
+                apply(x, out, m)
+                x["eval_note"] = f"chấm chung {len(rows)} tên POS của kế hoạch {pid}" if len(rows) > 1 else None
+            else:
+                cannot(x)
+    for r in results:
+        if r["campaign_id"] in done or r.get("label") in ("KE_HOACH", "BRANDING"):
+            continue
+        m, out = chung(r, camp_by[r["campaign_id"]])
+        if out:
+            apply(r, out, m)
+        else:
+            cannot(r)
 
     # CTKM trên POS chưa gắn vào chương trình nào
     pats = [norm(p) for c in camps for p in str(c.get("name_pos") or "").split("|") if p.strip()]
@@ -1138,7 +1107,12 @@ def main():
                 for u in sorted(un.values(), key=lambda x: -x["net"])]
 
     calib = plan_vs_actual(results, m71, camps)
+    qa = qa_gates(results, lock_of, camp_by)
+    issues += qa
+    log(f"  cổng QA M7 (G1 đẳng thức kế hoạch · G2 DT CTKM khớp tháng · G3 chi phí chưa khai): {len(qa)} cảnh báo")
     camp_month = [x for r in results for x in (r.pop("_split", None) or [])]
+    for r in results:
+        r.pop("_u", None)
     write_workbook(OUT, {
         "campaign_result": results, "campaign_daily": series, "campaign_month": camp_month,
         "campaign_unmapped": unmapped,

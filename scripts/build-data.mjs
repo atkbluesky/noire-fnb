@@ -1496,6 +1496,9 @@ function buildCampaign(tables) {
         lines: costBy[r.campaign_id] || [],
       },
       cm_pct: num(r.cm_pct), flow: num(r.flow_through), roi: num(r.roi), breakeven: num(r.breakeven_lift),
+      // bảng chuẩn Nền · Target · Thực tế · % đạt theo $metrics.rows (tools/promo_eval.py) — MỘT bảng cho M7.1 và M7.2
+      basis: r.basis ?? null,
+      u: r.u ? JSON.parse(r.u) : null,
       target: t ? {
         net: num(t.tgt_net), tc: num(t.tgt_tc), aov: num(t.tgt_aov), ta: num(t.tgt_ta),
         incr: num(t.tgt_incr_net), submitted: t.submitted ?? null, note: t.note ?? null,
@@ -1535,6 +1538,8 @@ function buildCampaign(tables) {
       levers: C.levers, mechanics: C.mechanics, windows: C.windows, cadences: C.cadences,
       cost_types: C.cost_types, labels: C.labels, natures: CONTRACT.$promo_nature.labels,
       pre_kinds: C.pre_kinds, sources: C.sources, objectives: C.objectives,
+      // quy chuẩn tên · đơn vị · công thức từng dòng của bảng chấm (docs/modules/M7_QUY_CHUAN.md)
+      metrics: CONTRACT.$metrics,
     },
     // M7.1 · kế hoạch Pre-Analysis + kết quả thực tế nối qua campaign_id
     // M7.1 · phiếu đánh giá trước khi chạy (tools/preeval.py — khung PP672 × SALES = TC × AOV)

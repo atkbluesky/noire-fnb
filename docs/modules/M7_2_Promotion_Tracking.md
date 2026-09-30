@@ -7,10 +7,17 @@
 | **Quan hệ với M7** | M7 = **cơ cấu chi phí ưu đãi** (kế toán, phòng thủ) · M7.2 = **hiệu quả chương trình** (marketing, tấn công) |
 | **Trạng thái** | 🟡 **Chạy trên danh mục THẬT** (74 CT: 5 khớp kế hoạch · 49 chỉ POS · 20 chỉ kế hoạch) — chờ team brand điền ô CAM (đòn bẩy · giả thuyết · người phụ trách · target) |
 | **Cụm** | Mục con của M7 Promotion — danh mục chung, hai cách chấm `PROGRAM` / `STORE`: xem [M7_Promotion.md §0](M7_Promotion.md) |
-| **Nguồn / engine / màn** | `L0_input/03_MARKETING/07_Campaign_Tracking/` (S23) → `tools/campaign.py` → `data_input/03_campaign.xlsx` → `src/data/campaign.json` → `src/views/CampaignTrackingView.tsx` |
+| **Nguồn / engine / màn** | `L0_input/03_MARKETING/07_Campaign_Tracking/` (S23) → `tools/campaign.py` + `tools/promo_eval.py` (chấm chung) → `data_input/03_campaign.xlsx` → `src/data/campaign.json` → `src/views/CampaignTrackingView.tsx` + `PromoScoreTable.tsx` |
 | **Tài liệu gốc** | `01 Strategic/05. Plan/TC_AOV_FnB_Marketing.pdf` · Sheet "NOIRE JFB - Weekly Report" của team brand |
 
 ---
+
+## ⓪a Bảng chuẩn thay hai khối cũ *(30/09/2026)*
+
+Khối **"Chấm theo kế hoạch Pre-Analysis"** và **"Kiểm chứng ở cấp cửa hàng"** đã gộp thành **một bảng Nền · Target · Thực tế · % đạt**
+(`src/components/common/PromoScoreTable.tsx`), dùng chung với phiếu M7.1 mục F. Tên dòng, đơn vị, công thức: `data_contract.json → $metrics`;
+số: `tools/promo_eval.py`. Đặc tả đầy đủ và bảng thuật ngữ: **[M7_QUY_CHUAN.md](M7_QUY_CHUAN.md)** — khi mâu thuẫn với §4 dưới đây (công thức lift/flow-through
+cũ) thì file đó thắng. Điểm khác chính: kế hoạch Q3 không còn nhánh chấm riêng; Tăng thêm = `DT × (1−c) − c × Giảm giá`; EBITDA thay "Lãi thực thêm".
 
 ## ⓪ Phạm vi số trên màn hình — theo THÁNG × BRAND đang lọc *(17/09/2026)*
 
