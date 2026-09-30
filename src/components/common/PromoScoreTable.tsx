@@ -48,6 +48,7 @@ export const PromoScoreTable: React.FC<{ c: Campaign }> = ({ c }) => {
   };
 
   const pctCell = (row: MetricRow, r: UnifiedRow) => {
+    if (r.est) return <span className="text-brand-faint">{M.empty.na}</span>;      // ≈ : % chỉ lặp lại DT thực ÷ DT target
     if (row.nopct || row.dir === 'memo' || row.dir === 'neutral') return <span className="text-brand-faint">{M.empty.na}</span>;
     if (r.p !== null) return <span className={`font-bold ${tone(row.dir, r.p)}`}>{formatPercent(r.p, 0)}</span>;
     // Target ≤ 0 (kế hoạch tự biết lỗ): % không có nghĩa → hiện chênh lệch tuyệt đối
@@ -59,7 +60,7 @@ export const PromoScoreTable: React.FC<{ c: Campaign }> = ({ c }) => {
   return (
     <div className="rounded-xl border border-brand-gold/40 p-3 text-xs">
       <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-brand-gold">Nền · Target · Thực tế — hoá đơn gắn CTKM</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-brand-gold">Target · Thực tế — hoá đơn gắn CTKM</span>
         <span className="text-[10px] text-brand-muted">
           {planTxt}{u.locked_at ? ` · khoá ${dmy(u.locked_at)}` : ''}
         </span>
@@ -75,7 +76,6 @@ export const PromoScoreTable: React.FC<{ c: Campaign }> = ({ c }) => {
           <thead>
             <tr className="text-brand-muted">
               <th className="text-left font-semibold">Chỉ số</th>
-              <th className="text-right font-semibold" title="Phần vốn sẽ xảy ra dù không có chương trình (= Target × %cannib)">Nền</th>
               <th className="text-right font-semibold">Target</th>
               <th className="text-right font-semibold">Thực tế</th>
               <th className="text-right font-semibold" title="Thực tế ÷ Target. Chi phí: dùng ÷ ngân sách (≤ 100% là tốt)">% đạt</th>
@@ -85,19 +85,21 @@ export const PromoScoreTable: React.FC<{ c: Campaign }> = ({ c }) => {
             {M.groups.map(g => (
               <React.Fragment key={g.code}>
                 <tr className="border-t border-brand-border/70">
-                  <td colSpan={5} className="pt-2 pb-0.5 font-sans">
+                  <td colSpan={4} className="pt-2 pb-0.5 font-sans">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-brand-gold">{g.label}</span>
                     <span className="ml-2 text-[10px] font-normal normal-case text-brand-faint">{g.note}</span>
                   </td>
                 </tr>
-                {M.rows.filter(r => r.group === g.code).map(row => {
+                {M.rows.filter(r => r.group === g.code && !r.hide).map(row => {
                   const r = u.rows[row.code];
                   if (!r) return null;
+                  const empty = (v: number | null) => v === null || v === 0;
+                  // dòng chi phí trống cả Target lẫn Thực tế (và không phải "chưa khai") → ẩn cho gọn
+                  if (['disc', 'ads', 'kol', 'posm', 'other', 'cost'].includes(row.code) && empty(r.t) && empty(r.a) && !r.miss) return null;
                   const memo = row.dir === 'memo';
                   return (
                     <tr key={row.code} className={`border-t border-brand-border/40 ${memo ? 'italic text-brand-muted' : ''}`}>
                       <td className={`py-1 font-sans ${row.bold ? 'font-bold' : ''}`} title={row.formula}>{row.label}</td>
-                      <td className="text-right text-brand-muted">{row.nen ? cell(row, r, 'n') : <span className="text-brand-faint">{M.empty.na}</span>}</td>
                       <td className="text-right">{cell(row, r, 't')}</td>
                       <td className={`text-right ${row.bold ? 'font-bold' : ''}`}>{cell(row, r, 'a')}</td>
                       <td className="text-right">{pctCell(row, r)}</td>
@@ -112,16 +114,22 @@ export const PromoScoreTable: React.FC<{ c: Campaign }> = ({ c }) => {
 
       <div className="mt-2 space-y-1 text-[10px] text-brand-muted">
         <div>
-          %cannib (khách vốn sẽ đến): kế hoạch <b>{formatPercent(u.cannib.plan, 0)}</b> · thực tế đo <b>{formatPercent(u.cannib.act, 0)}</b> · đang dùng <b>{formatPercent(u.cannib.used, 0)}</b>
-          {' '}({u.basis === 'DO' ? 'đo' : `${est} theo kế hoạch`}).
+          %cannib (khách vốn sẽ đến): kế hoạch <b>{formatPercent(u.cannib.plan, 0)}</b> · đo <b>{formatPercent(u.cannib.act, 0)}</b> · dùng <b>{formatPercent(u.cannib.used, 0)}</b> ({u.basis === 'DO' ? 'đo' : `${est} theo kế hoạch`}).
         </div>
         <div className={ck.reliable ? '' : 'text-status-warning'}>
-          Kiểm chứng cửa hàng: hoá đơn CTKM = {formatPercent(ck.share, 1)} doanh thu cửa hàng · TC cửa hàng kỳ vọng {formatNumber(ck.store_tc_exp)} → thực tế {formatNumber(ck.store_tc_act)}
-          {ck.store_incr !== null && <> · lift cửa hàng {ck.store_incr > 0 ? '+' : ''}{formatVND(ck.store_incr)}</>}
-          {' — '}{ck.reliable ? 'đủ tin cậy để đo %cannib.' : `không dùng để kết luận (${ck.why.join('; ')}).`}
+          Kiểm chứng cửa hàng: CT = {formatPercent(ck.share, 1)} DT cửa hàng · TC cửa hàng {formatNumber(ck.store_tc_exp)} → {formatNumber(ck.store_tc_act)}
+          {' — '}{ck.reliable ? 'đủ tin cậy để đo %cannib.' : 'không đủ tin cậy để kết luận.'}
         </div>
-        {u.breakeven_rev !== null && <div>Hoà vốn (EBITDA = 0) khi DT CTKM ≥ {formatVND(u.breakeven_rev)} với %cannib đang dùng.</div>}
-        {u.flags.map((f, i) => <div key={i} className="text-status-warning">• {f}</div>)}
+        {(u.flags.length > 0 || ck.why.length > 0 || u.breakeven_rev !== null) && (
+          <details>
+            <summary className="cursor-pointer text-brand-gold">Ghi chú ({u.flags.length + (u.breakeven_rev !== null ? 1 : 0) + (ck.why.length ? 1 : 0)})</summary>
+            <div className="mt-1 space-y-0.5">
+              {ck.why.length > 0 && <div>• Không đo được %cannib vì: {ck.why.join('; ')}.</div>}
+              {u.breakeven_rev !== null && <div>• Hoà vốn (EBITDA = 0) khi DT CTKM ≥ {formatVND(u.breakeven_rev)} với %cannib đang dùng.</div>}
+              {u.flags.map((f, i) => <div key={i}>• {f}</div>)}
+            </div>
+          </details>
+        )}
       </div>
     </div>
   );

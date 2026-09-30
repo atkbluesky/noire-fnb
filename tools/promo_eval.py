@@ -283,7 +283,7 @@ def evaluate(r, c, lock, tgt, costs, last, opex_by_brand):
         p = None
         if code not in NOPCT and direction in ("up", "down") and t not in (None, 0) and a is not None and t > 0:
             p = a / t
-        e = (code in ("cogs", "gp") or (code in ("incr", "net") and basis == "UOC")
+        e = (code in ("cogs", "gp") or (code in ("incr", "net", "opex") and basis == "UOC")
              or code in est or (code in ("ebitda", "roi") and (basis == "UOC" or est or miss)))
         rows[code] = dict(t=t, n=n, a=a, p=p, d=(a - t) if (a is not None and t is not None) else None,
                           est=bool(e), miss=(code in miss))

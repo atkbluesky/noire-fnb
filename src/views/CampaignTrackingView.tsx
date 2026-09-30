@@ -774,7 +774,6 @@ export const CampaignTrackingView: React.FC = () => {
         <Card title={`Chi Tiết · ${sel.name}`}
           description={`${sel.id} · SỐ CẢ KỲ CHẠY ${sel.period_from ? `${dmy(sel.period_from)} → ${sel.date_to ? dmy(sel.period_to) : 'đang chạy'}` : ''} × mọi cửa hàng của chương trình (${sel.stores.join(', ')})${scope.by[sel.id] ? ` · trong ${periodTxt} × brand đang lọc: ${formatVND(scope.by[sel.id].net)} · ${formatNumber(scope.by[sel.id].bills)} HĐ` : ''}`}
           chip={LABEL[sel.label]?.label}>
-          <div className="mb-4"><PromoScoreTable c={sel} /></div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-3 text-xs">
               <div className="rounded-lg border border-brand-border p-3">
@@ -837,6 +836,7 @@ export const CampaignTrackingView: React.FC = () => {
                   {sel.ramp_warning && <div className="flex gap-2"><AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" />Cửa hàng mới mở chưa lâu — doanh thu tự tăng theo đà mở mới, lift có thể bị thổi phồng.</div>}
                 </div>
               )}
+              <PromoScoreTable c={sel} />
               {sel.prog.basis === 'ITEM' && (
                 <div className="rounded-lg border border-brand-border p-3">
                   <div className="text-[10px] uppercase tracking-wider text-brand-muted">Hoá đơn chứa món LTO — cấu thành DT CTKM</div>
@@ -850,7 +850,6 @@ export const CampaignTrackingView: React.FC = () => {
                 </div>
               )}
               {sel.target?.verified === false && <div className="text-status-bad">Target nộp SAU ngày chạy — không dùng để chấm ĐẠT.</div>}
-              {sel.match_note && <div className="text-[10px] text-brand-faint">Ghép dữ liệu: {sel.match_note}</div>}
             </div>
             <div className="lg:col-span-2 space-y-4">
               {series.length ? (
