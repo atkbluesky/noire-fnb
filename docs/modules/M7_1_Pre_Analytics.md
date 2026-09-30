@@ -201,7 +201,7 @@ chưa tới ngày chạy và sổ không còn DA_DUYET (lập lại kế hoạch
 
 Nối M7.2: cột `campaign_id` của sổ ↔ `Campaign_Tracking`. M7.2 lấy **target DT tăng thêm** từ bản khoá (chương trình đã có
 kế hoạch Q3 `pre_id` giữ cách chấm cũ; target khai tay ở `campaign_target` thắng) và tính **EBITDA thực tế cùng công thức**:
-`DT tăng thêm đo ở M7.2 ÷ 1,08 × (1 − COGS%) − opex − quà (đơn giá kế hoạch × HĐ thực tế) − chi phí (thực tế | kế hoạch)`.
+`Lãi gộp − quà − chi phí CT − opex`, Tăng thêm = `DT × (1−c) − c × Giảm giá` (c đo hoặc ≈ theo kế hoạch) — công thức và tên gọi ở [M7_QUY_CHUAN.md](M7_QUY_CHUAN.md), tính bởi `tools/promo_eval.py`. Sổ khoá thêm 10 cột (`guests · cogs · gift · gift_fixed · cost_ads · cost_kol · cost_posm · cost_other · disc · backfill`) để bảng chuẩn có Target cho từng dòng; khoá cũ được suy từ số đã khoá (cờ `backfill = 1`).
 Quý của chương trình M7.2 = quý kế hoạch M7.1; chưa nối thì quý của ngày chạy (bộ lọc Quý trên M7.2). Phiếu M7.1 mục **F**
 và phần Chi tiết M7.2 cùng hiện khối **Kế hoạch M7.1 ↔ Thực tế**.
 

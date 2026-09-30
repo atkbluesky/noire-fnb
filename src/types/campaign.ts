@@ -25,6 +25,32 @@ export interface CampaignCostLine {
   note: string | null;
 }
 
+/** M7 · một dòng của bảng chuẩn (data_contract.json → $metrics.rows). t = Target · n = Nền · a = Thực tế · p = % đạt · d = chênh lệch */
+export interface UnifiedRow { t: number | null; n: number | null; a: number | null; p: number | null; d: number | null; est: boolean; miss: boolean }
+export interface UnifiedTable {
+  /** DO = %cannib đo từ TC cửa hàng · UOC = ≈ lấy %cannib của kế hoạch */
+  basis: 'DO' | 'UOC';
+  /** M71 = kế hoạch sổ M7.1 · Q3 = kế hoạch Q3 (S16) quy về mẫu M7.1 · null = chưa có kế hoạch */
+  plan: 'M71' | 'Q3' | null;
+  plan_id: string | null; locked_at: string | null; lock_reason: string | null;
+  cannib: { plan: number | null; act: number | null; used: number | null };
+  check: { reliable: boolean; why: string[]; share: number | null; store_tc_exp: number | null; store_tc_act: number | null; store_incr: number | null; store_lift: number | null };
+  rows: Record<string, UnifiedRow>;
+  flags: string[]; miss: string[]; matured: boolean; verified: boolean | null;
+  breakeven_rev: number | null;
+}
+export interface MetricRow {
+  code: string; group: string; label: string; short: string; unit: 'money' | 'count' | 'pct' | 'x';
+  dir: 'up' | 'down' | 'memo' | 'neutral'; formula: string; nen?: boolean; bold?: boolean; diff?: boolean; nopct?: boolean;
+}
+export interface MetricsSpec {
+  empty: { na: string; undeclared: string; estimate: string };
+  groups: { code: string; label: string; note: string }[];
+  rows: MetricRow[];
+  abbr: { code: string; meaning: string }[];
+  deprecated: { old: string; use: string }[];
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -102,6 +128,10 @@ export interface Campaign {
     lines: CampaignCostLine[];
   };
   cm_pct: number | null;
+  /** bảng chuẩn dùng chung M7.1 · M7.2 (null = chưa có hoá đơn / chưa tính được %cannib) */
+  u: UnifiedTable | null;
+  basis: 'DO' | 'UOC' | null;
+  /** EBITDA tăng thêm (cùng số với u.rows.ebitda.a) */
   flow: number | null;
   roi: number | null;
   breakeven: number | null;
@@ -276,6 +306,7 @@ export interface CampaignData {
     pre_kinds: TaxItem[];
     sources: TaxItem[];
     objectives: TaxItem[];
+    metrics: MetricsSpec;
   };
   plan: PlanRow[];
   /** số POS của chương trình theo tháng × cửa hàng (campaign_month) */

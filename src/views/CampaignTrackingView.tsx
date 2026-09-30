@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { PlanVsActual } from '../components/common/PlanVsActual';
+import { PromoScoreTable } from '../components/common/PromoScoreTable';
 import type { EChartsOption } from 'echarts';
 import { AlertTriangle, FlaskConical, Info, TrendingUp, TrendingDown } from 'lucide-react';
 import { useFilters } from '../context/FilterContext';
@@ -132,7 +132,6 @@ export const CampaignTrackingView: React.FC = () => {
   const [selId, setSelId] = useState<string | null>(null);
   const sel: Campaign | undefined =
     CAMPAIGN.campaigns.find(c => c.id === selId) ?? list.find(c => c.measurable && c.label !== 'CHUA_CHIN') ?? list[0];
-  const isProg = sel?.eval_scope === 'PROGRAM';
 
   if (CAMPAIGN.meta.empty) {
     return (
@@ -159,6 +158,7 @@ export const CampaignTrackingView: React.FC = () => {
   const costMeasured = measured.reduce((a, c) => a + sc(c).cost, 0);
   const flow = measured.reduce((a, c) => a + (sc(c).flow ?? 0), 0);
   const nAlloc = measured.filter(c => scope.share(c) < 0.999).length;
+  const nEst = measured.filter(c => c.basis === 'UOC').length;
   const running = inScope.filter(c => c.label !== 'KE_HOACH');
   const nProg = running.filter(c => c.eval_scope === 'PROGRAM').length;
   // Tổng nhiều chương trình: mỗi hoá đơn POS gắn MỘT tên CTKM nên cộng không trùng — trừ hoá đơn LTO
@@ -314,8 +314,8 @@ export const CampaignTrackingView: React.FC = () => {
         const col = c.incr_s >= 0 ? 'text-status-ok' : 'text-status-bad';
         return (
           <div className="text-right font-mono leading-tight"
-            title={`${c.eval_scope === 'PROGRAM' ? `Theo kế hoạch ${c.pre_id} · đạt ${pct(c.att.incr)} target tăng thêm` : 'Lift cả cửa hàng so kỳ nền'} · cả kỳ chạy ${vnd(c.incr)}${c.alloc < 0.999 ? ` · phân bổ ${pct(c.alloc)} vào kỳ lọc theo tỷ trọng doanh thu CTKM` : ''}`}>
-            <div className={`font-bold ${col}`}>{c.incr_s > 0 ? '+' : ''}{vnd(c.incr_s)}</div>
+            title={`${c.u?.plan ? `Theo kế hoạch ${c.u.plan_id} · đạt ${pct(c.att.incr)} target tăng thêm` : 'Chưa có kế hoạch'} · ${c.basis === 'DO' ? '%cannib đo từ TC cửa hàng' : '≈ %cannib theo kế hoạch'} · cả kỳ chạy ${vnd(c.incr)}${c.alloc < 0.999 ? ` · phân bổ ${pct(c.alloc)} vào kỳ lọc theo tỷ trọng doanh thu CTKM` : ''}`}>
+            <div className={`font-bold ${col}`}>{c.basis === 'UOC' ? '≈ ' : ''}{c.incr_s > 0 ? '+' : ''}{vnd(c.incr_s)}</div>
             <div className={`text-[10px] ${col}`}>
               {d === null ? '—' : `${d >= 0 ? '+' : ''}${pct(d, 1)} DT brand`}{c.alloc < 0.999 ? ' · pb' : ''}
             </div>
@@ -324,7 +324,7 @@ export const CampaignTrackingView: React.FC = () => {
       },
     },
     {
-      key: 'flow_s', header: 'Lãi thực thêm · ROI', align: 'right',
+      key: 'flow_s', header: 'EBITDA tăng thêm · ROI', align: 'right',
       render: c => {
         if (c.plan_primary === 0 && c.measurable) return <span className="text-[10px] text-brand-faint">gộp ở dòng chính KH</span>;
         return c.flow_s !== null ? (
@@ -544,15 +544,15 @@ export const CampaignTrackingView: React.FC = () => {
         const c = matrixItems[p.dataIndex];
         if (!c) return '';
         const isLowSample = (c.promo.bills ?? 0) < 5;
-        const isProg = c.eval_scope === 'PROGRAM';
+        const isProg = c.basis === 'DO';
         return `
           <div style="padding:4px; font-size:12px; line-height:1.5;">
             <div style="font-weight:bold; color:#C5A059;">[${c.brand}] ${c.name}</div>
-            <div style="font-size:10px; color:#888; font-family:monospace;">${isProg ? 'Pre-Analysis có đối chứng' : 'Ước lượng lift cửa hàng'} ${c.pre_id ? `· Mã ${c.pre_id}` : ''}</div>
+            <div style="font-size:10px; color:#888; font-family:monospace;">${isProg ? '%cannib ĐO từ TC cửa hàng' : '≈ ước tính theo %cannib của kế hoạch'} ${c.u?.plan_id ? `· Mã ${c.u.plan_id}` : ''}</div>
             <div>Trạng thái: <b style="color:${STATUS_COLORS[c.label] ?? '#9E9B93'}">${LABEL[c.label]?.label ?? c.label}</b></div>
             <div>Chi phí ưu đãi: <b>${formatVND(c.cost.total)}</b></div>
             <div>DT tăng thêm: <b style="color:${(c.incr ?? 0) >= 0 ? '#22C55E' : '#EF4444'}">${(c.incr ?? 0) > 0 ? '+' : ''}${vnd(c.incr)}</b></div>
-            <div>Lãi thực (Flow-through): <b style="color:${(c.flow ?? 0) >= 0 ? '#22C55E' : '#EF4444'}">${vnd(c.flow)}</b></div>
+            <div>EBITDA tăng thêm: <b style="color:${(c.flow ?? 0) >= 0 ? '#22C55E' : '#EF4444'}">${vnd(c.flow)}</b></div>
             <div>ROI: <b style="color:#C5A059;">${c.roi === null ? '—' : `${formatNumber(c.roi, 2)}×`}</b></div>
             ${isLowSample ? `<div style="color:#F59E0B; font-weight:600; font-size:10px;">⚠ Mẫu nhỏ: ${c.promo.bills} HĐ (ROI dễ bị biến động)</div>` : ''}
           </div>
@@ -580,7 +580,7 @@ export const CampaignTrackingView: React.FC = () => {
         type: 'scatter',
         data: matrixItems.map(c => {
           const isLowSample = (c.promo.bills ?? 0) < 5;
-          const isProg = c.eval_scope === 'PROGRAM';
+          const isProg = c.basis === 'DO';
           return {
             value: [c.cost.total ?? 0, c.roi ?? 0],
             symbolSize: Math.max(12, Math.min(42, Math.sqrt(Math.abs(c.incr ?? 0)) / 500)),
@@ -721,10 +721,11 @@ export const CampaignTrackingView: React.FC = () => {
                 {incr >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                 {incr >= 0 ? '+' : ''}{pct(incr / (B.net - incr), 1)} so vs DT brand
                 {nAlloc > 0 && <span className="text-brand-faint text-[10px] font-normal ml-1">· {nAlloc} CT phân bổ theo kỳ</span>}
+                {nEst > 0 && <span className="text-status-warning text-[10px] font-normal ml-1" title="Tăng thêm dùng %cannib của kế hoạch vì cửa hàng không đủ tin cậy để đo">· {nEst} CT ≈ ước tính</span>}
               </span>
             ) : '—'
           } />
-        <MetricCard label="Lãi thực thêm" subLabel="tăng thêm × biên LN − chi phí"
+        <MetricCard label="EBITDA tăng thêm" subLabel="lãi gộp − quà − chi phí CT − opex"
           value={measured.length > 0 ? formatVND(flow) : '—'}
           variant={flow < 0 ? 'critical' : measured.length > 0 ? 'hero' : 'default'}
           customDeltaText={
@@ -773,7 +774,7 @@ export const CampaignTrackingView: React.FC = () => {
         <Card title={`Chi Tiết · ${sel.name}`}
           description={`${sel.id} · SỐ CẢ KỲ CHẠY ${sel.period_from ? `${dmy(sel.period_from)} → ${sel.date_to ? dmy(sel.period_to) : 'đang chạy'}` : ''} × mọi cửa hàng của chương trình (${sel.stores.join(', ')})${scope.by[sel.id] ? ` · trong ${periodTxt} × brand đang lọc: ${formatVND(scope.by[sel.id].net)} · ${formatNumber(scope.by[sel.id].bills)} HĐ` : ''}`}
           chip={LABEL[sel.label]?.label}>
-          {sel.m71 && <PlanVsActual c={sel} />}
+          <div className="mb-4"><PromoScoreTable c={sel} /></div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-3 text-xs">
               <div className="rounded-lg border border-brand-border p-3">
@@ -836,122 +837,20 @@ export const CampaignTrackingView: React.FC = () => {
                   {sel.ramp_warning && <div className="flex gap-2"><AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" />Cửa hàng mới mở chưa lâu — doanh thu tự tăng theo đà mở mới, lift có thể bị thổi phồng.</div>}
                 </div>
               )}
-              {!isProg && (
+              {sel.prog.basis === 'ITEM' && (
                 <div className="rounded-lg border border-brand-border p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-brand-muted">{sel.prog.basis === 'ITEM' ? 'Hoá đơn chứa món LTO — doanh thu của chương trình' : 'Hoá đơn gắn CTKM — doanh thu của chương trình'}</div>
-                  <div className="overflow-x-auto">
-                    <table className="mt-1 w-full text-[11px] font-mono whitespace-nowrap">
-                      <tbody>
-                        <tr><td className="font-sans">Số hoá đơn · khách</td><td className="text-right">{formatNumber(sel.prog.bills ?? 0)} · {formatNumber(sel.promo.guests ?? 0)}</td></tr>
-                        <tr><td className="font-sans">Doanh thu CTKM (Tổng tiền, gồm VAT)</td><td className="text-right font-bold">{vnd(sel.promo.net)}</td></tr>
-                        {sel.prog.basis === 'ITEM' && (
-                          <>
-                            <tr><td className="font-sans">└ riêng món LTO ({formatNumber(sel.prog.lto_qty ?? 0)} món)</td><td className="text-right">{vnd(sel.prog.lto_rev)}</td></tr>
-                            <tr><td className="font-sans">└ món khác gọi kèm</td><td className="text-right">{vnd((sel.promo.net ?? 0) - (sel.prog.lto_rev ?? 0))}</td></tr>
-                          </>
-                        )}
-                        <tr><td className="font-sans">Trước ưu đãi (gồm VAT)</td><td className="text-right">{vnd(sel.prog.sales)}</td></tr>
-                        <tr><td className="font-sans">Giảm giá + chiết khấu</td><td className="text-right">{vnd(sel.prog.disc)}</td></tr>
-                        <tr><td className="font-sans">Khách trả bằng phiếu GG</td><td className="text-right">{vnd(sel.prog.voucher)}</td></tr>
-                        <tr><td className="font-sans">Tỷ trọng trong doanh thu cửa hàng</td><td className="text-right">{pct(sel.prog.share, 1)}</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-              {isProg && (
-                <div className="rounded-lg border border-brand-gold/40 p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-brand-gold">
-                    Chấm theo kế hoạch Pre-Analysis {sel.pre_id} — phạm vi chương trình
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="mt-1 w-full text-[11px] whitespace-nowrap">
-                      <thead><tr className="text-brand-muted"><th className="text-left">Chỉ số</th><th className="text-right">Nền KH</th><th className="text-right">Target KH</th><th className="text-right">Thực tế</th><th className="text-right">% đạt</th></tr></thead>
-                      <tbody className="font-mono">
-                        {([
-                          ['Doanh thu hoá đơn CTKM', sel.prog.base, sel.prog.plan, sel.prog.sales, sel.att.net, true],
-                          ['Số hoá đơn (TC)', null, sel.prog.plan_tc, sel.prog.bills, sel.att.tc, false],
-                          ['AOV', null, sel.prog.plan && sel.prog.plan_tc ? sel.prog.plan / sel.prog.plan_tc : null, sel.prog.bills ? (sel.prog.sales ?? 0) / sel.prog.bills : null, sel.att.aov, true],
-                          ['Tăng thêm', null, sel.prog.plan !== null && sel.prog.base !== null ? sel.prog.plan - sel.prog.base : null, sel.incr, sel.att.incr, true],
-                        ] as [string, number | null, number | null, number | null, number | null, boolean][]).map(([k, b, t, a, at, money]) => (
-                          <tr key={k} className="border-t border-brand-border">
-                            <td className="py-1 font-sans">{k}</td>
-                            <td className="text-right text-brand-muted">{b == null ? '—' : formatVND(b)}</td>
-                            <td className="text-right">{t == null ? '—' : money ? formatVND(t) : formatNumber(t)}</td>
-                            <td className="text-right">{a == null ? '—' : money ? formatVND(a) : formatNumber(a)}</td>
-                            <td className={`text-right ${at == null ? '' : at >= 1 ? 'text-status-ok' : 'text-status-bad'}`}>{pct(at)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="mt-1.5 text-[10px] text-brand-muted">
-                    Doanh thu = hoá đơn gắn CTKM trước ưu đãi, gồm VAT = thanh toán trước giảm giá × hệ số thuế/phí (Tổng tiền {vnd(sel.promo.net)} · giảm giá {vnd(sel.prog.disc)}; phiếu GG {vnd(sel.prog.voucher)} là cách thanh toán, đã nằm trong Tổng tiền).
-                    {sel.eval_note ? ` ${sel.eval_note}.` : ''}
-                  </div>
-                </div>
-              )}
-              <div className="text-[10px] uppercase tracking-wider text-brand-muted">
-                {isProg ? 'Kiểm chứng ở cấp cửa hàng — doanh thu CẢ cửa hàng' : 'Lift cả cửa hàng — doanh thu CẢ cửa hàng trong kỳ'}
-              </div>
-              {isProg && sel.prog.share !== null && (
-                <div className={`text-[11px] ${sel.prog.share < 0.05 ? 'text-status-warning' : 'text-brand-muted'}`}>
-                  Hoá đơn CTKM = {pct(sel.prog.share, 1)} doanh thu các cửa hàng trong kỳ
-                  {sel.prog.share < 0.05 ? ' — quá nhỏ để thấy ở cấp cửa hàng, lift cửa hàng bên dưới chủ yếu là dao động ngày, KHÔNG dùng để kết luận.' : '.'}
-                  {sel.store.lift !== null && ` Lift cửa hàng ${pct(sel.store.lift, 1)} (${vnd(sel.store.incr)}).`}
-                </div>
-              )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px] whitespace-nowrap">
-                  <thead><tr className="text-brand-muted"><th className="text-left">Chỉ số</th><th className="text-right">Target</th><th className="text-right">Kỳ vọng</th><th className="text-right">Thực tế</th><th className="text-right">% đạt</th></tr></thead>
-                  <tbody className="font-mono">
-                    {[
-                      ['Doanh thu cả cửa hàng', sel.target?.net, sel.exp.net, sel.act.net, isProg ? null : sel.att.net, true],
-                      ['TC (hoá đơn)', sel.target?.tc, sel.exp.tc, sel.act.tc, sel.att.tc, false],
-                      ['AOV', sel.target?.aov, sel.exp.tc ? (sel.exp.net ?? 0) / sel.exp.tc : null, sel.act.tc ? (sel.act.net ?? 0) / sel.act.tc : null, sel.att.aov, true],
-                      ['TA (/khách)', sel.target?.ta, sel.exp.guest ? (sel.exp.net ?? 0) / sel.exp.guest : null, sel.act.guest ? (sel.act.net ?? 0) / sel.act.guest : null, sel.att.ta, true],
-                      ['Tăng thêm', sel.target?.incr, null, isProg ? sel.store.incr : sel.incr, isProg ? null : sel.att.incr, true],
-                    ].filter(r => !isProg || r[0] !== 'Tăng thêm' || sel.store.incr !== null)
-                      .map(r => (isProg ? [r[0], null, r[2], r[3], null, r[5]] : r))
-                      .map(([k, t, e, a, at, money]) => (
-                      <tr key={k as string} className="border-t border-brand-border">
-                        <td className="py-1 font-sans">{k as string}</td>
-                        <td className="text-right">{t == null ? '—' : money ? formatVND(t as number) : formatNumber(t as number)}</td>
-                        <td className="text-right text-brand-muted">{e == null ? '—' : money ? formatVND(e as number) : formatNumber(e as number)}</td>
-                        <td className="text-right">{a == null ? '—' : money ? formatVND(a as number) : formatNumber(a as number)}</td>
-                        <td className={`text-right ${at == null ? '' : (at as number) >= 1 ? 'text-status-ok' : 'text-status-bad'}`}>{pct(at as number | null)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {sel.target?.verified === false && <div className="text-status-bad">Target nộp SAU ngày chạy — không dùng để chấm ĐẠT.</div>}
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-brand-muted mb-1">Chi phí</div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[11px] font-mono whitespace-nowrap">
+                  <div className="text-[10px] uppercase tracking-wider text-brand-muted">Hoá đơn chứa món LTO — cấu thành DT CTKM</div>
+                  <table className="mt-1 w-full text-[11px] font-mono whitespace-nowrap">
                     <tbody>
-                      {isProg ? (
-                        <tr><td className="font-sans">Chi phí khuyến mãi (theo loại {sel.pre_id})</td><td className="text-right">{vnd(sel.cost.promo_actual)}</td></tr>
-                      ) : (
-                        <>
-                          <tr><td className="font-sans">Giảm giá (POS)</td><td className="text-right">{vnd(sel.cost.discount)}</td></tr>
-                          <tr><td className="font-sans">Phiếu giảm giá (POS)</td><td className="text-right">{vnd(sel.cost.voucher)}</td></tr>
-                        </>
-                      )}
-                      {sel.cost.lines.filter(l => !(isProg && l.type === 'GIFT_COGS' && sel.mechanic === 'GIFT_ITEM')).map(l => (
-                        <tr key={l.type}><td className="font-sans">{COST[l.type]?.label ?? l.type}{l.actual === null ? ' (kế hoạch)' : ''}</td><td className="text-right">{vnd(l.actual ?? l.planned)}</td></tr>
-                      ))}
-                      {(sel.cost.ads_auto ?? 0) > 0 && <tr><td className="font-sans">Meta Ads (ghép tự động)</td><td className="text-right">{vnd(sel.cost.ads_auto)}</td></tr>}
-                      <tr className="border-t border-brand-border font-bold"><td className="font-sans">Tổng</td><td className="text-right">{vnd(sel.cost.total)}</td></tr>
+                      <tr><td className="font-sans">Món LTO ({formatNumber(sel.prog.lto_qty ?? 0)} món)</td><td className="text-right">{vnd(sel.prog.lto_rev)}</td></tr>
+                      <tr><td className="font-sans">Món khác gọi kèm</td><td className="text-right">{vnd((sel.promo.net ?? 0) - (sel.prog.lto_rev ?? 0))}</td></tr>
+                      <tr><td className="font-sans">Tỷ trọng trong doanh thu cửa hàng</td><td className="text-right">{pct(sel.prog.share, 1)}</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-1 text-[10px] text-brand-muted">
-                  Biên LN {pct(sel.cm_pct)}{isProg ? ' (= (1 − COGS% kế hoạch) ÷ 1,08)' : ''} · Hoá đơn gắn CTKM {formatNumber(sel.promo.bills ?? 0)} · Doanh thu chạm {vnd(sel.promo.net)}
-                </div>
-                {sel.match_note && <div className="mt-1 text-[10px] text-brand-faint">Ghép dữ liệu: {sel.match_note}</div>}
-              </div>
+              )}
+              {sel.target?.verified === false && <div className="text-status-bad">Target nộp SAU ngày chạy — không dùng để chấm ĐẠT.</div>}
+              {sel.match_note && <div className="text-[10px] text-brand-faint">Ghép dữ liệu: {sel.match_note}</div>}
             </div>
             <div className="lg:col-span-2 space-y-4">
               {series.length ? (
@@ -970,7 +869,7 @@ export const CampaignTrackingView: React.FC = () => {
                     {wf.length ? (
                       <>
                         <div className="text-[11px] text-brand-muted mb-1">
-                          {isProg ? 'Kiểm chứng cửa hàng — ' : ''}Tăng thêm đến từ đâu — SALES = TC × quy mô nhóm × chi tiêu/khách
+                          Cấp cửa hàng (kiểm chứng) — biến động DT cả cửa hàng đến từ đâu: SALES = TC × quy mô nhóm × chi tiêu/khách
                         </div>
                         <EChartWrapper option={wfOption} height={220} />
                       </>
@@ -981,10 +880,11 @@ export const CampaignTrackingView: React.FC = () => {
                     )}
                   </div>
                   <div className="space-y-2 text-xs">
-                    <MetricCard label={isProg ? 'Tăng so nền kế hoạch' : 'Lift'} value={pct(sel.lift, 1)}
-                      customDeltaText={isProg ? `hoà vốn khi doanh thu ≥ ${vnd(sel.prog.breakeven)}` : `cần ≥ ${pct(sel.breakeven, 1)} để hoà vốn`}
-                      variant={isProg ? ((sel.prog.sales ?? 0) >= (sel.prog.breakeven ?? 0) ? 'default' : 'warning') : (sel.lift ?? 0) >= (sel.breakeven ?? 0) ? 'default' : 'warning'} />
-                    <MetricCard label="Lãi thực thêm" value={vnd(sel.flow)} customDeltaText={`ROI ${sel.roi === null ? '—' : formatNumber(sel.roi, 1) + '×'}`}
+                    <MetricCard label="Tăng thêm so nền" value={pct(sel.lift, 1)}
+                      customDeltaText={sel.u?.breakeven_rev != null ? `hoà vốn khi DT CTKM ≥ ${vnd(sel.u.breakeven_rev)}` : ''}
+                      variant={sel.u?.breakeven_rev != null && (sel.promo.net ?? 0) < sel.u.breakeven_rev ? 'warning' : 'default'} />
+                    <MetricCard label="EBITDA tăng thêm" value={vnd(sel.flow)}
+                      customDeltaText={`ROI ${sel.roi === null ? '—' : formatNumber(sel.roi, 1) + '×'}${sel.u?.basis === 'UOC' ? ' · ≈ ước tính' : ''}`}
                       variant={(sel.flow ?? 0) >= 0 ? 'hero' : 'critical'} />
                   </div>
                 </div>
@@ -1103,7 +1003,7 @@ export const CampaignTrackingView: React.FC = () => {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card
           title="Ma Trận: Chi Phí × ROI"
-          description="Đường đỏ = Hoà vốn (ROI = 0) · Nét liền = Pre-Analysis có đối chứng · Nét đứt = Ước lượng · Cỡ bóng = DT tăng thêm"
+          description="Đường đỏ = Hoà vốn (ROI = 0) · Nét liền = %cannib ĐO từ TC cửa hàng · Nét đứt = ≈ ước tính theo kế hoạch · Cỡ bóng = DT tăng thêm"
           chip={`MA TRẬN · ${matrixItems.length} CHƯƠNG TRÌNH`}
         >
           {matrixItems.length ? (

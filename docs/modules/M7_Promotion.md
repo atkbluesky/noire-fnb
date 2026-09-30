@@ -10,6 +10,8 @@
 | **Giai đoạn** | P4 — ✅ xong phần phân loại |
 | **Trạng thái** | ✅ đủ số · ✅ **Đối tác = Aggregator + Partner** (18/09/2026, chung số với M9) · ✅ **chi phí ưu đãi đã sửa** · ⛔ chưa đo được Lift → **M7.2** |
 
+> **Tên gọi · viết tắt · công thức chung của M7 / M7.1 / M7.2: [M7_QUY_CHUAN.md](M7_QUY_CHUAN.md)** — khi mâu thuẫn, file đó thắng.
+
 > **Đo Lift, ROI, target-vs-actual nằm ở [M7.2 · Promotion Tracking](M7_2_Promotion_Tracking.md).**
 > M7 trả lời *“tiền ưu đãi chảy vào đâu”* — kế toán. M7.2 trả lời *“chương trình tạo thêm
 > được bao nhiêu”* — marketing. Hai câu hỏi, hai đơn vị phân tích, hai màn hình.

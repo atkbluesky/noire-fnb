@@ -313,6 +313,7 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
             else:
                 ref_v, how = aov_menu, "AOV nền"
             bill_v = max(ref_v, req_v)
+        gpb = guests if _f(s.get("min_guests"), 0) > 0 else (B["guest"] / B["tc"] if B["tc"] else 1.0)
         val = _f(s.get("benefit_value"), 0)
         cap = _f(s.get("discount_cap"))
         if benefit == "PCT_OFF_BILL":
@@ -338,13 +339,18 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
         share = _f(s.get("share_pct"))
         econ.append(dict(
             s=s, sid=sid, benefit=benefit, cond=cond, req_v=req_v, req_c=req_c, gift_c=gift_c,
-            bill_v=bill_v, disc=disc, other_v=max(0.0, bill_v - req_v), merch=merch, u=u,
+            bill_v=bill_v, disc=disc, other_v=max(0.0, bill_v - req_v), merch=merch, u=u, gpb=gpb,
             share=share if share is not None else 1 / n_s, est=_f(s.get("est_bills")), stock=_f(s.get("stock_qty")),
             note=" · ".join(notes + [f"giá trị hoá đơn = {how} {bill_v:,.0f}".replace(",", "."),
                                      f"u khách sẵn có = {u:+.0%} ({u_src})"])))
 
     # chi phí chương trình tính CHƯA VAT (VAT đầu vào được khấu trừ) — cùng cách sổ Q4
     fixed_cost = sum(_f(c.get("amount"), 0) for c in costs)
+    # tách theo loại (docs/modules/M7_QUY_CHUAN.md §3): MERCH → Quà tặng · ADS · KOL · PRINT = POSM · còn lại = Khác
+    csplit = dict(gift=0.0, ads=0.0, kol=0.0, posm=0.0, other=0.0)
+    for c in costs:
+        t = str(c.get("cost_type") or "").upper()
+        csplit[{"MERCH": "gift", "ADS": "ads", "KOL": "kol", "PRINT": "posm"}.get(t, "other")] += _f(c.get("amount"), 0)
     var_opex = sum(_f(o.get(brand if brand in ("NCB", "NDC", "NJFB") else "NCB"), 0)
                    for o in opex if str(o.get("type")).upper() == "VARIABLE" and int(_f(o.get("act_on_incr"), 0)) == 1)
 
@@ -359,7 +365,7 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
         c = cannib_fix if cannib_fix is not None else min(1.0, max(0.0, cannib0 + cannib_add))
         W = dict(tc=0.0, gross=0.0, disc=0.0, cogs=0.0)             # hoá đơn tham gia (Có KM)
         K = dict(tc=0.0, gross=0.0, disc=0.0, cogs=0.0)             # phần khách vốn sẽ đến rút khỏi nền
-        merch_t = gift_t = stock = 0.0
+        merch_t = gift_t = stock = guests_t = 0.0
         per = []
         for e in econ:
             b = e["est"] if e["est"] is not None else demand * e["share"]
@@ -374,6 +380,7 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
             gift_c = e["gift_c"] * promo_k
             cb = c * b
             W["tc"] += b
+            guests_t += b * e["gpb"]
             W["gross"] += b * (e["bill_v"] + v_add) + cb * e["bill_v"] * e["u"]
             W["disc"] += b * e["disc"] * promo_k
             W["cogs"] += b * cogs_bill + cb * e["bill_v"] * e["u"] * oc + b * gift_c
@@ -399,7 +406,7 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
         spend = W["disc"] * TF / VAT + gift_t + merch_t + fixed        # đầu tư TM = giảm giá + quà + vật phẩm + chi phí
         return dict(c=c, bills=W["tc"], stock=stock, base=base, cann=cann, withp=withp, without=without,
                     total=total, incr=incr, gp_incr=gp_incr, opex=opex_incr, merch=merch_t, ebitda=ebitda,
-                    spend=spend, per=per, oc=oc, gift=gift_t)
+                    spend=spend, per=per, oc=oc, gift=gift_t, guests=guests_t, disc=W["disc"] * TF / VAT)
 
     results, fin, scheme_rows = [], [], []
     for sc in P["scenarios"]:
@@ -426,6 +433,11 @@ def evaluate(prog, schemes, items, costs, opex, daily, promo, menu, first, last)
             rev_incl=round(W["net"] * VAT), net_incr=round(R["incr"]["net"]), gp_incr=round(R["gp_incr"]),
             promo_cost=round(R["spend"]), program_cost=round(fixed_cost + R["merch"]), opex_incr=round(R["opex"]),
             gift_cost=round(R["gift"] + R["merch"]),
+            # tách để M7.2 dựng bảng chuẩn (M7_QUY_CHUAN): EBITDA = net_incr − cogs_cost − gift_total − ads − kol − posm − other − opex
+            guests=round(R["guests"]), cogs_cost=round(R["incr"]["cogs"] - R["gift"]),
+            gift_total=round(R["gift"] + R["merch"] + csplit["gift"]), gift_fixed=round(csplit["gift"]),
+            cost_ads=round(csplit["ads"]), cost_kol=round(csplit["kol"]), cost_posm=round(csplit["posm"]),
+            cost_other=round(csplit["other"]), disc_cost=round(R["disc"]),
             ebitda_incr=round(R["ebitda"]), ebitda_pct=_div(R["ebitda"], W["net"]),
             roi=_div(R["ebitda"], R["spend"]), breakeven_bills=round(be_bills) if be_bills is not None else None,
             max_cannib=round(max_c, 4), redemption_needed=_div(R["stock"], B["tc"]) if R["stock"] else None,
@@ -699,6 +711,36 @@ def load_calib():
 
 
 # ─────────────────────────── KHOÁ KẾ HOẠCH ───────────────────────────
+# cột chi tiết của bản khoá ← cột tương ứng của dòng đánh giá (pre_eval)
+LOCK_NEW = (("guests", "guests"), ("cogs", "cogs_cost"), ("gift", "gift_total"), ("gift_fixed", "gift_fixed"),
+            ("cost_ads", "cost_ads"), ("cost_kol", "cost_kol"), ("cost_posm", "cost_posm"),
+            ("cost_other", "cost_other"), ("disc", "disc_cost"))
+
+
+def _backfill_lock(lk, b):
+    """Khoá tạo trước khi có cột chi tiết: SUY các cột mới từ chính số ĐÃ KHOÁ (không lấy số nền đã trôi), chỉ mượn
+    từ bản đánh giá hiện tại phần NHẬP TAY không trôi theo nền POS (chi phí tách loại · quy mô nhóm). Hằng đẳng thức:
+        EBITDA = Lãi gộp − chi phí chương trình − Opex  (chi phí chương trình = merch scheme + chi phí cố định)
+        chi ưu đãi = giảm giá + giá vốn quà + chi phí chương trình
+    Đánh dấu backfill = 1 để M7.2 ghi chú."""
+    bills = _f(lk.get("bills"), 0)
+    net, prog_cost = _f(lk.get("net_incr"), 0), _f(lk.get("program_cost"), 0)
+    fixed = sum(_f(b.get(k), 0) for k in ("gift_fixed", "cost_ads", "cost_kol", "cost_posm", "cost_other"))
+    merch = max(0.0, prog_cost - fixed)                                   # vật phẩm theo scheme
+    gfood = max(0.0, _f(lk.get("gift_per_bill"), 0) * bills - merch)       # giá vốn món tặng (nằm trong COGS của bộ tính)
+    opex = max(0.0, net) * _f(lk.get("opex_pct"), 0)
+    gp = _f(lk.get("ebitda"), 0) + prog_cost + opex
+    fill = dict(
+        guests=round(bills * b["guests"] / b["bills"]) if b.get("bills") and b.get("guests") is not None else None,
+        cogs=round(net - gp - gfood), gift=round(gfood + merch + _f(b.get("gift_fixed"), 0)),
+        gift_fixed=b.get("gift_fixed"), cost_ads=b.get("cost_ads"), cost_kol=b.get("cost_kol"),
+        cost_posm=b.get("cost_posm"), cost_other=b.get("cost_other"),
+        disc=round(_f(lk.get("promo_cost"), 0) - prog_cost - gfood), backfill=1)
+    for k, v in fill.items():
+        if lk.get(k) is None:
+            lk[k] = v
+
+
 def lock_plans(progs, rows, today=None):
     """Chụp dự báo Cơ sở / Thận trọng của chương trình khi DA_DUYET hoặc tới ngày bắt đầu → 05_plan_lock.xlsx.
     Bộ tính M7.1 chạy lại mỗi lần cập nhật với nền POS mới nhất; sau khi chương trình chạy, nền đã chứa kỳ
@@ -722,6 +764,8 @@ def lock_plans(progs, rows, today=None):
                 n_free += 1                                       # lập lại kế hoạch trước ngày chạy
                 continue
             out[pid] = old[pid]
+            if b and old[pid].get("cogs") is None:
+                _backfill_lock(out[pid], b)
             continue
         if not (approved or started) or not b or b.get("decision") == "THIEU_SO":
             continue
@@ -736,7 +780,7 @@ def lock_plans(progs, rows, today=None):
             ebitda=b.get("ebitda_incr"), ebitda_low=t.get("ebitda_incr") if t else None, roi=b.get("roi"),
             promo_cost=b.get("promo_cost"), program_cost=b.get("program_cost"),
             gift_per_bill=_div(b.get("gift_cost") or 0, bills), other_cogs_pct=b.get("other_cogs_pct"),
-            opex_pct=b.get("opex_pct"))
+            opex_pct=b.get("opex_pct"), **{k_lock: b.get(k_row) for k_lock, k_row in LOCK_NEW})
         n_new += 1
     write_workbook(LOCK, {"pre_plan_lock": sorted(out.values(), key=lambda r: (str(r["quarter"]), r["program_id"]))},
                    title="M7.1 · KẾ HOẠCH ĐÃ KHOÁ — M7.2 so thực tế với bản này. Sinh bởi tools/preeval.py, không sửa tay.")
