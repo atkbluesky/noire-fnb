@@ -427,6 +427,7 @@ const EvalCard: React.FC<{
                 Mục tiêu · phương án: <b style={{ color: OBJ[p.objective ?? '']?.color }}>{OBJ[p.objective ?? '']?.label ?? p.objective ?? '—'}</b>
                 {p.lever && <> → {LEVER[p.lever]?.label ?? p.lever}</>}
               </p>
+              <PlanBrief p={p} />
             </div>
           </div>
         </section>
@@ -590,6 +591,52 @@ const EvalCard: React.FC<{
         )}
       </div>
     </Card>
+  );
+};
+
+/* ───────────────────────── NỘI DUNG · CƠ CHẾ · TIMELINE (cùng bố cục "Chi Tiết" của M7.2) ───────────────────────── */
+const COND_VN: Record<string, string> = {
+  NONE: 'không điều kiện', MIN_BILL: 'hoá đơn tối thiểu', BUY_ITEMS: 'mua đủ món', GROUP_SIZE: 'nhóm tối thiểu', PREBOOK: 'đặt bàn trước', MEMBER: 'thành viên',
+};
+const BEN_VN: Record<string, string> = {
+  NONE: 'không ưu đãi giá', PCT_OFF_BILL: 'giảm % hoá đơn', PCT_OFF_ITEMS: 'giảm % món', FIXED_OFF: 'giảm số tiền', FIXED_PRICE: 'đồng giá / set', GIFT_ITEM: 'tặng món', GIFT_MERCH: 'tặng vật phẩm',
+};
+const DOW_VN = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const dmyFull = (s?: string | null) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : '—');
+
+/** Nội dung · cơ chế · timeline của chương trình — cùng dữ liệu M7.2 đọc khi đã nối campaign_id */
+const PlanBrief: React.FC<{ p: PreEvalProgram }> = ({ p }) => {
+  const inp = (f: string) => p.inputs.find(i => i.field === f && i.value !== null && i.value !== '')?.value ?? null;
+  const dows = String(inp('dow') ?? '').split('|').filter(x => x !== '').map(Number).filter(n => n >= 0 && n <= 6);
+  const content = inp('content'), hypo = inp('hypothesis');
+  return (
+    <div className="rounded-lg border border-brand-border p-3 text-brand-text">
+      <div className="text-[10px] uppercase tracking-wider text-brand-muted">Nội dung chương trình</div>
+      <div className="mt-1 whitespace-pre-line">{content ?? <i className="text-status-warning">chưa nhập — cột <b>content</b> ở sổ Pre_Analysis</i>}</div>
+      <div className="mt-2.5 text-[10px] uppercase tracking-wider text-brand-muted">Cơ chế</div>
+      {p.schemes.length ? (
+        <ul className="mt-1 space-y-0.5">
+          {p.schemes.map(s => (
+            <li key={s.id}>
+              <span className="font-mono text-brand-gold">{s.id}</span> · <b>{s.name ?? '—'}</b>
+              <span className="text-brand-muted"> — {COND_VN[s.condition ?? ''] ?? s.condition ?? '—'} → {BEN_VN[s.benefit ?? ''] ?? s.benefit ?? '—'}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <div className="mt-1 text-brand-muted">—</div>}
+      <div className="mt-2.5 text-[10px] uppercase tracking-wider text-brand-muted">Timeline</div>
+      <div className="mt-1">
+        {dmyFull(p.date_from)} → {dmyFull(p.date_to)} · <b>{p.days ?? '—'} ngày chạy</b>
+        {dows.length > 0 && dows.length < 7 && <> · {dows.map(d => DOW_VN[d]).join(', ')}</>}
+        <span className="text-brand-muted"> · {p.stores.join(', ')}</span>
+      </div>
+      {hypo && (
+        <>
+          <div className="mt-2.5 text-[10px] uppercase tracking-wider text-brand-muted">Giả thuyết (viết trước khi chạy)</div>
+          <div className="mt-1">{hypo}</div>
+        </>
+      )}
+    </div>
   );
 };
 
