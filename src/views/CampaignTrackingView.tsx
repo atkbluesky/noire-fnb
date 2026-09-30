@@ -778,13 +778,33 @@ export const CampaignTrackingView: React.FC = () => {
             <div className="space-y-3 text-xs">
               <div className="rounded-lg border border-brand-border p-3">
                 <div className="text-[10px] uppercase tracking-wider text-brand-muted">Nội dung chương trình</div>
-                <div className="mt-1 whitespace-pre-line text-brand-text">
-                  {sel.content ?? <i className="text-status-warning">chưa nhập — cột <b>content</b> ở Campaign_Tracking_2026.xlsx</i>}
-                </div>
-                <div className="mt-2.5 text-[10px] uppercase tracking-wider text-brand-muted">Giả thuyết (viết trước khi chạy)</div>
-                <div className="mt-1 text-brand-text">
-                  {sel.hypothesis ?? <i className="text-status-warning">chưa nhập — cột <b>hypothesis</b> ở Campaign_Tracking_2026.xlsx</i>}
-                </div>
+                {(() => {
+                  /* cùng một nguồn với M7.1: chưa khai ở Campaign_Tracking thì lấy nội dung / giả thuyết của kế hoạch đã nối */
+                  const plan = sel.m71 ? CAMPAIGN.preeval?.programs.find(x => x.id === sel.m71!.program_id) : undefined;
+                  const pin = (f: string) => plan?.inputs.find(i => i.field === f && i.value)?.value ?? null;
+                  const content = pin('content') ?? sel.content, hypo = pin('hypothesis') ?? sel.hypothesis;   // kế hoạch (sổ Pre_Analysis) là nguồn chính
+                  return (
+                    <>
+                      <div className="mt-1 whitespace-pre-line text-brand-text">
+                        {content ?? <i className="text-status-warning">chưa nhập — cột <b>content</b> ở Campaign_Tracking_2026.xlsx</i>}
+                        {pin('content') && <span className="text-[10px] text-brand-muted"> · nguồn: kế hoạch M7.1 (số thực tế lấy từ POS)</span>}
+                      </div>
+                      <div className="mt-2.5 text-[10px] uppercase tracking-wider text-brand-muted">Giả thuyết (viết trước khi chạy)</div>
+                      <div className="mt-1 text-brand-text">
+                        {hypo ?? <i className="text-status-warning">chưa nhập — cột <b>hypothesis</b> ở Campaign_Tracking_2026.xlsx</i>}
+                        {pin('hypothesis') && <span className="text-[10px] text-brand-muted"> · nguồn: kế hoạch M7.1</span>}
+                      </div>
+                      {plan && plan.schemes.length > 0 && (
+                        <>
+                          <div className="mt-2.5 text-[10px] uppercase tracking-wider text-brand-muted">Cơ chế theo kế hoạch M7.1</div>
+                          <ul className="mt-1 space-y-0.5 text-brand-text">
+                            {plan.schemes.map(x => <li key={x.id}><span className="font-mono text-brand-gold">{x.id}</span> · {x.name ?? '—'}</li>)}
+                          </ul>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">
