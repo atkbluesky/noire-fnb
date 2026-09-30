@@ -3295,12 +3295,12 @@
       {
         "code": "III",
         "label": "III · Chi phí",
-        "note": "Target = ngân sách kế hoạch · % = dùng ÷ ngân sách (≤ 100% là tốt)."
+        "note": "Quà tặng + chi phí khai tay. Target = ngân sách kế hoạch · % = dùng ÷ ngân sách (≤ 100% là tốt)."
       },
       {
         "code": "IV",
         "label": "IV · Kết quả",
-        "note": "EBITDA tăng thêm = Lãi gộp − Quà tặng − Chi phí CT − Opex. Giảm giá KHÔNG trừ lần hai."
+        "note": "EBITDA = Lãi gộp − Quà tặng − Chi phí CT − Opex. Giảm giá KHÔNG trừ lần hai."
       }
     ],
     "rows": [
@@ -3311,7 +3311,6 @@
         "short": "DT CTKM",
         "unit": "money",
         "dir": "up",
-        "nen": true,
         "formula": "Σ Tổng tiền cả hoá đơn có CT (sau giảm giá, gồm phí + VAT; Phiếu GG là cách thanh toán, đã nằm trong Tổng tiền)"
       },
       {
@@ -3321,7 +3320,6 @@
         "short": "TC",
         "unit": "count",
         "dir": "up",
-        "nen": true,
         "formula": "Số hoá đơn gắn CT"
       },
       {
@@ -3331,7 +3329,6 @@
         "short": "Guest",
         "unit": "count",
         "dir": "up",
-        "nen": true,
         "formula": "Σ Số khách của hoá đơn gắn CT"
       },
       {
@@ -3369,7 +3366,8 @@
         "short": "DT thuần",
         "unit": "money",
         "dir": "up",
-        "formula": "Tăng thêm ÷ 1,08"
+        "formula": "Tăng thêm ÷ 1,08 — không hiển thị, trùng Tăng thêm",
+        "hide": true
       },
       {
         "code": "cogs",
@@ -3392,7 +3390,7 @@
       },
       {
         "code": "gift",
-        "group": "II",
+        "group": "III",
         "label": "Quà tặng",
         "short": "Quà",
         "unit": "money",
@@ -3457,7 +3455,7 @@
       {
         "code": "opex",
         "group": "IV",
-        "label": "Opex biến đổi",
+        "label": "Opex biến đổi (tỷ lệ)",
         "short": "Opex",
         "unit": "money",
         "dir": "down",
@@ -3564,6 +3562,7 @@
         "old": "Vật phẩm (đứng riêng)",
         "use": "Quà tặng"
       }
-    ]
+    ],
+    "pct_rule": "% đạt chỉ hiện cho số ĐO được. Dòng có ≈ (ước tính theo kế hoạch) không hiện % vì chỉ lặp lại DT thực ÷ DT target."
   }
 }

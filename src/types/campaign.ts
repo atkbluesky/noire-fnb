@@ -41,7 +41,7 @@ export interface UnifiedTable {
 }
 export interface MetricRow {
   code: string; group: string; label: string; short: string; unit: 'money' | 'count' | 'pct' | 'x';
-  dir: 'up' | 'down' | 'memo' | 'neutral'; formula: string; nen?: boolean; bold?: boolean; diff?: boolean; nopct?: boolean;
+  dir: 'up' | 'down' | 'memo' | 'neutral'; formula: string; hide?: boolean; bold?: boolean; diff?: boolean; nopct?: boolean;
 }
 export interface MetricsSpec {
   empty: { na: string; undeclared: string; estimate: string };

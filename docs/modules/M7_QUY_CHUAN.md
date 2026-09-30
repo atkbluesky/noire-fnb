@@ -131,6 +131,10 @@ của giảm giá là chi phí của NOIRE.
 
 ## 4. Bảng gộp M7.2 — khung chuẩn
 
+> **Rút gọn 30/09/2026:** bỏ cột *Nền* (chỉ là Target × %cannib, không có đối ứng ở Thực tế) và dòng *DT thuần tăng thêm* (= Tăng thêm ÷ 1,08, vẫn tính nhưng ẩn `hide`);
+> *Quà tặng* chuyển sang khối Chi phí; dòng chi phí trống ẩn đi; **% đạt chỉ hiện cho số ĐO** (dòng `≈` không hiện vì chỉ lặp lại DT thực ÷ DT target);
+> chân bảng còn 2 dòng, cờ chi tiết nằm trong "Ghi chú". Bảng đặt ngay dưới ô vàng cảnh báo ở "Chi tiết" M7.2. Phần dưới là khung gốc (khối II gồm cả Quà tặng — đã chuyển).
+
 Cột: **Chỉ số · Nền · Target · Thực tế · % đạt**. Thay hai khối "Chấm theo kế hoạch" và "Kiểm chứng cấp cửa hàng".
 
 | Khối | Dòng |
