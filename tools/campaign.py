@@ -717,8 +717,13 @@ def store_gate(res, c, daily):
                               f"{store_net:,.0f}".replace(",", "."))))
 
 
-def plan_rows(plan, camps, results):
+def plan_rows(plan, camps, results, camp_month):
     res = {r["campaign_id"]: r for r in results}
+    # số POS RIÊNG của từng tên — dòng nhóm (plan_group) đã nhận TỔNG nhóm ở promo_net, cộng lại sẽ nhân N lần
+    own = defaultdict(lambda: [0.0, 0.0])
+    for x in camp_month:
+        own[x["campaign_id"]][0] += to_num(x.get("net"), 0) or 0
+        own[x["campaign_id"]][1] += to_num(x.get("bills"), 0) or 0
     link = {}
     for c in camps:
         if c.get("pre_id") and (c["pre_id"] not in link or (res.get(c["campaign_id"]) or {}).get("plan_primary") == 1):
@@ -730,8 +735,8 @@ def plan_rows(plan, camps, results):
         r = res.get(cid) or {}
         row = {k: p.get(k) for k in keys}
         grp = [x for x in results if x.get("plan_group") == p["pre_id"]] or ([r] if r else [])
-        row["act_promo_net"] = sum(to_num(x.get("promo_net"), 0) or 0 for x in grp) if grp else None
-        row["act_promo_bills"] = sum(to_num(x.get("promo_bills"), 0) or 0 for x in grp) if grp else None
+        row["act_promo_net"] = round(sum(own[x["campaign_id"]][0] for x in grp)) if grp else None
+        row["act_promo_bills"] = round(sum(own[x["campaign_id"]][1] for x in grp)) if grp else None
         row.update(campaign_id=cid, label=r.get("label"), period_from=r.get("period_from"),
                    period_to=r.get("period_to"), act_net=r.get("act_sales"), act_tc=r.get("promo_bills"),
                    incr_net=r.get("incr_net"), cost_total=r.get("cost_total"),
@@ -926,11 +931,19 @@ def main():
         controls[r["campaign_id"]].append(r["control_store"])
     log(f"  nguồn: {os.path.basename(path)}{'  (DỮ LIỆU MẪU)' if demo else ''} · {len(camps)} chương trình")
 
+    # Bản chất: MỘT nguồn với M7 — luật $promo_nature (classify_nature) chấm theo tên CTKM trên POS. Ô khai tay ở
+    # dim_campaign chỉ dùng khi chưa có tên POS (kế hoạch chưa chạy); khai lệch luật thì luật thắng và báo lại,
+    # không thì cùng một hoá đơn là "Thương mại" ở M7 nhưng "Đối tác" ở M7.2.
+    nat_issues = []
     for c in camps:
-        if not c.get("nature"):
-            c["nature"] = classify_nature(str(c.get("name_pos") or "").split("|")[0].replace("*", ""))
+        auto = classify_nature(str(c.get("name_pos") or "").split("|")[0].replace("*", ""))
+        if auto and c.get("nature") and str(c["nature"]).upper() != auto:
+            nat_issues.append((c["campaign_id"], "nature", "CẢNH BÁO",
+                               f"bản chất khai tay {c['nature']} ≠ luật M7 {auto} theo tên POS — dùng {auto} (sửa ô nature ở Campaign_Tracking cho khớp)"))
+        if auto or not c.get("nature"):
+            c["nature"] = auto
     plan, plan_date = load_plan()
-    plan_issues = apply_plan(camps, targets, costs, plan, plan_date)
+    plan_issues = nat_issues + apply_plan(camps, targets, costs, plan, plan_date)
     plan_by = {p["pre_id"]: p for p in plan}
     m71 = load_m71()                                   # kế hoạch M7.1 đã khoá, nối qua campaign_id
     plan_issues += apply_m71(camps, targets, m71, plan_by)
@@ -1013,8 +1026,16 @@ def main():
     opex_map = opex_by_brand()
     lock_of = {}
     for cid, x in m71.items():
-        if x["lock"]:
-            lock_of[cid] = promo_eval.m71_lock(x["lock"])
+        if not x["lock"]:
+            continue
+        pid = (camp_by.get(cid) or {}).get("pre_id")
+        if x["lock"].get("lock_reason") == "KHOA_MUON" and pid in plan_by:
+            # M7.1 khoá SAU ngày chạy, trong khi kế hoạch Q3 đã nộp TRƯỚC → target hợp lệ là bản Q3 (M7_QUY_CHUAN §5:
+            # target nộp sau ngày chạy không được dùng để chấm). Bản M7.1 vẫn hiện cạnh ở pre_calib (chỉ tham khảo).
+            issues.append((cid, "plan_lock", "CẢNH BÁO",
+                           f"M7.1 {x['program_id']} khoá muộn — M7.2 chấm theo kế hoạch Q3 {pid} (nộp trước ngày chạy)"))
+            continue
+        lock_of[cid] = promo_eval.m71_lock(x["lock"])
     for c in camps:
         pid = c.get("pre_id")
         if pid in plan_by and c["campaign_id"] not in lock_of:                 # M7.1 thắng; Q3 chỉ khi chưa có bản khoá
@@ -1121,7 +1142,7 @@ def main():
         "campaign_cost": [x for v in costs.values() for x in v],
         "campaign_control": [dict(campaign_id=k, control_store=s) for k, v in controls.items() for s in v],
         "campaign_item": [x for v in item_map.values() for x in v],
-        "pre_plan": plan_rows(plan, camps, results),
+        "pre_plan": plan_rows(plan, camps, results, camp_month),
         "pre_calib": calib,
     }, title="M7.2 · PROMOTION TRACKING — sinh tự động bởi tools/campaign.py")
     cnt = defaultdict(int)
