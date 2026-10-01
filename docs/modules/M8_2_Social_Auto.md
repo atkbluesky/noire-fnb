@@ -42,7 +42,7 @@
 **Quy trình bắt buộc trước mỗi commit:**
 
 ```bash
-node --check api/social/tick.ts 2>/dev/null || npx tsc --noEmit
+node --check api/social/_tickRoute.ts 2>/dev/null || npx tsc --noEmit
 npm run build
 ```
 
@@ -150,15 +150,16 @@ Số dòng gồm cả khối chú thích tiếng Việt, vốn là phong cách s
 | File | Trách nhiệm DUY NHẤT | Thực tế | Trần | **Cấm** |
 |---|---|:-:|:-:|---|
 | `api/social/_shared.ts` | env · kiểu dữ liệu · ký SigV4 cho R2 · tải có trần · masking | 251 | 290 | Cấm gọi Graph/Zalo API trực tiếp |
-| `api/social/webhook-fb.ts` | Verify chữ ký · dedupe · `insert … on conflict do nothing` | 148 | 170 | Cấm gọi API ngoài, cấm xử lý nặng. Webhook phải trả 200 trong <1s |
-| `api/social/tick.ts` | Nhặt job `for update skip locked` · lease · attempt/backoff · `social_run` | **129** | 200 | **Cấm nhét logic nghiệp vụ.** Nó là bộ điều phối |
+| `api/social/[route].ts` | **Function DUY NHẤT** của cụm Social trên Vercel — đọc đoạn sau `/api/social/` rồi gọi đúng handler `_…Route.ts`. Gói Hobby trần 12 functions | — | 80 | Cấm logic nghiệp vụ. Thêm endpoint = thêm `case`, KHÔNG thêm file không có `_` |
+| `api/social/_webhookFbRoute.ts` | Verify chữ ký · dedupe · `insert … on conflict do nothing` | 148 | 170 | Cấm gọi API ngoài, cấm xử lý nặng. Webhook phải trả 200 trong <1s |
+| `api/social/_tickRoute.ts` | Nhặt job `for update skip locked` · lease · attempt/backoff · `social_run` | **129** | 200 | **Cấm nhét logic nghiệp vụ.** Nó là bộ điều phối |
 | `api/social/_steps.ts` | 9 hàm `step*` — mỗi hàm đẩy 1 bài đi đúng 1 bước | 321 | 370 | Cấm biết về hàng đợi, lease, attempt, audit |
 | `api/social/_media.ts` | Tải media · chọn rendition ≤1MB · ffmpeg ≤50MB · đẩy R2 | 297 | 340 | Cấm ghi DB. Nhận id, trả mô tả asset |
 | `api/social/_transform.ts` | Prompt · gọi Claude · validate · retry | 256 | 300 | Cấm gọi Zalo. Nhận bài thô, trả draft |
 | `api/social/_zalo-article.ts` | 6 lệnh Zalo, từ `preparevideo` tới `oa/message` | 245 | 280 | Cấm tự quyết `show`/`hide`. Nhận tham số, không nghĩ hộ |
-| `api/social/review.ts` | `approve`·`reject`·`edit`·`broadcast`·`retry` | 154 | 180 | **Cấm đăng trực tiếp** — chỉ đổi state |
-| `api/social/performance.ts` | Đọc số cho dashboard | 113 | 160 | Cấm ghi |
-| `api/social/reconcile.ts` | Quét bài sót 7 ngày + refresh engagement | 96 | 120 | Cấm đăng. Chỉ đẩy vào `INGESTED` |
+| `api/social/_reviewRoute.ts` | `approve`·`reject`·`edit`·`broadcast`·`retry` | 154 | 180 | **Cấm đăng trực tiếp** — chỉ đổi state |
+| `api/social/_performanceRoute.ts` | Đọc số cho dashboard | 113 | 160 | Cấm ghi |
+| `api/social/_reconcileRoute.ts` | Quét bài sót 7 ngày + refresh engagement | 96 | 120 | Cấm đăng. Chỉ đẩy vào `INGESTED` |
 | `src/views/SocialAutoView.tsx` | Hàng chờ duyệt · phễu · quota | — | 400 | Cấm gọi Graph/Zalo trực tiếp từ browser |
 
 **Luật một chiều phụ thuộc** — vẽ thành mũi tên, không được có vòng:

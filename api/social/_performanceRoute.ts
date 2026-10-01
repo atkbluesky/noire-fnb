@@ -33,7 +33,7 @@ export async function handleSocialPerformance(req: Request, env: SocialEnv = pro
 
   try {
     if (!await requireSocialSession(req, env)) return json(401, { ok: false, error: 'Cần đăng nhập M6.2' });
-    const wantQueue = new URL(req.url).searchParams.get('queue') === '1';
+    const wantQueue = new URL(req.url, 'http://localhost').searchParams.get('queue') === '1';
     const sql = getSql(env);
     const oaId = env.ZALO_OA_ID?.trim() ?? '';
     const month = ictMonth();

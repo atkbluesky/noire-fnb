@@ -34,7 +34,7 @@ interface FeedChange {
 
 /** FB gọi GET một lần lúc đăng ký webhook để đối chiếu verify token. */
 function handleVerify(req: Request, env: SocialEnv): Response {
-  const url = new URL(req.url);
+  const url = new URL(req.url, 'http://localhost');
   const mode = url.searchParams.get('hub.mode');
   const token = url.searchParams.get('hub.verify_token');
   const challenge = url.searchParams.get('hub.challenge') ?? '';
