@@ -128,47 +128,14 @@ Cả hai **không phải chốt gác cổng** — sai thì vẫn build, hiện �
 
 ---
 
-## 6. ❗ Meta đã gỡ vĩnh viễn phần lớn Page Insights API
+## 6. Meta Page Insights API: metric mới và giới hạn
 
-*Kiểm chứng 2026-09-08 bằng Page Access Token thật, dò từng metric trên v18.0 → v26.0.*
+Probe ngày 08/09/2026 cho thấy nhiều metric cũ không trả dữ liệu trên token thử.
+Theo [thông báo v25 của Meta](https://developers.facebook.com/blog/post/2026/02/18/introducing-graph-api-v25-and-marketing-api-v25/), nhóm Reach/Impressions cũ bị ngừng trên mọi phiên bản trong 06/2026. Meta khuyên dùng `page_media_view`, `page_total_media_view_unique` và bản cấp bài viết tương ứng. **Media Views/Viewers khác định nghĩa Reach CSV lịch sử**; không ghi đè cột `reach` hoặc nối hai chuỗi trên cùng biểu đồ mà không đánh dấu điểm đổi định nghĩa.
 
-Nếu sau này muốn thay bản xuất tay bằng tự động hoá qua Graph API, phải biết trước:
-Meta **xoá hẳn** các metric dưới đây trên **mọi** phiên bản, không phải deprecate
-theo version — nên **không thể hạ version để lấy lại**, và không có metric thay thế.
+Theo [Page Insights reference](https://developers.facebook.com/docs/graph-api/reference/page/insights/), cần Page token của người có task `ANALYZE` cùng `read_insights` và `pages_read_engagement`. Chạy probe từng metric với từng Page: một metric không hợp lệ có thể làm hỏng cả batch; `data: []` cũng không chứng minh giá trị bằng 0. Trường `contacts`/`msgs`, reach CSV lịch sử và TikTok vẫn cần nguồn riêng.
 
-**ĐÃ CHẾT:** `page_impressions*` (mọi biến thể) · `page_posts_impressions` ·
-`page_engaged_users` · `page_consumptions*` · `page_negative_feedback*` ·
-`page_fans` · `page_fan_adds` · `page_fan_removes` · `page_content_activity*` ·
-`page_places_checkin_total` · `page_cta_clicks_logged_in_total` ·
-**toàn bộ nhân khẩu học** (`page_fans_gender_age`, `page_fans_city`, `page_fans_country`,
-`page_fans_locale`, `page_fans_online_per_day`) · cấp bài viết `post_impressions*` ·
-`post_engaged_users` · `post_negative_feedback`.
-
-**CÒN SỐNG (v26.0):** `page_follows` · `page_daily_follows` ·
-`page_daily_follows_unique` · `page_daily_unfollows_unique` · `page_post_engagements` ·
-`page_total_actions` · `page_views_total` · `page_posts_impressions_organic` ·
-`page_video_views*` · `page_actions_post_reactions_*` · cấp bài viết
-`post_reactions_by_type_total` · `post_clicks` · `post_clicks_by_type` ·
-`post_activity_by_action_type` · `post_video_*`.
-
-**Hai cạm bẫy khi gọi API:**
-
-1. Graph API làm hỏng **TOÀN BỘ** request nếu chỉ **một** tên metric trong
-   `metric=a,b,c` không hợp lệ (`(#100)`). Để sót một tên chết là mất trắng cả lô —
-   phải dò lẻ khi gặp lỗi này.
-2. Tên metric hợp lệ nhưng token thiếu `read_insights` → Meta trả **HTTP 200 với
-   `data: []`**, không báo lỗi. Nhìn y hệt “Fanpage không có hoạt động”.
-   Phải dùng `/debug_token` đọc `scopes` mới phân biệt được.
-
-Quyền `read_insights` đã bị **ẩn** khỏi Graph API Explorer và App Dashboard nhưng
-**chưa bị xoá** — dialog OAuth vẫn chấp nhận. Nghĩa là token dán tay từ Explorer sẽ
-không bao giờ có quyền này; đường lấy đúng là **luồng OAuth**, và tài khoản phải có
-nhiệm vụ **Analyze** trên Fanpage.
-
-> Hệ quả cho thiết kế: cột `reach`, `impr`, và mọi thứ liên quan nhân khẩu học
-> **chỉ có được từ bản xuất tay của Meta Business Suite**. Đừng thiết kế pipeline
-> tự động quanh chúng. Cột `followers`, `follows`, `unfollows`, `views`, `engage`
-> thì tự động hoá được.
+Xem [khảo sát API, audit UI và thiết kế DB](M6_META_API_FEASIBILITY.md) để triển khai và đối chiếu từng trường trước khi đưa lên Vercel.
 
 ---
 

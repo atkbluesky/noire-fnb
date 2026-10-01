@@ -419,32 +419,32 @@ export const CapacityView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-4 sm:space-y-5 p-3 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
           BÁN LÚC NÀO, Ở ĐÂU, QUA KÊNH NÀO
         </span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
           M3 · Công Suất &amp; Kênh Bán
         </h2>
-        <p className="text-xs text-brand-muted mt-1">
+        <p className="text-xs text-brand-muted mt-1 leading-relaxed">
           F&amp;B bán công suất theo thời gian — chỗ ngồi trống lúc 15h không thể bán lại vào lúc 19h.
         </p>
-        <p className="text-[11px] text-brand-faint mt-1">
+        <p className="text-[11px] text-brand-faint mt-1 leading-relaxed">
           Đang xem <b className="text-brand-muted">{scopeLabel}</b>. Khung giờ · kênh · ma trận giờ · thanh toán
           lọc theo kỳ và brand; nhân viên · khu vực · thời gian ngồi bàn là luỹ kế toàn kỳ, lọc theo cửa hàng.
         </p>
       </div>
 
       {/* Dwell time note */}
-      <div className="rounded-xl border border-brand-border bg-brand-surface p-4 text-xs text-brand-muted">
+      <div className="rounded-xl border border-brand-border bg-brand-surface p-3.5 sm:p-4 text-xs text-brand-muted leading-relaxed">
         <b>Thời gian ngồi bàn (Dwell Time):</b> Trung bình <b>{HUB_DATA.dwell?.mean} phút</b> (trung vị{' '}
         {HUB_DATA.dwell?.median} phút) tính trên {formatNumber(HUB_DATA.dwell?.n)} hoá đơn có đủ giờ vào / giờ ra.
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-4">
         <MetricCard
           label="Khung Giờ Mạnh Nhất"
           subLabel="Theo Net Sales"

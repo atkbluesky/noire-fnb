@@ -1,5 +1,5 @@
 /**
- * M8.2 · Lấy media từ Facebook, ép về đúng trần Zalo, đẩy lên R2.
+ * M6.2 · Lấy media từ Facebook, ép về đúng trần Zalo, đẩy lên R2.
  *
  * Trách nhiệm DUY NHẤT (M8_2 §1d): tải · chuẩn hoá · đẩy R2. **CẤM ghi database** —
  * hàm ở đây nhận id, trả mô tả asset; `tick.ts` mới là chỗ ghi `social_asset`.

@@ -40,7 +40,8 @@ function loadEnv() {
 const ENV = loadEnv();
 const API = (ENV.IPOS_API_URL || 'https://booking.ipos.vn/api').replace(/\/+$/, '');
 const APP_KEY = (ENV.IPOS_APP_KEY || '').trim();
-const TOKEN = (ENV.IPOS_PARTNER_ACCESS_TOKEN || '').trim();
+// Khoá ứng dụng dùng luôn được làm partner access token (đo 26/09/2026) — khớp partnerToken() ở api/ipos/_shared.ts.
+const TOKEN = (ENV.IPOS_PARTNER_ACCESS_TOKEN || '').trim() || APP_KEY;
 
 // ─── thời gian ──────────────────────────────────────────────────────────────
 // iPOS: mọi mốc là unix giây. `meal_day` = 00:00 UTC của NGÀY PHỤC VỤ theo giờ địa phương;

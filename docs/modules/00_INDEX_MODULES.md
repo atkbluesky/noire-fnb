@@ -1,6 +1,6 @@
 # DANH SÁCH MODULE — 17 TAB
 
-> M5.1 · M8.1 · M8.2 · M10.1 là **module con dùng chung tab với module mẹ** — không phải tab thứ 18.
+> M5.1 · M6.2 · M8.1 · M10.1 là **module con dùng chung tab với module mẹ** — không phải tab thứ 18.
 
 Mỗi file mô tả một tab theo cùng một cấu trúc:
 **chuỗi trace (nguồn → tầng → khoá) · màn hình hiển thị gì · chỉ số & công thức · bộ lọc ·
@@ -18,12 +18,12 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | M5 | [`M5_Digital_Ads.md`](M5_Digital_Ads.md) | Digital Ads (Meta + Google) | P7 | ⚠️ thiếu Zalo |
 | └ M5.1 | [`M5_1_Ads_Auto.md`](M5_1_Ads_Auto.md) | Ads Auto — Meta API + Google Ads API *(tự động lấy số)* | P7.1 | 🟢 Meta chạy thật · 8 tháng khớp Excel 0,000% · Google chờ developer token |
 | M6 | [`M6_Social_Media.md`](M6_Social_Media.md) | Social Media (Fanpage + TikTok) | P7.5 | 🟡 chờ `social_month` |
+| └ M6.2 | [`M6_2_Social_Auto.md`](M6_2_Social_Auto.md) | Social Auto — Fanpage → Zalo OA *(ghi lên OA)* | P6.3 | 🟡 có giao diện + API + DB · chờ cấu hình dịch vụ |
 | **M7** | [`M7_Promotion.md`](M7_Promotion.md) | **Promotion** — mục mẹ · tổng quan 5 bản chất chi phí ưu đãi | P4 | ✅ |
 | └ M7.1 | [`M7_1_Pre_Analytics.md`](M7_1_Pre_Analytics.md) | Pre-Analytics · Plan — kế hoạch Pre-Analysis + thực tế | P5.5 | ✅ nối 5/25 CT với POS |
 | └ M7.2 | [`M7_2_Promotion_Tracking.md`](M7_2_Promotion_Tracking.md) | Promotion Tracking — chấm từng chương trình | P5.5 | 🟡 chờ team brand điền ô CAM |
 | M8 | [`M8_CRM.md`](M8_CRM.md) | CRM · Voucher | P6 | ⚠️ nhận diện 8,6% |
 | └ M8.1 | [`M8_1_Zalo_OA.md`](M8_1_Zalo_OA.md) | Zalo OA Performance *(đọc OA)* | P6.1 | 🟢 gộp export + API (API sống từ 27/09/2026) |
-| └ M8.2 | [`M8_2_Social_Auto.md`](M8_2_Social_Auto.md) | Social Auto — Fanpage → Zalo OA *(ghi lên OA)* | P6.3 | 🔵 thiết kế xong · chờ `npm run probe:fb` |
 | M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership — Aggregator + Partner | P7 | ✅ đo trên hoá đơn POS · chung số với M7 |
 | M10 | [`M10_Booking.md`](M10_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
 | └ M10.1 | [`M10_1_Dat_Ban.md`](M10_1_Dat_Ban.md) | Đặt bàn — phễu từ iPOS Booking | P6.2 | 🟡 chưa nối · thiếu Webhook URL + access token |

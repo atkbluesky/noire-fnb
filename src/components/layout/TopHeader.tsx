@@ -100,12 +100,13 @@ export const TopHeader: React.FC = () => {
         {/* Quick Search */}
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="flex items-center gap-2 rounded-lg border border-brand-border bg-brand-dark/40 px-3 py-1.5 text-xs text-brand-muted hover:border-brand-gold hover:text-brand-text transition-colors"
+          className="flex h-8 items-center gap-2 rounded-lg border border-brand-border bg-brand-dark/40 px-2 sm:px-3 text-xs text-brand-muted hover:border-brand-gold hover:text-brand-text transition-colors"
           title="Tìm kiếm nhanh (⌘K)"
+          aria-label="Tìm kiếm nhanh"
         >
-          <Search className="h-3.5 w-3.5" />
+          <Search className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="hidden sm:inline">Tìm kiếm</span>
-          <kbd className="hidden sm:inline-block rounded bg-brand-surface px-1.5 py-0.5 text-[9px] font-mono text-brand-faint border border-brand-border">
+          <kbd className="hidden md:inline-block rounded bg-brand-surface px-1.5 py-0.5 text-[9px] font-mono text-brand-faint border border-brand-border">
             ⌘K
           </kbd>
         </button>
@@ -117,13 +118,13 @@ export const TopHeader: React.FC = () => {
             onClick={() => setIsReportOpen(prev => !prev)}
             aria-expanded={isReportOpen}
             aria-haspopup="true"
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${isReportOpen
+            className={`flex h-8 items-center gap-1.5 rounded-lg border px-2 sm:px-3 text-xs font-semibold transition-all duration-150 ${isReportOpen
                 ? 'border-brand-gold bg-brand-dark/70 text-brand-gold shadow-glow-sm'
                 : 'border-brand-border bg-brand-dark/40 text-brand-muted hover:border-brand-gold hover:text-brand-gold'
               }`}
             title="Menu Báo Cáo (Google Drive)"
           >
-            <FileText className="h-3.5 w-3.5" />
+            <FileText className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="hidden sm:inline">Báo Cáo</span>
             <ChevronDown
               className={`h-3 w-3 text-brand-muted transition-transform duration-200 ${isReportOpen ? 'rotate-180 text-brand-gold' : ''
@@ -160,14 +161,14 @@ export const TopHeader: React.FC = () => {
           )}
         </div>
 
-        {/* Print / Report */}
+        {/* Print / Report — ẩn trên mobile để ưu tiên diện tích tiêu đề */}
         <button
           onClick={handlePrint}
-          className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/40 px-3 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors"
+          className="hidden sm:flex h-8 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/40 px-3 text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors"
           title="In báo cáo / Lưu PDF"
         >
           <Printer className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">In Báo Cáo</span>
+          <span>In Báo Cáo</span>
         </button>
 
         {/* Update date timestamp */}

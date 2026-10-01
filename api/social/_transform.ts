@@ -1,7 +1,7 @@
 /**
- * M8.2 · Chuyển nội dung Fanpage sang văn phong Zalo OA bằng Claude.
+ * M6.2 · Chuyển nội dung Fanpage sang văn phong Zalo OA bằng Gemini hoặc Claude.
  *
- * Trách nhiệm DUY NHẤT (M8_2 §1d): prompt · gọi Claude · validate · retry.
+ * Trách nhiệm DUY NHẤT (M8_2 §1d): prompt · gọi model · validate · retry.
  * CẤM gọi Zalo API, CẤM ghi database, CẤM import `_media.ts`/`_zalo-article.ts`.
  *
  * ── Hai quyết định quan trọng ──────────────────────────────────────────────
@@ -18,6 +18,7 @@ import {
 
 export const PROMPT_VERSION = 'm82-2026-09-27';
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 const MAX_ROUNDS = 3;                    // 1 lần đầu + 2 lần sửa lỗi
 
 export interface TransformInput {
@@ -214,15 +215,66 @@ async function callClaude(
   return { toolInput: call.input, assistantContent: content };
 }
 
+/* Gemini dùng JSON Schema của bản nháp cũ, vẫn qua validate() và retry như Claude. */
+async function callGemini(
+  contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>,
+  model: string, env: SocialEnv,
+): Promise<{ toolInput: Record<string, unknown>; assistantText: string }> {
+  const key = env.GEMINI_API_KEY?.trim();
+  if (!key) throw new Error('GEMINI_API_KEY_NOT_CONFIGURED');
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents,
+        generationConfig: {
+          responseFormat: { text: { mimeType: 'application/json', schema: TOOL.input_schema } },
+        },
+      }),
+      signal: AbortSignal.timeout(60_000),
+    },
+  );
+  const body = await res.json().catch(() => ({})) as Record<string, any>;
+  if (!res.ok) {
+    throw new Error(`GEMINI_FAILED:${res.status}:${String(body?.error?.message ?? '').slice(0, 160)}`);
+  }
+  const assistantText = (body.candidates?.[0]?.content?.parts ?? [])
+    .map((part: { text?: string }) => part.text ?? '').join('');
+  if (!assistantText) throw new Error(`GEMINI_NO_CONTENT:${String(body.candidates?.[0]?.finishReason ?? body.promptFeedback?.blockReason ?? '').slice(0, 80)}`);
+  let toolInput: unknown;
+  try { toolInput = JSON.parse(assistantText); }
+  catch { throw new Error('GEMINI_INVALID_JSON'); }
+  if (!toolInput || typeof toolInput !== 'object' || Array.isArray(toolInput)) {
+    throw new Error('GEMINI_INVALID_JSON');
+  }
+  return { toolInput: toolInput as Record<string, unknown>, assistantText };
+}
+
 export async function transform(input: TransformInput, env: SocialEnv): Promise<TransformResult> {
-  const model = env.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL;
+  const useGemini = Boolean(env.GEMINI_API_KEY?.trim());
+  if (!useGemini && !env.ANTHROPIC_API_KEY?.trim()) {
+    throw new Error('GEMINI_API_KEY_NOT_CONFIGURED');
+  }
+  const model = useGemini
+    ? env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
+    : env.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL;
   const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
     { role: 'user', content: buildUserMessage(input) },
+  ];
+  const geminiContents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [
+    { role: 'user', parts: [{ text: buildUserMessage(input) }] },
   ];
 
   let lastErrors: string[] = [];
   for (let round = 1; round <= MAX_ROUNDS; round += 1) {
-    const { toolInput, assistantContent } = await callClaude(messages, model, env);
+    const response = useGemini
+      ? await callGemini(geminiContents, model, env)
+      : await callClaude(messages, model, env);
+    const { toolInput } = response;
     const { errors, draft } = validate(toolInput, input.imageUrls.length);
 
     if (draft) {
@@ -234,14 +286,17 @@ export async function transform(input: TransformInput, env: SocialEnv): Promise<
 
     lastErrors = errors;
     if (round === MAX_ROUNDS) break;
-    messages.push({ role: 'assistant', content: assistantContent });
-    messages.push({
-      role: 'user',
-      content: `Bản vừa rồi chưa hợp lệ. Sửa đúng các lỗi sau rồi gọi lại ${TOOL.name}:\n`
-        + errors.map(e => `- ${e}`).join('\n'),
-    });
+    const feedback = `Bản vừa rồi chưa hợp lệ. Sửa đúng các lỗi sau rồi trả lại JSON theo schema:\n`
+      + errors.map(e => `- ${e}`).join('\n');
+    if (useGemini) {
+      geminiContents.push({ role: 'model', parts: [{ text: (response as { assistantText: string }).assistantText }] });
+      geminiContents.push({ role: 'user', parts: [{ text: feedback }] });
+    } else {
+      messages.push({ role: 'assistant', content: (response as { assistantContent: unknown }).assistantContent });
+      messages.push({ role: 'user', content: `${feedback}\nGọi lại ${TOOL.name}.` });
+    }
   }
-  throw new Error(`CLAUDE_VALIDATION_FAILED:${lastErrors.join(' | ').slice(0, 300)}`);
+  throw new Error(`${useGemini ? 'GEMINI' : 'CLAUDE'}_VALIDATION_FAILED:${lastErrors.join(' | ').slice(0, 300)}`);
 }
 
 /**

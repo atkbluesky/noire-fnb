@@ -45,7 +45,7 @@ export const CommandPalette: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-brand-dark/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-24 bg-brand-dark/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150">
       <div className="w-full max-w-xl rounded-xl border border-brand-border bg-brand-surface shadow-2xl overflow-hidden">
         {/* Search Input */}
         <div className="relative flex items-center border-b border-brand-border px-4 py-3">

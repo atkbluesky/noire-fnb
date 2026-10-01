@@ -1,8 +1,8 @@
 /**
- * M8.2 · Social Auto — hạ tầng dùng chung.
+ * M6.2 · Social Auto — hạ tầng dùng chung.
  *
  * Trách nhiệm DUY NHẤT (M8_2 §1d): env · kiểu dữ liệu · helper R2 · helper Graph · masking.
- * CẤM gọi nghiệp vụ Zalo Article hay Claude ở đây — hai việc đó nằm ở `_zalo-article.ts`
+ * CẤM gọi nghiệp vụ Zalo Article hay AI ở đây — hai việc đó nằm ở `_zalo-article.ts`
  * và `_transform.ts`.
  *
  * Luật M8_2 §0.2: file này IMPORT `api/zalo/_shared.ts`, không sao chép lại logic token.
@@ -29,6 +29,9 @@ export interface SocialEnv extends NodeJS.ProcessEnv {
   FB_PAGE_ID?: string;
   FB_PAGE_TOKEN?: string;
   FB_WEBHOOK_VERIFY_TOKEN?: string;
+  // Gemini là mặc định khi có key; Claude giữ làm đường tương thích cũ.
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
   // Claude
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_MODEL?: string;
@@ -40,8 +43,9 @@ export interface SocialEnv extends NodeJS.ProcessEnv {
   R2_PUBLIC_BASE?: string;
   // Công tắc an toàn — Luật M8_2 §0.7
   SOCIAL_AUTOPUBLISH?: string;
-  /** Bảo vệ mọi endpoint GHI của M8.2. Chưa đặt = khoá, không phải mở. */
+  /** Key cũ giữ để tương thích cấu hình; không còn cấp quyền API. */
   SOCIAL_REVIEW_SECRET?: string;
+  SOCIAL_ADMIN_PASSWORD_HASH?: string;
   /** Hạn mức broadcast/tháng theo gói OA. Cơ bản ~1, Nâng cao ~4. */
   SOCIAL_BROADCAST_QUOTA?: string;
   FFMPEG_PATH?: string;

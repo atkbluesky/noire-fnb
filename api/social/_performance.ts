@@ -1,16 +1,16 @@
 /**
- * M8.2 · Số liệu cho dashboard.
+ * M6.2 · Số liệu cho dashboard.
  *
  * Trách nhiệm DUY NHẤT (M8_2 §1d): ĐỌC. Không ghi, không gọi API ngoài.
  *
- * `GET /api/social/performance`          → phễu + quota + lỗi (tóm tắt, mở như M8.1)
+ * `GET /api/social/performance`          → phễu + quota + lỗi, cần phiên đăng nhập
  * `GET /api/social/performance?queue=1`  → kèm NỘI DUNG bản nháp đang chờ duyệt,
- *                                          đòi `Bearer SOCIAL_REVIEW_SECRET`
+ *                                          cũng cần phiên đăng nhập
  *
- * Tách hai mức vì phễu chỉ là con số, còn bản nháp là nội dung chưa duyệt của
- * thương hiệu — lộ ra ngoài là lộ bài sắp đăng.
+ * Cả số tổng hợp lẫn bản nháp đều được bảo vệ phía server.
  */
 import { getSql, ictMonth, json, type SocialEnv } from './_shared.js';
+import { requireSocialSession } from './_session.js';
 
 const DEFAULT_QUOTA = 4;
 
@@ -27,19 +27,13 @@ export async function handleSocialPerformance(req: Request, env: SocialEnv = pro
   if (!env.DATABASE_URL) {
     return json(503, {
       ok: false, code: 'NOT_CONFIGURED',
-      message: 'M8.2 đã dựng nhưng chưa có DATABASE_URL. Chạy database/migrations/004_social_auto.sql trước.',
+      message: 'M6.2 đã dựng nhưng chưa có DATABASE_URL. Chạy database/migrations/004_social_auto.sql trước.',
     });
   }
 
-  const url = new URL(req.url);
-  const wantQueue = url.searchParams.get('queue') === '1';
-  const secret = env.SOCIAL_REVIEW_SECRET?.trim();
-  const mayReadQueue = Boolean(secret) && req.headers.get('authorization') === `Bearer ${secret}`;
-  if (wantQueue && !mayReadQueue) {
-    return json(401, { ok: false, error: 'Xem nội dung bản nháp cần Bearer SOCIAL_REVIEW_SECRET' });
-  }
-
   try {
+    if (!await requireSocialSession(req, env)) return json(401, { ok: false, error: 'Cần đăng nhập M6.2' });
+    const wantQueue = new URL(req.url, 'http://localhost').searchParams.get('queue') === '1';
     const sql = getSql(env);
     const oaId = env.ZALO_OA_ID?.trim() ?? '';
     const month = ictMonth();
@@ -94,6 +88,16 @@ export async function handleSocialPerformance(req: Request, env: SocialEnv = pro
         where p.state = 'PENDING_REVIEW'
         order by p.broadcast_score desc nulls last, p.fb_created_at desc
         limit 30`;
+      payload.published = await sql<Array<Record<string, unknown>>>`
+        select p.fb_post_id, p.fb_permalink, p.broadcast_score,
+               d.title
+        from social_post p
+        left join lateral (
+          select title from social_draft
+          where fb_post_id = p.fb_post_id order by version desc limit 1
+        ) d on true
+        where p.state = 'PUBLISHED' and p.zalo_article_id is not null
+        order by p.updated_at desc limit 30`;
     }
 
     return json(200, payload);
@@ -105,7 +109,7 @@ export async function handleSocialPerformance(req: Request, env: SocialEnv = pro
     if (/relation .* does not exist/i.test(message)) {
       return json(503, { ok: false, code: 'MIGRATION_PENDING', message: 'Chạy database/migrations/004_social_auto.sql' });
     }
-    return json(500, { ok: false, error: 'Không đọc được số liệu M8.2' });
+    return json(500, { ok: false, error: 'Không đọc được số liệu M6.2' });
   }
 }
 

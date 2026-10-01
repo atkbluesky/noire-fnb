@@ -14,6 +14,7 @@ import { handleSocialTick } from './api/social/_tick';
 import { handleSocialReconcile } from './api/social/_reconcile';
 import { handleSocialReview } from './api/social/_review';
 import { handleSocialPerformance } from './api/social/_performance';
+import { handleSocialAuth } from './api/social/_auth';
 import type { SocialEnv } from './api/social/_shared';
 import { handleAdsSync } from './api/ads/sync';
 import { handleAdsPerformance } from './api/ads/performance';
@@ -153,7 +154,7 @@ function iposApi(env: IposEnv): Plugin {
   };
 }
 
-/** Giữ API M8.2 chạy giống nhau giữa Vite local và Vercel Functions. */
+/** Giữ API M6.2 chạy giống nhau giữa Vite local và Vercel Functions. */
 function socialApi(env: SocialEnv): Plugin {
   const mount = (
     pathName: string,
@@ -187,6 +188,7 @@ function socialApi(env: SocialEnv): Plugin {
     ['/api/social/reconcile', handleSocialReconcile],
     ['/api/social/review', handleSocialReview],
     ['/api/social/performance', handleSocialPerformance],
+    ['/api/social/auth', handleSocialAuth],
   ];
 
   return {

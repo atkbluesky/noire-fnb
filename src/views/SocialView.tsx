@@ -215,10 +215,38 @@ export const SocialView: React.FC = () => {
         return out;
       },
     },
-    legend: { top: 0, textStyle: { fontSize: 11, color: '#9E9B93' } },
-    grid: { top: 36, right: 20, bottom: 24, left: 56 },
-    xAxis: { type: 'category', data: ms.map(m => formatMonthLabel(m)) },
-    yAxis: { type: 'value', name: 'Follower tăng thêm', nameTextStyle: { fontSize: 10 }, splitLine: { lineStyle: { opacity: 0.15 } } },
+    legend: {
+      bottom: 0,
+      left: 'center',
+      itemGap: 14,
+      itemWidth: 12,
+      itemHeight: 10,
+      textStyle: { fontSize: 11, color: '#9E9B93' },
+    },
+    grid: { top: 32, right: 20, bottom: 44, left: 56 },
+    xAxis: {
+      type: 'category',
+      data: ms.map(m => formatMonthLabel(m)),
+      axisLabel: { fontSize: 10, color: '#9E9B93' },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Follower tăng thêm',
+      nameLocation: 'end',
+      nameGap: 10,
+      nameTextStyle: {
+        fontSize: 10,
+        color: '#9E9B93',
+        align: 'left',
+        padding: [0, 0, 4, -28],
+      },
+      axisLabel: {
+        fontSize: 10,
+        color: '#9E9B93',
+        formatter: (v: number) => formatNumber(v),
+      },
+      splitLine: { lineStyle: { opacity: 0.15 } },
+    },
     series: [
       {
         name: 'NCB Fanpage',

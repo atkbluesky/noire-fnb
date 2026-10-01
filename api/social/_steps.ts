@@ -1,5 +1,5 @@
 /**
- * M8.2 · Logic nghiệp vụ của từng bước trong máy trạng thái.
+ * M6.2 · Logic nghiệp vụ của từng bước trong máy trạng thái.
  *
  * Trách nhiệm DUY NHẤT (M8_2 §1d): mỗi hàm `step*` đẩy MỘT bài đi ĐÚNG MỘT bước
  * và trả trạng thái kế tiếp. **Không** biết gì về hàng đợi, lease, attempt,
@@ -110,7 +110,7 @@ export async function stepIngested(sql: Sql, post: SocialPostRow, env: SocialEnv
   return { state: 'MEDIA_STAGED', detail: { assets: media.assets.length } };
 }
 
-/** MEDIA_STAGED → Claude viết lại, ghi `social_draft`. */
+/** MEDIA_STAGED → AI viết lại, ghi `social_draft`. */
 export async function stepMediaStaged(sql: Sql, post: SocialPostRow, env: SocialEnv): Promise<StepResult> {
   const assets = await sql<Array<{ kind: string; public_url: string | null; ok: boolean }>>`
     select kind, public_url, ok from social_asset

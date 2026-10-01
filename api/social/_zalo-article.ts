@@ -1,5 +1,5 @@
 /**
- * M8.2 · Gọi Zalo OA Content API.
+ * M6.2 · Gọi Zalo OA Content API.
  *
  * Trách nhiệm DUY NHẤT (M8_2 §1d): preparevideo → upload_video/verify →
  * article/create → article/verify → article/update → oa/message.

@@ -35,12 +35,12 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | **M5** | Digital Ads (Meta + Google) | `m5` | `DigitalAdsView.tsx` | mkt §1·§1b | `MKT.ads_* · gads · gads_stat · budget` + `store_month · stores` | P7 | ⚠️ **thiếu Zalo** |
 | └ **M5.1** | Ads Auto — Meta Marketing API + Google Ads API *(đọc)* | `m5` | `DigitalAdsView.tsx` *(nhánh API)* | Meta Insights + Google Ads GAQL + PostgreSQL | `ads_campaign_daily · ads_daily_metric · dim_ads_campaign` | P7.1 | 🟢 Meta chạy thật · 8 tháng lệch 0,000% · Google chờ token |
 | **M6** | Social Media (Fanpage + TikTok) | `m6` | `SocialView.tsx` | loader §5b | `MKT.social.*` + `store_month · identify` | P7.5 | 🟡 chờ `social_month` |
+| └ **M6.2** | Social Auto — Fanpage → Zalo OA *(ghi)* | `m62` | `SocialAutoView.tsx` | Graph API + Claude API + Zalo Article API + PostgreSQL | `social_post · social_draft · social_broadcast` | P6.3 | 🟡 có giao diện + API + DB · chờ cấu hình dịch vụ |
 | **M7** | **Promotion** *(mục mẹ)* | `m7` | `PromotionView.tsx` | hub H + campaign | `nature · campaigns` + `CAMPAIGN.pos_map · plan` | P4 | ✅ |
 | └ **M7.1** | Pre-Analytics · Plan | `m71` | `PreAnalyticsView.tsx` | campaign | `CAMPAIGN.plan` *(pre_plan ← S16)* | P5.5 | ✅ |
 | └ **M7.2** | Promotion Tracking | `m72` | `CampaignTrackingView.tsx` | campaign | `CAMPAIGN.campaigns · daily · issues` | P5.5 | 🟡 chờ ô CAM |
 | **M8** | CRM · Voucher | `m8` | `CRMView.tsx` | hub K + mkt §2·§4 | `identify · repeat · repeat_stat` + `voucher_join` | P6 | ⚠️ **nhận diện 8,6%** |
 | └ **M8.1** | Zalo OA Performance *(đọc)* | `m81` | `ZaloOAView.tsx` | Export S12 + OpenAPI/Webhook (PostgreSQL) | `oa_daily` + `zalo_oa_daily_metric` | P6.1 | 🟢 gộp export + API |
-| └ **M8.2** | Social Auto — Fanpage → Zalo OA *(ghi)* | `m82` | `SocialAutoView.tsx` | Graph API + Claude API + Zalo Article API + PostgreSQL | `social_post · social_draft · social_broadcast` | P6.3 | 🔵 thiết kế xong · chờ `probe:fb` |
 | **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_campaigns · partner_check` | P7 | ✅ chung số với M7 |
 | **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
 | └ **M10.1** | Đặt bàn *(iPOS Booking)* | `m101` | `ReservationView.tsx` | iPOS OpenAPI + Webhook + PostgreSQL | `ipos_reservation` | P6.2 | 🟡 chờ access token + Webhook URL |

@@ -1,11 +1,13 @@
 # M8.2 · SOCIAL AUTO — FANPAGE → ZALO OA
 
+> Tài liệu thiết kế lịch sử. Module hiện nằm dưới M6 với tên **M6.2**; xem [trạng thái và điều kiện chạy hiện tại](M6_2_Social_Auto.md). Giữ tài liệu này để bảo toàn các quyết định kỹ thuật và tham chiếu cũ.
+
 | | |
 |---|---|
 | **Câu hỏi** | Nội dung đã sản xuất cho Fanpage có được tái sử dụng sang kênh sở hữu Zalo OA không, và bài nào đáng đốt quota broadcast? |
 | **`activeView`** | `m82` |
 | **View** | `src/views/SocialAutoView.tsx` *(chưa dựng)* |
-| **Server** | `api/social/` — `_shared.ts` · `_steps.ts` · `_media.ts` · `_transform.ts` · `_zalo-article.ts` · `_webhook-fb.ts` · `_tick.ts` · `_review.ts` · `_performance.ts` · `_reconcile.ts` · `[action].ts` (Vercel Function DUY NHẤT, rẽ nhánh theo URL) · `database/migrations/004_social_auto.sql` |
+| **Server** | `api/social/` — `_shared.ts` · `_steps.ts` · `_media.ts` · `_transform.ts` · `_zalo-article.ts` · `_webhook-fb.ts` · `_tick.ts` · `_review.ts` · `_performance.ts` · `_reconcile.ts` · `_auth.ts` + `_session.ts` (đăng nhập M6.2) · `[action].ts` (Vercel Function DUY NHẤT, rẽ nhánh theo URL) · `database/migrations/004_social_auto.sql` · `005_social_auth.sql` |
 | **Nguồn** | Facebook Graph API (Page webhook `feed` + `video_reels`) → Claude API → Zalo OA Article API |
 | **Grain** | 1 `fb_post_id` (một bài gốc trên Fanpage) |
 | **Phạm vi** | **Ghi** — module DUY NHẤT trong hệ thống được phép tạo nội dung trên Zalo OA. Không CRM, không gửi tin 1-1, không trả lời bình luận |

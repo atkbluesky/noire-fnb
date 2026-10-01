@@ -1,35 +1,34 @@
 /**
- * M8.2 · Duyệt / từ chối / sửa tay / xếp hàng broadcast.
+ * M6.2 · Duyệt / từ chối / sửa tay / xếp hàng broadcast.
  *
  * Trách nhiệm DUY NHẤT (M8_2 §1d): đổi trạng thái. **CẤM đăng trực tiếp** —
  * endpoint này không bao giờ gọi Zalo API; nó chỉ đẩy bài vào đúng ô của máy
  * trạng thái rồi để tick làm. Nhờ vậy một cú bấm nhầm không gây ra lệnh gọi
  * ra ngoài ngay lập tức.
  *
- * ── Vì sao có secret trong khi /api/zalo/performance thì không ────────────
- * M8.1 chỉ ĐỌC, lộ ra thì cùng lắm là lộ số. Endpoint này GHI và hệ quả của nó
- * hiện ra trước công chúng trên Zalo OA. Rủi ro khác hẳn nên cơ chế bảo vệ
- * cũng phải khác (M8_2 §1b).
+ * Endpoint này yêu cầu phiên đăng nhập M6.2 và kiểm tra nguồn gốc request.
+ * Bearer SOCIAL_REVIEW_SECRET cũ không còn cấp quyền duyệt.
  */
 import {
   ZALO_AUTHOR_MAX, ZALO_DESC_MAX, ZALO_TITLE_MAX,
   getSql, ictMonth, json, type SocialEnv,
 } from './_shared.js';
+import { requireSocialSession, validSocialMutationRequest } from './_session.js';
 
 const ACTIONS = ['approve', 'reject', 'edit', 'broadcast', 'retry'] as const;
 type Action = typeof ACTIONS[number];
 
 const DEFAULT_QUOTA = 4;   // gói Nâng cao ~4/tháng; gói Cơ bản đặt lại thành 1
 
-function authorized(req: Request, env: SocialEnv): boolean {
-  const secret = env.SOCIAL_REVIEW_SECRET?.trim();
-  if (!secret) return false;                       // chưa cấu hình = khoá, không phải mở
-  return req.headers.get('authorization') === `Bearer ${secret}`;
-}
-
 export async function handleSocialReview(req: Request, env: SocialEnv = process.env): Promise<Response> {
   if (req.method !== 'POST') return json(405, { ok: false, error: 'Chỉ nhận POST' });
-  if (!authorized(req, env)) return json(401, { ok: false, error: 'Không có quyền duyệt' });
+  if (!validSocialMutationRequest(req)) return json(403, { ok: false, error: 'Yêu cầu không cùng nguồn gốc' });
+  try {
+    if (!await requireSocialSession(req, env)) return json(401, { ok: false, error: 'Cần đăng nhập M6.2' });
+  } catch (error) {
+    console.error('[social-review-auth]', error);
+    return json(503, { ok: false, error: 'Không kiểm tra được phiên đăng nhập' });
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -68,6 +67,9 @@ export async function handleSocialReview(req: Request, env: SocialEnv = process.
       }
 
       case 'reject': {
+        if (post.state !== 'PENDING_REVIEW') {
+          return json(409, { ok: false, error: `Chỉ từ chối được bài PENDING_REVIEW, hiện là ${post.state}` });
+        }
         const reason = String(body.reason ?? 'REJECTED_BY_HUMAN').slice(0, 300);
         await sql.begin(async tx => {
           await tx`update social_draft set approved = false
@@ -80,6 +82,9 @@ export async function handleSocialReview(req: Request, env: SocialEnv = process.
       }
 
       case 'edit': {
+        if (post.state !== 'PENDING_REVIEW') {
+          return json(409, { ok: false, error: `Chỉ sửa được bản nháp PENDING_REVIEW, hiện là ${post.state}` });
+        }
         // Sửa tay vẫn phải qua đúng trần của Zalo — người cũng gõ quá 150 ký tự như thường.
         const title = String(body.title ?? '').trim();
         const description = String(body.description ?? '').trim();

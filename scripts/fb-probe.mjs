@@ -1,5 +1,5 @@
 /**
- * M8.2 · Phase 0 — thăm dò Facebook Graph API trước khi viết pipeline Fanpage → Zalo OA.
+ * M6.2 · Phase 0 — thăm dò Facebook Graph API trước khi viết pipeline Fanpage → Zalo OA.
  *
  *   node scripts/fb-probe.mjs debug                      soi token hiện có: scope + hạn dùng + app
  *   node scripts/fb-probe.mjs token                      đổi short-lived user token → long-lived

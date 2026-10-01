@@ -35,18 +35,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const isEndPartial = isPartialMonth(filters.to);
 
   return (
-    <div className="sticky top-14 z-10 border-b border-brand-border bg-brand-surface/95 px-3 sm:px-6 py-2 sm:py-2.5 backdrop-blur-md">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="sticky top-14 z-10 border-b border-brand-border bg-brand-surface/95 px-2.5 sm:px-6 py-2 sm:py-2.5 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         {/* Left Filter Group */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Scope Selector */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
           {showScope && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/50 px-2.5 py-1.5 text-brand-text">
+            <div className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/50 px-2 sm:px-2.5 py-1 sm:py-1.5 text-brand-text">
               <span className="text-brand-muted font-medium">Phạm vi:</span>
               <select
                 value={filters.scope}
                 onChange={e => setScope(e.target.value as 'main' | 'all')}
-                className="bg-transparent font-semibold text-brand-text outline-none cursor-pointer"
+                className="bg-transparent font-semibold text-brand-text outline-none cursor-pointer text-[11px] sm:text-xs"
               >
                 <option value="main" className="bg-brand-surface text-brand-text">
                   Cửa hàng chính ({CORE_STORES.length})
@@ -60,12 +59,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
           {/* Brand Selector */}
           {showBrand && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/50 px-2.5 py-1.5 text-brand-text">
+            <div className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/50 px-2 sm:px-2.5 py-1 sm:py-1.5 text-brand-text">
               <span className="text-brand-muted font-medium">Brand:</span>
               <select
                 value={filters.brand}
                 onChange={e => setBrand(e.target.value as BrandType)}
-                className="bg-transparent font-semibold text-brand-gold outline-none cursor-pointer"
+                className="bg-transparent font-semibold text-brand-gold outline-none cursor-pointer text-[11px] sm:text-xs"
               >
                 <option value="ALL" className="bg-brand-surface text-brand-text">
                   Tất cả 3 brand
@@ -81,13 +80,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
           {/* Date Range */}
           {showDateRange && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-dark/50 px-2.5 py-1.5 text-brand-text">
-              <Calendar className="h-3.5 w-3.5 text-brand-muted" />
+            <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-brand-border bg-brand-dark/50 px-2 sm:px-2.5 py-1 sm:py-1.5 text-brand-text">
+              <Calendar className="h-3.5 w-3.5 text-brand-muted flex-shrink-0" />
               <span className="text-brand-muted font-medium">Từ:</span>
               <select
                 value={filters.from}
                 onChange={e => setFrom(e.target.value)}
-                className="bg-transparent font-semibold text-brand-text outline-none cursor-pointer"
+                className="bg-transparent font-semibold text-brand-text outline-none cursor-pointer text-[11px] sm:text-xs"
               >
                 {months.map(m => (
                   <option key={m} value={m} className="bg-brand-surface text-brand-text">
@@ -102,7 +101,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <select
                 value={filters.to}
                 onChange={e => setTo(e.target.value)}
-                className="bg-transparent font-semibold text-brand-text outline-none cursor-pointer"
+                className="bg-transparent font-semibold text-brand-text outline-none cursor-pointer text-[11px] sm:text-xs"
               >
                 {months.map(m => (
                   <option key={m} value={m} className="bg-brand-surface text-brand-text">
@@ -117,7 +116,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           {showPerDay && (
             <button
               onClick={togglePerday}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold transition-all duration-150 border ${
+              className={`flex items-center gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 font-semibold transition-all duration-150 border text-[11px] sm:text-xs ${
                 filters.perday
                   ? 'border-brand-gold bg-brand-gold/15 text-brand-gold shadow-glow-sm'
                   : 'border-brand-border bg-brand-dark/50 text-brand-muted hover:text-brand-text'
@@ -134,9 +133,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Right Note / Warning */}
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs w-full sm:w-auto">
           {isEndPartial ? (
-            <div className="flex items-center gap-1.5 rounded-md bg-status-badBg px-2 py-1 text-status-bad font-medium text-[11px]">
+            <div className="flex items-center gap-1.5 rounded-md bg-status-badBg px-2 py-1 text-status-bad font-medium text-[11px] w-full sm:w-auto">
               <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
               <span>
                 Tháng {formatMonthLabel(filters.to)} chưa trọn kỳ (mới có{' '}

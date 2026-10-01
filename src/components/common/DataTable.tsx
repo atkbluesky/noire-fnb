@@ -124,9 +124,9 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className={`space-y-3 ${className}`}>
       {(searchable || exportFilename) && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
           {searchable ? (
-            <div className="relative min-w-[220px] max-w-sm flex-1">
+            <div className="relative w-full sm:max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-muted" />
               <input
                 type="text"
@@ -144,7 +144,7 @@ export function DataTable<T extends Record<string, any>>({
           {exportFilename && (
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors"
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors flex-shrink-0"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Xuất CSV ({sortedData.length})</span>
@@ -223,26 +223,28 @@ export function DataTable<T extends Record<string, any>>({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-brand-muted pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs text-brand-muted pt-1">
           <span>
             Hiển thị {(currentPage - 1) * pageSize + 1}–
-            {Math.min(currentPage * pageSize, sortedData.length)} trên tổng số {sortedData.length}
+            {Math.min(currentPage * pageSize, sortedData.length)} / {sortedData.length} dòng
           </span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
               className="rounded p-1 text-brand-muted hover:bg-brand-surface disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="Trang trước"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="font-semibold text-brand-text px-2">
+            <span className="font-semibold text-brand-text px-1.5 sm:px-2">
               Trang {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               className="rounded p-1 text-brand-muted hover:bg-brand-surface disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="Trang sau"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

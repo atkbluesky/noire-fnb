@@ -1,4 +1,4 @@
--- M8.2 · Social Auto — Fanpage → Zalo OA
+-- M6.2 · Social Auto — Fanpage → Zalo OA
 -- Chạy lại an toàn: mọi lệnh đều `if not exists` / `create or replace`.
 -- Luật M8_2 §0.3: CHỈ ĐƯỢC CỘNG THÊM. File này không drop/rename/alter type
 -- bất kỳ bảng `zalo_oa_*` hay `ipos_*` nào — M8.1 và M10.1 đang chạy trên chúng.

@@ -112,6 +112,15 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         status: SOCIAL_READY ? 'ok' : 'warning',
         statusText: SOCIAL_READY ? 'Kênh sở hữu' : 'Chờ số',
       },
+      {
+        id: 'm62',
+        code: 'M6.2',
+        title: 'Social Auto → Zalo OA',
+        icon: <Share2 className="h-4 w-4" />,
+        status: 'warning',
+        statusText: 'Cần cấu hình',
+        parent: 'm6',
+      },
       /* M7 PROMOTION — mục mẹ + 2 mục con, cùng MỘT danh mục chương trình
          (L0_input/03_MARKETING/07_Campaign_Tracking) nối kế hoạch Pre-Analysis ↔ POS. */
       {
@@ -249,12 +258,10 @@ export const Sidebar: React.FC = () => {
             </button>
           </div>
 
-          <div className="mt-3 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 rounded bg-brand-gold/10 px-2 py-0.5 text-[9px] font-bold text-brand-goldLight border border-brand-gold/30">
+          <div className="mt-2.5 flex items-center">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-gold/10 px-2.5 py-1 text-[10px] font-semibold text-brand-goldLight border border-brand-gold/25">
+              <span className="h-1.5 w-1.5 rounded-full bg-status-ok animate-pulse" />
               DỮ LIỆU THẬT · {HUB_DATA.meta.months.length} THÁNG
-            </span>
-            <span className="text-[10px] font-mono text-brand-faint">
-              v3.0 Vercel
             </span>
           </div>
         </div>
@@ -263,7 +270,7 @@ export const Sidebar: React.FC = () => {
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
         {NAVIGATION_GROUPS.map(group => (
           <div key={group.groupTitle} className="space-y-1">
-            <h2 className="px-2 text-[9px] font-bold uppercase tracking-widest text-brand-faint">
+            <h2 className="px-2 pt-2.5 pb-1 text-[10.5px] font-black uppercase tracking-wider text-brand-text">
               {group.groupTitle}
             </h2>
             <div className="space-y-0.5">
@@ -276,34 +283,24 @@ export const Sidebar: React.FC = () => {
                       setActiveView(item.id);
                       setSidebarOpen(false);
                     }}
-                    className={`group flex w-full items-center justify-between rounded-lg py-2 text-left text-xs transition-all duration-150 ${item.parent
-                      ? 'pl-7 pr-2.5 relative before:absolute before:left-4 before:top-0 before:bottom-0 before:w-px before:bg-brand-border'
-                      : 'px-2.5'} ${isActive
-                      ? 'bg-brand-card text-brand-goldLight font-semibold border-l-2 border-brand-gold shadow-sm'
-                      : 'text-brand-muted hover:bg-brand-card/60 hover:text-brand-text'
-                      }`}
+                    className={`group flex w-full items-center rounded-lg py-2 sm:py-2.5 px-2.5 text-left text-xs transition-all duration-150 ${
+                      item.parent
+                        ? 'pl-7 pr-2.5 relative before:absolute before:left-4 before:top-0 before:bottom-0 before:w-px before:bg-brand-border'
+                        : 'px-2.5'
+                    } ${
+                      isActive
+                        ? 'bg-brand-card text-brand-goldLight font-semibold border-l-2 border-brand-gold shadow-sm'
+                        : 'text-brand-muted hover:bg-brand-card/60 hover:text-brand-text'
+                    }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={`${isActive ? 'text-brand-gold' : 'text-brand-muted group-hover:text-brand-text'}`}>
-                        {item.icon}
-                      </span>
-                      <span className="font-mono text-[10px] opacity-70">
-                        {item.code}
-                      </span>
-                      <span className="truncate text-xs">
-                        {item.title}
-                      </span>
-                    </div>
-
-                    <span
-                      className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${item.status === 'ok'
-                        ? 'border-status-ok/30 bg-status-okBg text-status-ok'
-                        : item.status === 'warning'
-                          ? 'border-status-warning/30 bg-status-warningBg text-status-warning'
-                          : 'border-status-bad/30 bg-status-badBg text-status-bad'
-                        }`}
-                    >
-                      {item.statusText}
+                    <span className={`flex-shrink-0 mr-2.5 ${isActive ? 'text-brand-gold' : 'text-brand-muted group-hover:text-brand-text'}`}>
+                      {item.icon}
+                    </span>
+                    <span className="font-mono text-[10.5px] font-bold opacity-85 flex-shrink-0 mr-1.5">
+                      {item.code}
+                    </span>
+                    <span className="truncate text-xs flex-1 min-w-0 font-medium">
+                      {item.title}
                     </span>
                   </button>
                 );
@@ -314,7 +311,7 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer metadata */}
-      <div className="border-t border-brand-border p-3.5 text-[10px] text-brand-muted bg-brand-dark/40 space-y-1">
+      <div className="border-t border-brand-border p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] text-[10px] text-brand-muted bg-brand-dark/40 space-y-1">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1">
             <ShieldCheck className="h-3.5 w-3.5 text-status-ok" />
