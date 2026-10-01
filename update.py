@@ -357,6 +357,11 @@ def execute(p):
         ok &= run("Lane Marketing luỹ kế (build_mkt.py)", [PY, os.path.join(HERE, "build_mkt.py")], log)
     if p["hub"] or p["mkt"]:
         ok &= run("Xuất bảng luỹ kế vào data_input/", [PY, os.path.join(TOOLS, "export_derived.py")], log)
+    # Tháng POS mới → tên CTKM mới vào danh mục chung M7 (chỉ THÊM dòng / nối kế hoạch đang chờ, không đụng ô đã nhập).
+    # Không chặn kết quả cả lượt: file đang mở trong Excel thì bước này báo ✖, các bước sau vẫn chạy trên danh mục cũ.
+    if p.get("campaign") and (p["months"] or p["hub"]):
+        run("Danh mục chương trình — thêm tên CTKM mới (campaign_seed --merge)",
+            [PY, os.path.join(TOOLS, "campaign_seed.py"), "--merge"], log)
     # M7.1 ↔ M7.2 nối vòng: M7.1 khoá kế hoạch → M7.2 so thực tế với bản khoá + ghi bảng hiệu chỉnh
     # → M7.1 chạy lại để dùng giả định đã hiệu chỉnh.
     if p.get("preeval") and p.get("campaign"):

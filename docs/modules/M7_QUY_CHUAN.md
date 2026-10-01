@@ -187,6 +187,10 @@ Quy trình khi thêm/sửa một chỉ số: (1) sửa `$metrics` → (2) sửa 
 | 9 | Món tặng bị tính hai lần (giảm 100% trên POS + giá vốn quà) | Loại quà: Giảm giá = 0, chi phí = giá vốn quà |
 | 10 | Chi phí giảm giá cho khách vốn sẽ đến bị mất khỏi EBITDA | Số hạng `− c × Giảm giá` |
 | 11 | ROI thực tế chia giảm giá cho 1,08 (POS đã ở mức giá menu) | Giảm giá POS × hệ số thuế/phí ÷ 1,08 như bộ tính kế hoạch |
+| 12 *(01/10)* | M7.1 cộng lại tổng nhóm ở mọi dòng tên POS: V1 hiện 149,2 tr / 333 HĐ (×3), G8 ×2 | `plan_rows` cộng số POS **riêng** từng tên (`campaign_month`) — V1 49,7 tr / 111 HĐ = M7.2 |
+| 13 *(01/10)* | Ô `nature` khai tay ở Campaign_Tracking thắng luật M7 — 11 CT SonKim/Cư dân/IFC là "Đối tác" ở M7.2 nhưng "Thương mại" ở M7 (T9: 406,6 tr) | Có tên POS ⇒ `classify_nature` (luật `$promo_nature`) thắng; khai lệch ghi `campaign_issue` field `nature` |
+| 14 *(01/10)* | Bản khoá M7.1 `KHOA_MUON` (khoá sau ngày chạy) thắng kế hoạch Q3 nộp trước — G1 chấm theo 13 HĐ thay vì 24 HĐ | Khoá muộn + có `pre_id` Q3 ⇒ chấm theo Q3 (§5); bản M7.1 vẫn hiện ở `pre_calib`, chỉ tham khảo |
+| 15 *(01/10)* | Tên CTKM mới trên POS không vào danh mục nếu không ai chạy `campaign_seed --merge` (T9: 8 tên · 91,2 tr) | `update.py` tự chạy `--merge` khi có tháng POS mới; `--merge` điền tên POS vào dòng kế hoạch đang chờ khi `PRE_MATCH` khớp (G4 · G5 · D2) |
 
 **Ảnh hưởng lên 6 chương trình đã chấm** *(trước → sau; `≈` = %cannib theo kế hoạch)*
 

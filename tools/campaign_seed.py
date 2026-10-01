@@ -56,6 +56,10 @@ PRE_MATCH = {
     "G8": ([r"^jfb - obon table$", r"^obon table$"], "NJFB · Obon Table · POS NJFB_SSV 26–30/08"),
     "V1": ([r"^noire passport \(50k\)$", r"^noire passport \(100k\)$", r"^noire passport \(150k\)$"],
            "NCB · voucher bậc thang — mỗi mức một dòng, chấm chung kế hoạch V1"),
+    # xác nhận 01/10/2026 — kế hoạch Q3 lên POS từ giữa T9
+    "G4": ([r"^bistro - power breakfast$"], "NCB · Bistro Power Breakfast · POS từ 21/09"),
+    "G5": ([r"^bistro - weekend brunch club$"], "NCB · Weekend Brunch Club · POS từ 19/09"),
+    "D2": ([r"^wednesday table$"], "NDC · Wednesday Table · POS từ 16/09"),
 }
 
 DOW_LABEL = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
@@ -378,24 +382,54 @@ GUIDE = [
 
 
 def merge(path, dims, tgts, costs, fills):
-    """Thêm dòng mới vào file đã có: bỏ chương trình trùng pre_id hoặc có tên POS đã khai."""
+    """Thêm dòng mới vào file đã có: bỏ chương trình trùng pre_id hoặc có tên POS đã khai.
+    Dòng kế hoạch đang chờ (có pre_id, chưa có name_pos) mà PRE_MATCH vừa khớp tên POS → điền tên POS · cửa hàng ·
+    kỳ chạy vào CHÍNH dòng đó (giữ campaign_id + target/chi phí đã khai); tên POS thứ hai trở đi của cùng kế hoạch
+    thêm thành dòng mới cùng pre_id."""
     from openpyxl import load_workbook
     from openpyxl.styles import PatternFill
     have = E._sheet(path, "dim_campaign")
-    have_pre = {str(r.get("pre_id") or "").strip().upper() for r in have} - {""}
     have_pos = {E.norm(n) for r in have for n in str(r.get("name_pos") or "").split("|") if n.strip()}
     have_id = {str(r.get("campaign_id")) for r in have}
+    pending = {str(r.get("pre_id")).strip().upper(): str(r["campaign_id"]) for r in have
+               if str(r.get("pre_id") or "").strip() and not str(r.get("name_pos") or "").strip()}
+    have_pre = ({str(r.get("pre_id") or "").strip().upper() for r in have} - {""}) - set(pending)
+    fill_into, seen = {}, set()                     # i (dims) → campaign_id dòng kế hoạch đang chờ
+    for i, d in enumerate(dims):
+        pid = str(d.get("pre_id") or "").strip().upper()
+        if d.get("source") == "PRE_POS" and pid in pending and pid not in seen:
+            fill_into[i] = pending[pid]
+            seen.add(pid)
     keep = [i for i, d in enumerate(dims)
-            if not (d.get("pre_id") and d["pre_id"] in have_pre)
+            if i not in fill_into
+            and not (d.get("pre_id") and d["pre_id"] in have_pre)
+            and not (d.get("source") == "PRE" and str(d.get("pre_id") or "").strip().upper() in pending)
             and not ({E.norm(n) for n in str(d.get("name_pos") or "").split("|") if n.strip()} & have_pos)
             and d["campaign_id"] not in have_id]
-    if not keep:
+    if not keep and not fill_into:
         log("  không có chương trình mới — file giữ nguyên")
         return 0
     wb = load_workbook(path)
     PF = {k: PatternFill("solid", fgColor=v) for k, v in TPL.FILL.items()}
     ws = wb["dim_campaign"]
     hdr = [c.value for c in ws[1]]
+    if fill_into:
+        col = {h: j for j, h in enumerate(hdr, 1)}
+        row_of = {str(ws.cell(r, col["campaign_id"]).value): r for r in range(2, ws.max_row + 1)}
+        MACHINE = ("source", "status", "match_note")          # máy ghi — luôn cập nhật theo POS
+        POS_FIELDS = ("name_pos", "store_scope", "date_from", "date_to")
+        for i, cid in fill_into.items():
+            d, r = dims[i], row_of[cid]
+            for h in POS_FIELDS + MACHINE:
+                if h not in col:
+                    continue
+                cell = ws.cell(r, col[h])
+                if h in MACHINE or cell.value in (None, ""):
+                    cell.value = d.get(h)
+                    if h in ("store_scope", "date_from", "date_to", "status"):
+                        cell.fill = PF["guess"]
+        log(f"  ~ {len(fill_into)} kế hoạch nối tên POS: "
+            + ", ".join(f"{cid} ← {dims[i]['name_pos']}" for i, cid in fill_into.items()))
     new_ids = set()
     for i in keep:
         d = dims[i]
