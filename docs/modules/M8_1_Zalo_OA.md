@@ -137,6 +137,11 @@ Daily table vẫn lưu `unique_chat_users` để vẽ trend. KPI unique trên To
 - Không xoay `ZALO_USER_HASH_KEY` nếu muốn giữ khả năng khử trùng user xuyên suốt lịch sử.
 - Không đổi `ZALO_TOKEN_ENCRYPTION_KEY` trực tiếp; phải giải mã/mã hoá lại token hoặc cấp quyền OAuth lại.
 - Không có bảng customer/profile/lead.
-- Không gọi API gửi tin và không có workflow automation.
+- Không gọi API gửi tin và không có workflow automation — **việc ghi nội dung lên OA thuộc
+  [`M8.2 · Social Auto`](M8_2_Social_Auto.md)**. M8.1 chỉ ĐỌC. Ranh giới này là cố ý: hỏng M8.1
+  thì tab trống, hỏng M8.2 thì đăng nhầm ra công chúng — hai mức rủi ro khác nhau nên tách đôi.
+- M8.2 dùng lại `validAccessToken()` · `getSql()` · `requireCron()` của module này. Vì vậy
+  `api/zalo/_shared.ts` **chỉ được thêm export, cấm đổi chữ ký hàm có sẵn**
+  (xem `M8_2_Social_Auto.md` §0 Luật 2).
 - Không nối user Zalo với hóa đơn, member hay voucher.
 - Export `.xls` là nguồn ② (không realtime): cấp số khi API chưa nối và lịch sử trước ngày kết nối.

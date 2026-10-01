@@ -16,6 +16,7 @@ const CapacityView = lazy(() => import('./views/CapacityView').then(m => ({ defa
 const BudgetView = lazy(() => import('./views/BudgetView').then(m => ({ default: m.BudgetView })));
 const DigitalAdsView = lazy(() => import('./views/DigitalAdsView').then(m => ({ default: m.DigitalAdsView })));
 const SocialView = lazy(() => import('./views/SocialView').then(m => ({ default: m.SocialView })));
+const SocialAutoView = lazy(() => import('./views/SocialAutoView').then(m => ({ default: m.SocialAutoView })));
 const PreAnalyticsView = lazy(() => import('./views/PreAnalyticsView').then(m => ({ default: m.PreAnalyticsView })));
 const PromotionView = lazy(() => import('./views/PromotionView').then(m => ({ default: m.PromotionView })));
 const CampaignTrackingView = lazy(() => import('./views/CampaignTrackingView').then(m => ({ default: m.CampaignTrackingView })));
@@ -61,6 +62,8 @@ const DashboardContent: React.FC = () => {
         return <DigitalAdsView />;
       case 'm6':
         return <SocialView />;
+      case 'm62':
+        return <SocialAutoView />;
       case 'm7':
         return <PromotionView />;
       case 'm71':
@@ -83,7 +86,7 @@ const DashboardContent: React.FC = () => {
   };
 
   // Determine whether to show the filter bar and its options
-  const showFilterBar = !['d1', 'd2', 'm81'].includes(activeView);
+  const showFilterBar = !['d1', 'd2', 'm81', 'm62'].includes(activeView);
   const showScopeFilter = ['m0', 'm1', 'm2', 'm3', 'r1'].includes(activeView);
   const showPerDayFilter = ['m0', 'm1', 'r1'].includes(activeView);
 

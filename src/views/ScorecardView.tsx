@@ -313,17 +313,17 @@ export const ScorecardView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-4 sm:space-y-5 p-3 sm:p-6 max-w-[1600px] mx-auto">
       {/* View Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
         <div>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
             TỔNG THỂ ĐANG Ở ĐÂU
           </span>
-          <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+          <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
             Scorecard Điều Hành — Kỳ {periodLabel}
           </h2>
-          <p className="text-xs text-brand-muted mt-1">
+          <p className="text-xs text-brand-muted mt-1 leading-relaxed">
             Hàng trên phản ánh quy mô (Volume), hàng dưới phản ánh chất lượng vận hành (Quality).
             {' '}Số liệu cộng dồn {ms.length} tháng
             {prevLabel ? <> · so với kỳ liền trước <b>{prevLabel}</b></> : ' · không có kỳ liền trước cùng độ dài để so sánh'}.
@@ -331,8 +331,8 @@ export const ScorecardView: React.FC = () => {
         </div>
 
         {isPartial && (
-          <div className="rounded-lg border border-status-bad/40 bg-status-badBg/30 px-3.5 py-2 text-xs text-status-bad flex items-center gap-2">
-            <span className="font-bold">Lưu ý:</span>
+          <div className="rounded-lg border border-status-bad/40 bg-status-badBg/30 px-3 py-2 text-xs text-status-bad flex items-center gap-2 w-full sm:w-auto">
+            <span className="font-bold flex-shrink-0">Lưu ý:</span>
             <span>
               {partialMonths.map(m => `${formatMonthLabel(m)} (đến ${HUB_DATA.coverage[m]?.last})`).join(', ')}{' '}
               chưa trọn kỳ — khuyến nghị xem theo chuẩn hoá <b>/ngày</b>.
@@ -342,7 +342,7 @@ export const ScorecardView: React.FC = () => {
       </div>
 
       {/* Row 1: Volume KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MetricCard
           label="Net Sales"
           subLabel="Cột Tổng tiền POS"
@@ -387,7 +387,7 @@ export const ScorecardView: React.FC = () => {
       </div>
 
       {/* Row 2: Quality & Efficiency KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MetricCard
           label="% Đạt Kế hoạch"
           subLabel="Net (CH có target) ÷ Target"

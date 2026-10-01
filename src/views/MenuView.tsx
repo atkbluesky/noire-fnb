@@ -396,16 +396,16 @@ export const MenuView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
+    <div className="space-y-4 sm:space-y-5 p-3 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
           MÓN NÀO ĐÁNG BÁN
         </span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
           M2 · Menu Engineering &amp; Biên Lợi Nhuận
         </h2>
-        <p className="text-xs text-brand-muted mt-1">
+        <p className="text-xs text-brand-muted mt-1 leading-relaxed">
           {agg.filtered
             ? <>Đang xem <b className="text-brand-text">{scopeLabel}</b>. </>
             : <>Luỹ kế {nMonths} tháng. </>}
@@ -422,11 +422,11 @@ export const MenuView: React.FC = () => {
       </div>
 
       {/* COGS Alert Banner */}
-      <div className="rounded-xl border border-status-bad/40 bg-status-badBg/20 p-4 text-xs text-status-bad flex items-start gap-3">
-        <span className="font-extrabold uppercase text-[11px] rounded bg-status-bad/20 px-2 py-0.5 mt-0.5">
+      <div className="rounded-xl border border-status-bad/40 bg-status-badBg/20 p-3.5 sm:p-4 text-xs text-status-bad flex items-start gap-2.5 sm:gap-3">
+        <span className="font-extrabold uppercase text-[10px] sm:text-[11px] rounded bg-status-bad/20 px-2 py-0.5 mt-0.5 flex-shrink-0">
           Cảnh Báo COGS
         </span>
-        <div className="space-y-1 text-brand-text">
+        <div className="space-y-1 text-brand-text min-w-0">
           <p>
             Độ phủ giá vốn của kỳ đang xem mới đạt <b>{formatPercent(PS.cogs_cov)}</b> doanh thu món ({PS.sku_cogs}/{PS.sku} SKU).
             Bảng BOM có {HUB_DATA.bom_stat.rows} dòng nhưng chỉ <b>{HUB_DATA.bom_stat.codes} mã duy nhất</b>.
@@ -438,7 +438,7 @@ export const MenuView: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-4">
         <MetricCard
           label="SKU Đã Bán"
           subLabel={`Tổng SKU phát sinh (${PS.sku_cogs} có COGS)`}

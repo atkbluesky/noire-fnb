@@ -37,7 +37,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl p-4 transition-all duration-200 ${
+      className={`relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-200 ${
         isCritical
           ? 'bg-status-badBg/20 border border-status-bad/40 shadow-lg shadow-status-bad/5'
           : variant === 'hero'
@@ -47,11 +47,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     >
       <div className="flex items-start justify-between">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-brand-muted">
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-brand-muted">
             {label}
           </span>
           {subLabel && (
-            <p className="mt-0.5 font-mono text-[10px] text-brand-faint">
+            <p className="mt-0.5 font-mono text-[9px] sm:text-[10px] text-brand-faint">
               {subLabel}
             </p>
           )}
@@ -59,18 +59,18 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         {icon && <div className="text-brand-muted/70">{icon}</div>}
       </div>
 
-      <div className="my-2.5 flex items-baseline gap-1.5 flex-wrap">
-        <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-brand-text font-display break-words">
+      <div className="my-2 sm:my-2.5 flex items-baseline gap-1 sm:gap-1.5 flex-wrap">
+        <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-brand-text font-display break-words">
           {value}
         </span>
         {unit && (
-          <span className="text-xs font-semibold text-brand-muted">
+          <span className="text-[11px] sm:text-xs font-semibold text-brand-muted">
             {unit}
           </span>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+      <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] sm:text-[11px]">
         {customDeltaText ? (
           <div className="flex flex-wrap items-center gap-1 font-medium text-brand-muted">
             <span>{customDeltaText}</span>

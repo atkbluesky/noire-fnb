@@ -445,12 +445,17 @@ export const clearFeedbacks = (): void => {
  * Đưa các bản ghi lưu ở giai đoạn CHƯA có webhook vào hàng đợi.
  * Nhờ vậy, toàn bộ phản hồi cũ cũng được đẩy lên Google Sheets, không bị bỏ
  * lại trên máy người dùng.
+ *
+ * Bản 'failed' cũng được thử lại mỗi lần mở dashboard: lỗi thường do cấu hình
+ * phía server (vd cổng trả 503 khi thiếu biến môi trường) — hết 8 lần thử trong
+ * ~1 giờ rồi kẹt vĩnh viễn trên máy dù server đã sửa xong. Apps Script khử
+ * trùng theo `id` nên gửi lại không sinh dòng trùng.
  */
 const promoteLocalRecords = (): void => {
   const list = loadFeedbacks();
   let changed = false;
   const next = list.map(item => {
-    if (item.status !== 'local') return item;
+    if (item.status !== 'local' && item.status !== 'failed') return item;
     changed = true;
     return { ...item, status: 'pending' as FeedbackSyncStatus, attempts: 0 };
   });

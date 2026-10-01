@@ -25,17 +25,17 @@ export const Card: React.FC<CardProps> = ({
     <div
       className={`relative rounded-xl transition-all duration-200 ${
         hero
-          ? 'glass-card border-brand-gold/30 shadow-card p-5'
-          : 'glass-panel p-4 hover:border-brand-borderLight'
+          ? 'glass-card border-brand-gold/30 shadow-card p-4 sm:p-5'
+          : 'glass-panel p-3.5 sm:p-4 hover:border-brand-borderLight'
       } ${className}`}
     >
-      <div className="mb-3 flex items-start justify-between gap-4">
+      <div className="mb-3 flex items-start justify-between gap-3 sm:gap-4">
         <div>
-          <h3 className="text-sm font-bold text-brand-text font-display flex items-center gap-2">
+          <h3 className="text-xs sm:text-sm font-bold text-brand-text font-display flex items-center gap-2">
             {title}
           </h3>
           {description && (
-            <p className="mt-0.5 text-xs text-brand-muted leading-relaxed">
+            <p className="mt-0.5 text-[11px] sm:text-xs text-brand-muted leading-relaxed">
               {description}
             </p>
           )}
