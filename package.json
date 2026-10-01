@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:data": "node scripts/build-data.mjs",
+    "build:budget-q4": "node scripts/build-budget-q4.mjs",
     "probe:ipos": "node scripts/ipos-probe.mjs",
     "probe:fb": "node scripts/fb-probe.mjs",
     "probe:ads": "node scripts/ads-probe.mjs",
