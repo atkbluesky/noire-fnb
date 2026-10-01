@@ -30,6 +30,8 @@ OUT = Path(ROOT) / "_cache" / "tracking" / "NOIRE_Tracking_Sales_2026.xlsx"
 TOOL_CANDIDATES = [
     os.environ.get("NOIRE_TRACKING_TOOL"),
     os.path.join(ROOT, "..", "..", "..", "09 Tracking Sales Tool", "build_tracking.py"),
+    # Vị trí từ 28/09/2026: D:\HIGHGATE 2026\1. FnB\09 Tracking Sales Tool\09 Tracking Sales Tool\
+    os.path.join(ROOT, "..", "..", "1. FnB", "09 Tracking Sales Tool", "09 Tracking Sales Tool", "build_tracking.py"),
     r"D:\PROJECT\3. HIGHGATE 5.2026\09 Tracking Sales Tool\build_tracking.py",
 ]
 
