@@ -1,0 +1,273 @@
+{
+ "file": "NOIRE_Q4_Digital_Monthly_Allocation_Oct_Nov_Dec_2026.xlsx",
+ "actualFile": "NOIRE_Q4_ThucChi_2026.xlsx",
+ "quarter": "2026-Q4",
+ "months": [
+  "2026-10",
+  "2026-11",
+  "2026-12"
+ ],
+ "items": [
+  "Digital Ads",
+  "KOC & PR",
+  "FOC Production",
+  "Decoration Xmas",
+  "POSM & Merchandise",
+  "Activation",
+  "Dự phòng"
+ ],
+ "brands": [
+  {
+   "brand": "NCB",
+   "items": {
+    "Digital Ads": 80000000,
+    "KOC & PR": 40000000,
+    "FOC Production": 6000000,
+    "Decoration Xmas": 60000000,
+    "POSM & Merchandise": 45000000,
+    "Activation": 0,
+    "Dự phòng": 6000000
+   },
+   "total": 237000000,
+   "cap2pct": 187196102
+  },
+  {
+   "brand": "NDC",
+   "items": {
+    "Digital Ads": 75000000,
+    "KOC & PR": 50000000,
+    "FOC Production": 4000000,
+    "Decoration Xmas": 75000000,
+    "POSM & Merchandise": 40000000,
+    "Activation": 20000000,
+    "Dự phòng": 4000000
+   },
+   "total": 268000000,
+   "cap2pct": 212060513
+  },
+  {
+   "brand": "NJFB",
+   "items": {
+    "Digital Ads": 75000000,
+    "KOC & PR": 50000000,
+    "FOC Production": 4000000,
+    "Decoration Xmas": 60000000,
+    "POSM & Merchandise": 76000000,
+    "Activation": 0,
+    "Dự phòng": 6000000
+   },
+   "total": 271000000,
+   "cap2pct": 212080000
+  }
+ ],
+ "stores": [
+  {
+   "brand": "NCB",
+   "store": "Empress Tower",
+   "base": 30000000,
+   "months": {
+    "2026-10": {
+     "meta": 6000000,
+     "google": 2970000
+    },
+    "2026-11": {
+     "meta": 3000000,
+     "google": 2970000
+    },
+    "2026-12": {
+     "meta": 6000000,
+     "google": 3060000
+    }
+   }
+  },
+  {
+   "brand": "NCB",
+   "store": "The Mett",
+   "base": 30000000,
+   "months": {
+    "2026-10": {
+     "meta": 6000000,
+     "google": 2970000
+    },
+    "2026-11": {
+     "meta": 3000000,
+     "google": 2970000
+    },
+    "2026-12": {
+     "meta": 6000000,
+     "google": 3060000
+    }
+   }
+  },
+  {
+   "brand": "NCB",
+   "store": "SonKim Capital",
+   "base": 20000000,
+   "months": {
+    "2026-10": {
+     "meta": 4000000,
+     "google": 1980000
+    },
+    "2026-11": {
+     "meta": 2000000,
+     "google": 1980000
+    },
+    "2026-12": {
+     "meta": 4000000,
+     "google": 2040000
+    }
+   }
+  },
+  {
+   "brand": "NDC",
+   "store": "39NTMK",
+   "base": 45000000,
+   "months": {
+    "2026-10": {
+     "meta": 7875000,
+     "google": 4455000
+    },
+    "2026-11": {
+     "meta": 6750000,
+     "google": 4455000
+    },
+    "2026-12": {
+     "meta": 7875000,
+     "google": 4590000
+    }
+   }
+  },
+  {
+   "brand": "NDC",
+   "store": "The Berkley",
+   "base": 30000000,
+   "months": {
+    "2026-10": {
+     "meta": 5250000,
+     "google": 2970000
+    },
+    "2026-11": {
+     "meta": 4500000,
+     "google": 2970000
+    },
+    "2026-12": {
+     "meta": 5250000,
+     "google": 3060000
+    }
+   }
+  },
+  {
+   "brand": "NJFB",
+   "store": "SSV",
+   "base": 30000000,
+   "months": {
+    "2026-10": {
+     "meta": 5250000,
+     "google": 2970000
+    },
+    "2026-11": {
+     "meta": 4500000,
+     "google": 2970000
+    },
+    "2026-12": {
+     "meta": 5250000,
+     "google": 3060000
+    }
+   }
+  },
+  {
+   "brand": "NJFB",
+   "store": "The Crest",
+   "base": 45000000,
+   "months": {
+    "2026-10": {
+     "meta": 7875000,
+     "google": 4455000
+    },
+    "2026-11": {
+     "meta": 6750000,
+     "google": 4455000
+    },
+    "2026-12": {
+     "meta": 7875000,
+     "google": 4590000
+    }
+   }
+  }
+ ],
+ "brandMonth": [
+  {
+   "brand": "NCB",
+   "month": "2026-10",
+   "meta": 16000000,
+   "google": 7920000,
+   "booking": 3200000,
+   "focus": "Office Exclusive / After-Work / 20-10 / Halloween"
+  },
+  {
+   "brand": "NCB",
+   "month": "2026-11",
+   "meta": 8000000,
+   "google": 7920000,
+   "booking": 4800000,
+   "focus": "Always-on + chuẩn bị Christmas"
+  },
+  {
+   "brand": "NCB",
+   "month": "2026-12",
+   "meta": 16000000,
+   "google": 8160000,
+   "booking": 8000000,
+   "focus": "Christmas LTO / Secret Santa / festive"
+  },
+  {
+   "brand": "NDC",
+   "month": "2026-10",
+   "meta": 13125000,
+   "google": 7425000,
+   "booking": 3000000,
+   "focus": "Morning / Lunch / Pre-booking / 20-10 / Halloween"
+  },
+  {
+   "brand": "NDC",
+   "month": "2026-11",
+   "meta": 11250000,
+   "google": 7425000,
+   "booking": 4500000,
+   "focus": "Pre-booking + Winter Nights từ 20/11"
+  },
+  {
+   "brand": "NDC",
+   "month": "2026-12",
+   "meta": 13125000,
+   "google": 7650000,
+   "booking": 7500000,
+   "focus": "Winter Nights / Christmas Eve / Merch"
+  },
+  {
+   "brand": "NJFB",
+   "month": "2026-10",
+   "meta": 13125000,
+   "google": 7425000,
+   "booking": 3000000,
+   "focus": "Resident / Lunch / Weekly Offer / 20-10 / Halloween"
+  },
+  {
+   "brand": "NJFB",
+   "month": "2026-11",
+   "meta": 11250000,
+   "google": 7425000,
+   "booking": 4500000,
+   "focus": "Guest Shift + Night of Lights & Flavors"
+  },
+  {
+   "brand": "NJFB",
+   "month": "2026-12",
+   "meta": 13125000,
+   "google": 7650000,
+   "booking": 7500000,
+   "focus": "Xmas Pre-booking / Guest Shift / Night of Lights"
+  }
+ ],
+ "actual": []
+}
