@@ -979,31 +979,35 @@
       "monthCol": "month",
       "key": [
         "month",
+        "store",
         "daypart"
       ],
       "cols": [
         "month",
+        "store",
         "daypart",
         "net",
         "tc",
         "guest"
       ],
-      "desc": "Doanh thu theo khung giờ trong ngày."
+      "desc": "Doanh thu theo khung giờ trong ngày × cửa hàng (bộ lọc brand / phạm vi ở M3 cần cột store)."
     },
     "channel": {
       "tier": "monthly",
       "monthCol": "month",
       "key": [
         "month",
+        "store",
         "channel"
       ],
       "cols": [
         "month",
+        "store",
         "channel",
         "net",
         "tc"
       ],
-      "desc": "Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…)."
+      "desc": "Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…) × cửa hàng."
     },
     "identify": {
       "tier": "monthly",
@@ -1193,6 +1197,33 @@
         "pct"
       ],
       "desc": "Độ phủ giá vốn theo tháng."
+    },
+    "product_month": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month",
+        "store",
+        "ma"
+      ],
+      "req": [
+        "store",
+        "ma",
+        "qty",
+        "rev"
+      ],
+      "cols": [
+        "month",
+        "store",
+        "ma",
+        "name",
+        "cat",
+        "grp",
+        "qty",
+        "rev",
+        "cogs"
+      ],
+      "desc": "Bán món theo tháng × cửa hàng (POS báo cáo bán hàng). rev = Thành tiền (trước phí DV & VAT). cogs = giá vốn BOM × số lượng — TRỐNG khi món chưa có BOM. M2 lọc brand / phạm vi / kỳ trên bảng này."
     },
     "ads_month": {
       "tier": "monthly",
@@ -1665,18 +1696,23 @@
       "desc": "Cơ cấu theo Nhóm món — tính trên TOÀN BỘ SKU."
     },
     "heat": {
-      "tier": "snapshot",
+      "tier": "monthly",
+      "monthCol": "month",
       "key": [
+        "month",
+        "store",
         "dow",
         "hour_in"
       ],
       "cols": [
+        "month",
+        "store",
         "dow",
         "hour_in",
         "net",
         "tc"
       ],
-      "desc": "Ma trận giờ vào × thứ. dow: 0 = Thứ 2 … 6 = Chủ nhật."
+      "desc": "Ma trận giờ vào × thứ theo tháng × cửa hàng. dow: 0 = Thứ 2 … 6 = Chủ nhật."
     },
     "zone": {
       "tier": "snapshot",
@@ -1711,16 +1747,21 @@
       "desc": "Doanh thu theo nhân viên phục vụ."
     },
     "payment": {
-      "tier": "snapshot",
+      "tier": "monthly",
+      "monthCol": "month",
       "key": [
+        "month",
+        "store",
         "pttt"
       ],
       "cols": [
+        "month",
+        "store",
         "pttt",
         "net",
         "tc"
       ],
-      "desc": "Doanh thu theo phương thức thanh toán."
+      "desc": "Doanh thu theo phương thức thanh toán × tháng × cửa hàng."
     },
     "dwell": {
       "tier": "snapshot",

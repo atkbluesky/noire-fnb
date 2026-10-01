@@ -1,17 +1,28 @@
 import React from 'react';
 import { useFilters } from '../context/FilterContext';
-import { HUB_DATA } from '../data';
+import { HUB_DATA, BRAND_NAMES } from '../data';
+import { CAPACITY } from '../data/capacity';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
-import { formatVND, formatNumber, formatPercent } from '../utils/formatters';
+import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../utils/formatters';
 import type { EChartsOption } from 'echarts';
 
 export const CapacityView: React.FC = () => {
-  const { selectedMonths, inScope } = useFilters();
+  const { filters, selectedMonths, inScope } = useFilters();
 
   const ms = selectedMonths;
+  // Mọi khối giờ · kênh · thanh toán tách theo tháng × cửa hàng → lọc được theo kỳ,
+  // brand và phạm vi. store = null là file tháng dựng trước khi có cột này (giữ lại, không bỏ số).
+  const inSel = (month: string | null | undefined, store: string | null | undefined) =>
+    !!month && ms.includes(month) && (store == null || inScope(store));
+  const scopeLabel = [
+    ms.length > 1 ? `${formatMonthLabel(ms[0])} → ${formatMonthLabel(ms[ms.length - 1])}`
+      : ms.length ? formatMonthLabel(ms[0]) : '',
+    filters.brand === 'ALL' ? 'Tất cả brand' : `${filters.brand} · ${BRAND_NAMES[filters.brand] ?? ''}`,
+    filters.scope === 'all' ? 'tất cả cửa hàng' : 'cửa hàng chính',
+  ].filter(Boolean).join(' · ');
   const DP = HUB_DATA.daypart_order || ['Sáng', 'Trưa', 'Xế', 'Tối', 'Khuya'];
 
   // Daypart aggregation for selected months
@@ -21,7 +32,7 @@ export const CapacityView: React.FC = () => {
   });
 
   (HUB_DATA.daypart || []).forEach(r => {
-    if (ms.includes(r.month) && dpMap[r.daypart]) {
+    if (inSel(r.month, r.store) && dpMap[r.daypart]) {
       dpMap[r.daypart].net += r.net;
       dpMap[r.daypart].tc += r.tc;
       dpMap[r.daypart].guest += r.guest || 0;
@@ -34,7 +45,7 @@ export const CapacityView: React.FC = () => {
   // Channel aggregation
   const channelMap: Record<string, { net: number; tc: number }> = {};
   (HUB_DATA.channel || []).forEach(r => {
-    if (!ms.includes(r.month)) return;
+    if (!inSel(r.month, r.store)) return;
     channelMap[r.channel] = channelMap[r.channel] || { net: 0, tc: 0 };
     channelMap[r.channel].net += r.net;
     channelMap[r.channel].tc += r.tc;
@@ -48,10 +59,19 @@ export const CapacityView: React.FC = () => {
   const hours = Array.from({ length: 18 }, (_, i) => i + 6); // 6h to 23h
   const heatmapData: [number, number, number, number][] = []; // [hourIdx, dayIdx, net, tc]
 
+  // Cộng các cửa hàng × tháng đang chọn về từng ô (thứ × giờ vào).
+  const heatAgg = new Map<string, { dow: number; hour: number; net: number; tc: number }>();
+  for (const [m, st, dow, hour, net, tc] of CAPACITY.heat || []) {
+    if (!inSel(m, st)) continue;
+    const k = `${dow}|${hour}`;
+    const o = heatAgg.get(k) ?? { dow, hour, net: 0, tc: 0 };
+    o.net += net; o.tc += tc;
+    heatAgg.set(k, o);
+  }
   let maxHeatNet = 0;
-  (HUB_DATA.heat || []).forEach(h => {
+  heatAgg.forEach(h => {
     if (h.net > maxHeatNet) maxHeatNet = h.net;
-    const hourIdx = hours.indexOf(h.hour_in);
+    const hourIdx = hours.indexOf(h.hour);
     if (hourIdx >= 0 && h.dow >= 0 && h.dow < 7) {
       heatmapData.push([hourIdx, h.dow, h.net, h.tc]);
     }
@@ -295,8 +315,16 @@ export const CapacityView: React.FC = () => {
   };
 
   /* ── Phương thức thanh toán (khoá payment) ───────────────────────── */
-  const payTotal = (HUB_DATA.payment || []).reduce((a, p) => a + p.net, 0);
-  const payRows = (HUB_DATA.payment || []).map(p => ({
+  const payMap = new Map<string, { pttt: string; net: number; tc: number }>();
+  for (const p of CAPACITY.payment || []) {
+    if (!inSel(p.month, p.store)) continue;
+    const o = payMap.get(p.pttt) ?? { pttt: p.pttt, net: 0, tc: 0 };
+    o.net += p.net; o.tc += p.tc;
+    payMap.set(p.pttt, o);
+  }
+  const payList = [...payMap.values()].sort((a, b) => b.net - a.net).slice(0, 12);
+  const payTotal = [...payMap.values()].reduce((a, p) => a + p.net, 0);
+  const payRows = payList.map(p => ({
     ...p,
     share: payTotal > 0 ? p.net / payTotal : 0,
     aov: p.tc > 0 ? p.net / p.tc : null,
@@ -402,6 +430,10 @@ export const CapacityView: React.FC = () => {
         </h2>
         <p className="text-xs text-brand-muted mt-1">
           F&amp;B bán công suất theo thời gian — chỗ ngồi trống lúc 15h không thể bán lại vào lúc 19h.
+        </p>
+        <p className="text-[11px] text-brand-faint mt-1">
+          Đang xem <b className="text-brand-muted">{scopeLabel}</b>. Khung giờ · kênh · ma trận giờ · thanh toán
+          lọc theo kỳ và brand; nhân viên · khu vực · thời gian ngồi bàn là luỹ kế toàn kỳ, lọc theo cửa hàng.
         </p>
       </div>
 

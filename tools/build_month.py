@@ -24,6 +24,7 @@ import os
 import re
 import sys
 from collections import defaultdict
+from datetime import date as _date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from monthly_lib import (  # noqa: E402
@@ -1139,6 +1140,38 @@ def read_pos_sheets(path, want):
     return rows, targets
 
 
+_BOM_UNIT = None
+
+
+def bom_unit():
+    """{mã món: giá vốn 1 suất} từ bảng BOM chuẩn (S05_bom, sheet 01_COGS_ALL, tiêu đề dòng 4).
+
+    Cùng luật với build_hub.py: một mã khai nhiều dòng (món dùng chung giữa các brand)
+    thì dòng CÓ giá vốn > 0 thắng. Món không có trong BOM → không có khoá, product_month
+    để trống cột cogs (≠ 0: chưa đo được, không phải giá vốn bằng không)."""
+    global _BOM_UNIT
+    if _BOM_UNIT is not None:
+        return _BOM_UNIT
+    _BOM_UNIT = {}
+    path = l0_latest("S05_bom")
+    if not path:
+        return _BOM_UNIT
+    try:
+        rows = sheet_rows(path, "01_COGS_ALL", header_row=4)
+    except KeyError:
+        warn(f"{os.path.basename(path)}: thiếu sheet 01_COGS_ALL — product_month không có giá vốn")
+        return _BOM_UNIT
+    for r in rows:
+        ma = _clean(r.get("MÃ MÓN"))
+        if not ma:
+            continue
+        c = to_num(r.get("GIÁ VỐN"))
+        if ma not in _BOM_UNIT or (c is not None and c > 0):
+            _BOM_UNIT[ma] = c
+    _BOM_UNIT = {k: v for k, v in _BOM_UNIT.items() if v is not None}
+    return _BOM_UNIT
+
+
 def _pos_files(month):
     # Hai file cùng tháng (vd. bản 'tới 13-09' rồi bản đủ tháng) → lấy bản MỚI NHẤT.
     # Bản cũ dùng next() trên glob — thứ tự không xác định, có lúc lấy nhầm bản dở.
@@ -1200,6 +1233,7 @@ def read_pos(month, built=None):
                 "net": to_num(r.get("net"), 0) or 0,
                 "guest": to_num(r.get("guest"), 0) or 0,
                 "channel": _clean(r.get("channel")) or "(không rõ)",
+                "hour": _hour(r.get("hour")),
                 "daypart": daypart_of(_hour(r.get("hour"))),
                 "phone": _clean(r.get("phone")),
                 # khối CTKM cấp hoá đơn
@@ -1234,17 +1268,38 @@ def read_pos(month, built=None):
         if unknown:
             warn("bảng kê %s: cửa hàng chưa khai — %s" % (month, ", ".join(sorted(unknown))))
         if bills:
+            # Mọi khối M3 tách theo CỬA HÀNG — không có cột store thì bộ lọc brand /
+            # phạm vi ở dashboard không có gì để lọc và màn hình luôn hiện số toàn chuỗi.
             out["channel"] = [
-                {"month": month, "channel": r["channel"],
+                {"month": month, "store": r["store"], "channel": r["channel"],
                  "net": round(r["net"]), "tc": round(r["tc"])}
-                for r in sorted(agg(bills, ["channel"], sums=["net", "tc"]),
-                                key=lambda x: -x["net"])]
-            dp = agg([b for b in bills if b["daypart"]], ["daypart"],
+                for r in sorted(agg(bills, ["store", "channel"], sums=["net", "tc"]),
+                                key=lambda x: (x["store"], -x["net"]))]
+            dp = agg([b for b in bills if b["daypart"]], ["store", "daypart"],
                      sums=["net", "tc", "guest"])
             out["daypart"] = [
-                {"month": month, "daypart": r["daypart"], "net": round(r["net"]),
+                {"month": month, "store": r["store"], "daypart": r["daypart"], "net": round(r["net"]),
                  "tc": round(r["tc"]), "guest": round(r["guest"])}
-                for r in sorted(dp, key=lambda x: DAYPART_ORDER.index(x["daypart"]))]
+                for r in sorted(dp, key=lambda x: (x["store"], DAYPART_ORDER.index(x["daypart"])))]
+            # Ma trận giờ vào × thứ. dow tính từ ngày chứng từ: 0 = Thứ 2 … 6 = Chủ nhật.
+            hb = []
+            for b in bills:
+                h = b["hour"]
+                if h is None or not b["date"]:
+                    continue
+                y, mo_, dd = (int(x) for x in b["date"].split("-"))
+                hb.append({"store": b["store"], "dow": _date(y, mo_, dd).weekday(), "hour_in": h,
+                           "net": b["net"], "tc": 1})
+            out["heat"] = [
+                {"month": month, "store": r["store"], "dow": r["dow"], "hour_in": r["hour_in"],
+                 "net": round(r["net"]), "tc": round(r["tc"])}
+                for r in sorted(agg(hb, ["store", "dow", "hour_in"], sums=["net", "tc"]),
+                                key=lambda x: (x["store"], x["dow"], x["hour_in"]))]
+            out["payment"] = [
+                {"month": month, "store": r["store"], "pttt": r["pttt"] or "(không rõ)",
+                 "net": round(r["net"]), "tc": round(r["tc"])}
+                for r in sorted(agg(bills, ["store", "pttt"], sums=["net", "tc"]),
+                                key=lambda x: (x["store"], -x["net"]))]
             out["identify"] = [{"month": month, "bills": len(bills),
                                 "id_bills": sum(1 for b in bills if b["phone"])}]
             out["_bills_n"] = len(bills)
@@ -1330,9 +1385,12 @@ def read_pos(month, built=None):
             "code": ["Mã hàng"],
             "name": ["Tên hàng"],
             "group": ["Nhóm món"],
+            "cat": ["Loại món"],
             "qty": ["Số lượng"],
         }
         rows, sheets = read_pos_sheets(item_f, want)
+        unit = bom_unit()
+        sku = []                       # → product_month (M2 lọc brand · phạm vi · kỳ)
         lto_rx = re.compile(CONTRACT["$campaign"].get("lto_group_rx", "LTO"), re.I)
         lto_lines = []
         items = []
@@ -1349,6 +1407,14 @@ def read_pos(month, built=None):
                                   "item_code": _clean(r.get("code")), "item_name": _clean(r.get("name")),
                                   "group": grp, "qty": to_num(r.get("qty"), 0) or 0,
                                   "line_rev": to_num(r.get("line_rev"), 0) or 0})
+            ma = _clean(r.get("code"))
+            if ma:
+                q = to_num(r.get("qty"), 0) or 0
+                u = unit.get(ma)
+                sku.append({"store": code, "ma": ma, "name": _clean(r.get("name")),
+                            "cat": _clean(r.get("cat")), "grp": grp, "qty": q,
+                            "rev": to_num(r.get("line_rev"), 0) or 0,
+                            "cogs": u * q if u is not None else 0, "has_cogs": u is not None})
             items.append({
                 "store": code, "date": d, "items": 1,
                 "net": to_num(r.get("net"), 0) or 0,           # tổng tiền dòng món
@@ -1392,6 +1458,16 @@ def read_pos(month, built=None):
                      "bills": len(bills_by[(r["nature"], r["brand"])])}
                     for r in sorted(agg(ck, ["nature", "brand"], sums=["rev", "disc"]),
                                     key=lambda x: (x["nature"], x["brand"]))]
+            if sku:
+                pm = agg(sku, ["store", "ma"], sums=["qty", "rev", "cogs"],
+                         first=["name", "cat", "grp", "has_cogs"])
+                out["product_month"] = [
+                    {"month": month, "store": r["store"], "ma": r["ma"], "name": r["name"],
+                     "cat": r["cat"] or None, "grp": r["grp"] or None,
+                     "qty": round(r["qty"], 3), "rev": round(r["rev"]),
+                     # Trống = món chưa có BOM (chưa đo được), KHÔNG phải giá vốn bằng 0.
+                     "cogs": round(r["cogs"]) if r["has_cogs"] else None}
+                    for r in sorted(pm, key=lambda x: (x["store"], -x["rev"]))]
             out["_item_store"] = agg(items, ["store"], sums=["net"])
             # Số dòng món của tháng đi kèm sheet identify để tab D1 đếm được
             # tổng dòng đã xử lý mà không cần khai cứng ở _stats.
@@ -1497,7 +1573,8 @@ def read_pos(month, built=None):
 # T8, không đọc lại 60MB file POS.
 BUILDERS = [
     ("tracking", "Doanh thu · Tracking Sales", read_tracking, ["S03_daily", "S00_targets"]),
-    ("pos", "POS · kênh · giờ · CTKM", read_pos, ["S01_item", "S02_bill"]),
+    # S05_bom: giá vốn của product_month — đổi BOM là dựng lại phần pos (mọi tháng, xem update.py).
+    ("pos", "POS · kênh · giờ · CTKM", read_pos, ["S01_item", "S02_bill", "S05_bom"]),
     ("meta", "Meta Ads", read_meta_ads, ["S08_ads_meta"]),
     ("google", "Google Ads", read_google_ads, ["S09_ads_google"]),
     ("social", "Social · Facebook + TikTok", read_social, ["S18_social", "S22_tiktok"]),
@@ -1513,8 +1590,8 @@ PART_SOURCES = {k: srcs for k, _, _, srcs in BUILDERS}
 # thì số cũ vẫn nằm đó mãi — đúng kiểu "số đóng băng" đã làm 5 nguồn chết âm thầm.
 PART_SHEETS = {
     "tracking": ["store_month", "daily", "coverage", "dim_target"],
-    "pos": ["channel", "daypart", "identify", "nature", "fact_promo_day", "fact_lto_line",
-            "fact_partner", "daily_party", "recon"],
+    "pos": ["channel", "daypart", "heat", "payment", "product_month", "identify", "nature",
+            "fact_promo_day", "fact_lto_line", "fact_partner", "daily_party", "recon"],
     "meta": ["ads_month", "ads_brand", "ads_objective", "ads_campaign_detail"],
     "google": ["ads_google", "gads_channel", "gads_kw"],
     "social": ["social_month"],

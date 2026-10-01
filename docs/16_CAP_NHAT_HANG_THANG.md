@@ -16,7 +16,7 @@ data_input/
 │                           KHÔNG phải file hằng tháng
 │
 ├── 02_snapshot.xlsx        TẦNG C · BẢNG LUỸ KẾ TOÀN KỲ
-│                           product · category · group · heat · zone · staff · payment · dwell · repeat
+│                           product · category · group · zone · staff · dwell · repeat
 │                           nộp lại là THAY THẾ toàn bộ, không nối thêm
 │
 └── monthly/                TẦNG B · SỰ THẬT THEO THÁNG  ← 95% công việc hằng tháng nằm ở đây
@@ -171,7 +171,8 @@ Cột tên `YYYY-MM` là ngân sách của tháng đó.
 | Sheet trong gói tháng | Nguồn thô | Module dùng |
 |---|---|---|
 | `store_month` · `daily` · `coverage` · `dim_target` | Tracking Sales Tool → `Data_Daily`, `By Month` | M0 · M1 |
-| `channel` · `daypart` · `identify` · `recon` | Bảng kê hoá đơn `accounting_sale` | M3 · M9 · D1 |
+| `channel` · `daypart` · `heat` · `payment` · `identify` · `recon` | Bảng kê hoá đơn `accounting_sale` — tách theo **cửa hàng** để M3 lọc brand | M3 · M9 · D1 |
+| `product_month` | Báo cáo bán hàng (món × cửa hàng) + giá vốn BOM | M2 (lọc kỳ · brand · phạm vi) |
 | `nature` | Báo cáo bán hàng (cột `Tên CTKM`) | M8 |
 | `ads_month` · `ads_brand` · `ads_objective` · `ads_campaign_detail` | Meta `YYYY-MM_report.xlsx` | M5 |
 | `ads_google` · `gads_channel` · `gads_kw` | Google Ads `Tháng N.YYYY/` | M5 |

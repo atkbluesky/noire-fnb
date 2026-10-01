@@ -43,38 +43,59 @@ export interface DailyBundle {
 
 export interface DaypartData {
   month: string;
+  /** Cửa hàng — để bộ lọc brand / phạm vi ở M3 lọc được. null = file tháng dựng trước khi có cột này. */
+  store?: string | null;
   daypart: string;
   net: number;
   tc: number;
   guest?: number;
 }
 
-export interface HeatmapPoint {
-  dow: number; // 0=Mon..6=Sun
-  hour_in: number;
-  net: number;
-  tc: number;
+/** Ô ma trận giờ vào × thứ, nén mảng: [tháng, cửa hàng, dow (0 = Thứ 2), giờ vào, net, tc]. */
+export type HeatCell = [string | null, string | null, number, number, number, number];
+
+/** capacity.json — chỉ M3 Công suất tải. */
+export interface CapacityBundle {
+  heat: HeatCell[];
+  payment: PaymentData[];
 }
 
 export interface ChannelData {
   month: string;
+  store?: string | null;
   channel: string;
   net: number;
   tc: number;
 }
 
+export type MenuClass = 'Star' | 'Plow-horse' | 'Puzzle' | 'Dog' | 'Chưa xếp hạng';
+
+/** Một món sau khi gộp theo bộ lọc (kỳ · brand · phạm vi) — M2 tự tính từ ProductBundle. */
 export interface ProductItem {
-  code: string;
+  ma: string;
   name: string;
-  cat: string;
-  grp: string;
-  brand: string;
+  cat: string | null;
+  grp: string | null;
   qty: number;
   rev: number;
   cogs: number;
-  cm_pct: number;
   has_cogs: boolean;
-  mclass: 'Star' | 'Plow-horse' | 'Puzzle' | 'Dog' | 'Chưa xếp hạng';
+  cm: number | null;
+  cm_pct: number | null;
+  mclass: MenuClass;
+}
+
+/** Dòng bán món nén: [chỉ số tháng, chỉ số cửa hàng, chỉ số món, qty, rev, cogs | null (chưa có BOM)]. */
+export type ProductRow = [number, number, number, number, number, number | null];
+
+/** product.json — chỉ M2 Menu tải. */
+export interface ProductBundle {
+  months: string[];
+  stores: string[];
+  items: { ma: string; name: string; cat: string | null; grp: string | null }[];
+  rows: ProductRow[];
+  /** Bảng luỹ kế toàn chuỗi cũ — chỉ dùng khi chưa có product_month. */
+  legacy: ProductItem[];
 }
 
 export interface ProductStat {
@@ -191,6 +212,8 @@ export interface DwellStore {
 
 /** Cơ cấu phương thức thanh toán. */
 export interface PaymentData {
+  month?: string | null;
+  store?: string | null;
   pttt: string;
   net: number;
   tc: number;
@@ -331,7 +354,7 @@ export interface HubData {
   /** Đã tách sang src/data/daily.ts — import trực tiếp ở M1 Doanh thu. */
   daypart: DaypartData[];
   daypart_order: string[];
-  heat: HeatmapPoint[];
+  /** heat · payment đã tách sang src/data/capacity.ts — import trực tiếp ở M3. */
   channel: ChannelData[];
   menu_median: { qty: number; cm_pct: number };
   /** Đã tách sang src/data/product.ts — import trực tiếp ở M2 Menu. */
@@ -350,7 +373,6 @@ export interface HubData {
     bills: number; net: number; disc: number; voucher: number }[];
   staff: StaffData[];
   zone: ZoneData[];
-  payment: PaymentData[];
   dwell: DwellData;
   dwell_store: DwellStore[];
   identify: IdentifyData[];

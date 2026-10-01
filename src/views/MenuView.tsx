@@ -1,29 +1,71 @@
-import React, { useState } from 'react';
-import { HUB_DATA } from '../data';
-import { PRODUCT } from '../data/product';
+import React, { useMemo, useState } from 'react';
+import { useFilters } from '../context/FilterContext';
+import { HUB_DATA, BRAND_NAMES } from '../data';
+import { aggregateProducts } from '../data/product';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { StatusBadge, BadgeVariant } from '../components/common/StatusBadge';
 import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
-import { formatVND, formatNumber, formatPercent } from '../utils/formatters';
+import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../utils/formatters';
 import type { EChartsOption } from 'echarts';
 
 export const MenuView: React.FC = () => {
-  const PS = HUB_DATA.product_stat;
-  const products = PRODUCT.filter(p => p.cat !== 'NO SERVICE CHARGE');
-  const totalRev = PS.rev;
+  const { filters, selectedMonths, inScope, brandMatches } = useFilters();
+
+  // Gộp bán món theo ĐÚNG bộ lọc đang chọn (kỳ · brand · phạm vi cửa hàng). Mọi thẻ,
+  // ma trận, Pareto, cơ cấu bên dưới tính trên tập này — chọn NJFB là chỉ còn món NJFB.
+  // inScope đổi theo filters.scope / filters.brand — hai giá trị đó là deps thật.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const agg = useMemo(() => aggregateProducts(selectedMonths, inScope),
+    [selectedMonths, filters.scope, filters.brand]);
+  const allRows = agg.products;
+  const products = useMemo(() => allRows.filter(p => p.cat !== 'NO SERVICE CHARGE'), [allRows]);
+  const nMonths = agg.filtered ? selectedMonths.length : HUB_DATA.meta.months.length;
 
   const [selectedQuadrant, setSelectedQuadrant] = useState<string | null>(null);
 
-  const sortedProducts = [...products].sort((a, b) => b.rev - a.rev);
+  const sortedProducts = products;                      // đã xếp giảm dần theo doanh thu
+  const totalRev = products.reduce((a, p) => a + p.rev, 0);
 
   // Products with valid COGS
-  const withCogs = products.filter(p => p.has_cogs);
+  const withCogs = products.filter(p => p.has_cogs && p.cm_pct !== null);
+
+  // Thống kê menu của tập đang lọc (trước đây đọc số luỹ kế toàn chuỗi cố định).
+  const PS = useMemo(() => {
+    const n20 = Math.max(1, Math.round(products.length * 0.2));
+    let acc = 0, n80 = 0;
+    for (const p of products) { acc += p.rev; n80++; if (totalRev > 0 && acc / totalRev >= 0.8) break; }
+    const slow = products.filter(p => p.qty < 10 * Math.max(1, nMonths));
+    const cls: Record<string, number> = {}, cls_rev: Record<string, number> = {};
+    for (const p of products) {
+      cls[p.mclass] = (cls[p.mclass] ?? 0) + 1;
+      cls_rev[p.mclass] = (cls_rev[p.mclass] ?? 0) + p.rev;
+    }
+    const revCogs = products.filter(p => p.has_cogs).reduce((a, p) => a + p.rev, 0);
+    return {
+      sku: products.length,
+      sku_cogs: products.filter(p => p.has_cogs).length,
+      rev20: totalRev > 0 ? products.slice(0, n20).reduce((a, p) => a + p.rev, 0) / totalRev : 0,
+      n80,
+      slow: slow.length,
+      slow_rev: totalRev > 0 ? slow.reduce((a, p) => a + p.rev, 0) / totalRev : 0,
+      cls, cls_rev,
+      cogs_cov: totalRev > 0 ? revCogs / totalRev : 0,
+    };
+  }, [products, totalRev, nMonths]);
+
+  const scopeLabel = [
+    selectedMonths.length > 1
+      ? `${formatMonthLabel(selectedMonths[0])} → ${formatMonthLabel(selectedMonths[selectedMonths.length - 1])}`
+      : selectedMonths.length ? formatMonthLabel(selectedMonths[0]) : '',
+    filters.brand === 'ALL' ? 'Tất cả brand' : `${filters.brand} · ${BRAND_NAMES[filters.brand] ?? ''}`,
+    filters.scope === 'all' ? 'tất cả cửa hàng' : 'cửa hàng chính',
+  ].filter(Boolean).join(' · ');
 
   // 1. Menu Engineering Scatter Chart (4 Quadrants)
-  const medQty = HUB_DATA.menu_median.qty || 100;
-  const medCm = (HUB_DATA.menu_median.cm_pct || 0.65) * 100;
+  const medQty = agg.median.qty || 100;
+  const medCm = (agg.median.cm_pct || 0.65) * 100;
 
   const quadrantColors: Record<string, string> = {
     Star: '#22C55E',
@@ -80,7 +122,7 @@ export const MenuView: React.FC = () => {
         name: k,
         type: 'scatter',
         data: items.map(p => ({
-          value: [p.qty, p.cm_pct * 100],
+          value: [p.qty, (p.cm_pct ?? 0) * 100],
           name: p.name,
           mclass: p.mclass,
           rev: p.rev,
@@ -152,12 +194,23 @@ export const MenuView: React.FC = () => {
     ],
   };
 
-  // 3. Category Bar Chart
-  const categories = HUB_DATA.category.filter(c => c.cat !== 'NO SERVICE CHARGE');
+  // 3. Category Bar Chart — gộp từ chính tập món đang lọc
+  const rollup = (key: 'cat' | 'grp') => {
+    const m = new Map<string, { qty: number; rev: number }>();
+    for (const p of allRows) {
+      const k = p[key] || '(không rõ)';
+      const o = m.get(k) ?? { qty: 0, rev: 0 };
+      o.qty += p.qty; o.rev += p.rev; m.set(k, o);
+    }
+    return [...m.entries()].map(([k, v]) => ({ key: k, ...v })).sort((a, b) => b.rev - a.rev);
+  };
+  const catAll = rollup('cat').map(r => ({ cat: r.key, qty: r.qty, rev: r.rev }));
+  const grpAll = rollup('grp').map(r => ({ grp: r.key, qty: r.qty, rev: r.rev }));
+  const categories = catAll.filter(c => c.cat !== 'NO SERVICE CHARGE');
   /* ── Cơ cấu theo Nhóm món (khoá group) ───────────────────────────── */
-  const grpRows = (HUB_DATA.group || []).slice(0, 18);
-  const grpTotal = (HUB_DATA.group || []).reduce((a, g) => a + g.rev, 0);
-  const catTotal = (HUB_DATA.category || []).reduce((a, c) => a + c.rev, 0);
+  const grpRows = grpAll.slice(0, 18);
+  const grpTotal = grpAll.reduce((a, g) => a + g.rev, 0);
+  const catTotal = catAll.reduce((a, c) => a + c.rev, 0);
   const grpShare = catTotal > 0 ? grpRows.reduce((a, g) => a + g.rev, 0) / catTotal : 0;
 
   const grpOption: EChartsOption = {
@@ -278,7 +331,7 @@ export const MenuView: React.FC = () => {
       align: 'right',
       render: row => (
         <span className="font-mono font-bold">
-          {row.has_cogs ? formatPercent(row.cm_pct) : <span className="text-brand-faint">—</span>}
+          {row.has_cogs ? formatPercent(row.cm_pct ?? 0) : <span className="text-brand-faint">—</span>}
         </span>
       ),
     },
@@ -353,15 +406,17 @@ export const MenuView: React.FC = () => {
           M2 · Menu Engineering &amp; Biên Lợi Nhuận
         </h2>
         <p className="text-xs text-brand-muted mt-1">
-          Luỹ kế {HUB_DATA.meta.months.length} tháng. Phân tích ma trận 4 góc phần tư món ăn và kiểm soát rủi ro giá vốn.
+          {agg.filtered
+            ? <>Đang xem <b className="text-brand-text">{scopeLabel}</b>. </>
+            : <>Luỹ kế {nMonths} tháng. </>}
+          Phân tích ma trận 4 góc phần tư món ăn và kiểm soát rủi ro giá vốn.
         </p>
-        {/* Bảng món là tầng LUỸ KẾ: chỉ được dựng lại khi chạy lại toàn kỳ, nên có thể
-            phủ ít ngày hơn khối doanh thu theo tháng. Nói thẳng ra thay vì để người đọc
-            tưởng hai khối cùng kỳ. */}
-        {PS.covers && (
-          <p className="text-[11px] text-brand-faint mt-1">
-            Bảng món phủ kỳ <b className="text-brand-muted font-mono">{PS.covers}</b> — dựng lại
-            bằng lane luỹ kế, có thể lệch vài ngày so với khối doanh thu theo tháng.
+        {/* Chưa có product_month (data_input dựng trước bản tách theo cửa hàng) → đang hiện
+            bảng luỹ kế toàn chuỗi cũ. Nói thẳng ra để người đọc biết bộ lọc chưa có tác dụng. */}
+        {!agg.filtered && (
+          <p className="text-[11px] text-status-warning mt-1">
+            Chưa có số bán món theo cửa hàng (sheet product_month) — đang hiện bảng luỹ kế toàn chuỗi,
+            bộ lọc kỳ / brand chưa áp dụng. Chạy lại CAP_NHAT.bat để dựng.
           </p>
         )}
       </div>
@@ -373,7 +428,7 @@ export const MenuView: React.FC = () => {
         </span>
         <div className="space-y-1 text-brand-text">
           <p>
-            Độ phủ giá vốn hiện mới đạt <b>{formatPercent(HUB_DATA.meta.cogs_coverage)}</b> ({PS.sku_cogs}/{PS.sku} SKU).
+            Độ phủ giá vốn của kỳ đang xem mới đạt <b>{formatPercent(PS.cogs_cov)}</b> doanh thu món ({PS.sku_cogs}/{PS.sku} SKU).
             Bảng BOM có {HUB_DATA.bom_stat.rows} dòng nhưng chỉ <b>{HUB_DATA.bom_stat.codes} mã duy nhất</b>.
           </p>
           <p className="text-brand-muted text-[11px]">
@@ -393,7 +448,7 @@ export const MenuView: React.FC = () => {
         />
         <MetricCard
           label="SKU Bán Chậm"
-          subLabel="< 10 suất / tháng"
+          subLabel={`< ${formatNumber(10 * Math.max(1, nMonths))} suất trong kỳ (10 suất/tháng)`}
           value={formatNumber(PS.slow)}
           customDeltaText={`= ${formatPercent(PS.slow / PS.sku)} SKU · chỉ ${formatPercent(PS.slow_rev)} DT`}
           isFlagged={true}
@@ -408,7 +463,7 @@ export const MenuView: React.FC = () => {
         <MetricCard
           label="Độ Phủ Giá Vốn"
           subLabel="DT có COGS ÷ Tổng DT"
-          value={formatPercent(HUB_DATA.meta.cogs_coverage)}
+          value={formatPercent(PS.cogs_cov)}
           isFlagged={true}
           flagMessage="Chặn Prime Cost"
           variant="warning"
@@ -545,7 +600,7 @@ export const MenuView: React.FC = () => {
         >
           <DataTable
             columns={flagColumns}
-            data={HUB_DATA.cogs_flags}
+            data={HUB_DATA.cogs_flags.filter(f => brandMatches(f.brand))}
             searchable={false}
             pageSize={8}
             exportFilename="Noire_COGS_Flags"

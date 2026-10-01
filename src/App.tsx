@@ -84,7 +84,7 @@ const DashboardContent: React.FC = () => {
 
   // Determine whether to show the filter bar and its options
   const showFilterBar = !['d1', 'd2', 'm81'].includes(activeView);
-  const showScopeFilter = ['m0', 'm1', 'm3', 'r1'].includes(activeView);
+  const showScopeFilter = ['m0', 'm1', 'm2', 'm3', 'r1'].includes(activeView);
   const showPerDayFilter = ['m0', 'm1', 'r1'].includes(activeView);
 
   let customNote = '';

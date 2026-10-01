@@ -200,6 +200,7 @@ const SCHEMA = {
   daily:       { req: ['date', 'store', 'net'], must: false },
   daily_party: { req: ['date', 'store', 'net', 'tc'], must: false },
   product:     { req: ['ma', 'name', 'qty', 'rev'], must: false },
+  product_month: { req: ['month', 'store', 'ma', 'qty', 'rev'], must: false },
   daypart:     { req: ['month', 'daypart', 'net', 'tc'], must: false },
   heat:        { req: ['dow', 'hour_in', 'net'], must: false },
   channel:     { req: ['month', 'channel', 'net'], must: false },
@@ -536,6 +537,32 @@ function buildHub(tables, over, scan) {
     return [...m.values()].sort((a, b) => b.rev - a.rev);
   };
 
+  // ---- M2 theo tháng × cửa hàng: bộ lọc brand · phạm vi · kỳ lọc được thật ----
+  // `product` ở trên là bảng LUỸ KẾ toàn chuỗi (top-700) — chỉ còn nuôi product_stat cho
+  // các màn tổng quan. M2 tự gộp từ product_month theo bộ lọc. Dòng nén thành mảng
+  // [tháng, cửa hàng, món, qty, rev, cogs] vì ~1.400 dòng/tháng × N tháng.
+  const pmRows = T(tables, 'product_month').filter((r) => r.month && r.store && r.ma);
+  const pmMonths = [...new Set(pmRows.map((r) => String(r.month).slice(0, 7)))].sort();
+  const pmStores = [...new Set(pmRows.map((r) => r.store))].sort();
+  const itemIdx = new Map();
+  const items = [];
+  for (const r of [...pmRows].sort((a, b) => String(a.month).localeCompare(String(b.month)))) {
+    let i = itemIdx.get(r.ma);
+    if (i === undefined) { i = items.length; itemIdx.set(r.ma, i); items.push({ ma: r.ma }); }
+    // Tên / nhóm theo kỳ MỚI NHẤT — menu đổi tên món giữa các tháng.
+    Object.assign(items[i], { name: r.name ?? items[i].name ?? r.ma, cat: r.cat ?? items[i].cat ?? null,
+                              grp: r.grp ?? items[i].grp ?? null });
+  }
+  const mI = new Map(pmMonths.map((m, i) => [m, i]));
+  const sI = new Map(pmStores.map((s, i) => [s, i]));
+  const productBundle = {
+    months: pmMonths,
+    stores: pmStores,
+    items,
+    rows: pmRows.map((r) => [mI.get(String(r.month).slice(0, 7)), sI.get(r.store), itemIdx.get(r.ma),
+                             n0(r.qty), n0(r.rev), num(r.cogs)]),
+  };
+
   // ---- dwell: dòng không có store là số toàn chuỗi ----
   const dwRows = T(tables, 'dwell');
   const chain = dwRows.find((r) => !r.store);
@@ -585,17 +612,23 @@ function buildHub(tables, over, scan) {
       labels: CONTRACT.$guest_segment.labels,
     },
     daypart: T(tables, 'daypart').map((r) => ({
-      month: r.month, daypart: r.daypart, net: n0(r.net), tc: n0(r.tc), guest: n0(r.guest),
+      month: r.month, store: r.store ?? null, daypart: r.daypart, net: n0(r.net), tc: n0(r.tc), guest: n0(r.guest),
     })),
     daypart_order: [...new Set(T(tables, 'daypart').map((r) => r.daypart))].filter(Boolean),
-    heat: T(tables, 'heat').map((r) => ({
-      dow: n0(r.dow), hour_in: n0(r.hour_in), net: n0(r.net), tc: n0(r.tc),
-    })),
+    // heat · payment: tháng × cửa hàng — tách sang capacity.json ở main() (chỉ M3 tải).
+    // heat nén mảng [tháng, cửa hàng, dow, giờ, net, tc]: ~750 ô/tháng.
+    capacity: {
+      heat: T(tables, 'heat').map((r) => [r.month ?? null, r.store ?? null, n0(r.dow), n0(r.hour_in), n0(r.net), n0(r.tc)]),
+      payment: T(tables, 'payment').map((r) => ({
+        month: r.month ?? null, store: r.store ?? null, pttt: r.pttt, net: n0(r.net), tc: n0(r.tc),
+      })),
+    },
     channel: T(tables, 'channel').map((r) => ({
-      month: r.month, channel: r.channel, net: n0(r.net), tc: n0(r.tc),
+      month: r.month, store: r.store ?? null, channel: r.channel, net: n0(r.net), tc: n0(r.tc),
     })),
     menu_median: { qty: qMed, cm_pct: mMed },
     product,
+    product_bundle: productBundle,
     product_stat,
     category: rollup('cat', 'category'),
     group: rollup('grp', 'group').slice(0, 30),
@@ -676,8 +709,6 @@ function buildHub(tables, over, scan) {
     zone: T(tables, 'zone').map((r) => ({
       store: r.store, zone: r.zone, net: n0(r.net), tc: n0(r.tc),
     })).sort((a, b) => b.net - a.net),
-    payment: T(tables, 'payment').map((r) => ({ pttt: r.pttt, net: n0(r.net), tc: n0(r.tc) }))
-      .sort((a, b) => b.net - a.net),
     dwell,
     dwell_store,
     identify,
@@ -1667,11 +1698,16 @@ async function main() {
      Tách ra, Rollup gói mỗi file vào đúng chunk của màn hình import nó. */
   // daily_party + guest_segment chỉ M1 dùng → đi cùng chunk với daily.
   const daily = { rows: hub.daily, party: hub.daily_party, segment: hub.guest_segment };
-  const product = hub.product;
+  // product.json = gói M2 theo tháng × cửa hàng; `legacy` là bảng luỹ kế cũ, chỉ dùng khi
+  // data_input/ chưa có sheet product_month nào. capacity.json = heat · payment cho M3.
+  const product = { ...hub.product_bundle, legacy: hub.product };
+  const capacity = hub.capacity;
   delete hub.daily;
   delete hub.daily_party;
   delete hub.guest_segment;
   delete hub.product;
+  delete hub.product_bundle;
+  delete hub.capacity;
 
   // Chốt của hai khối được gộp lại, sắp theo SỐ chốt — không phải theo thứ tự
   // dựng — để bảng in ra đọc được từ trên xuống.
@@ -1680,7 +1716,7 @@ async function main() {
 
   log('');
   log(`   ${files.length} file · ${hub.meta.months.length} tháng · ` +
-      `${Object.keys(hub.stores).length} cửa hàng · ${product.length} SKU · ` +
+      `${Object.keys(hub.stores).length} cửa hàng · ${product.items.length || product.legacy.length} SKU · ` +
       `${hub.store_month.length} dòng store×tháng` +
       (mkt.social.empty ? '' : ` · ${mkt.social.stat.pages} kênh social`));
   log('');
@@ -1701,7 +1737,7 @@ async function main() {
 
   // Ghi nguyên khối: ra .tmp hết rồi mới tráo — lỗi giữa chừng không để lại bộ JSON
   // nửa mới nửa cũ (data.json tháng mới đi cùng daily.json tháng cũ).
-  const outputs = { 'daily.json': daily, 'product.json': product, 'data.json': hub,
+  const outputs = { 'daily.json': daily, 'product.json': product, 'capacity.json': capacity, 'data.json': hub,
                     'data_mkt.json': mkt, 'campaign.json': campaign };
   for (const [f, o] of Object.entries(outputs)) {
     await writeFile(path.join(OUT, f + '.tmp'), JSON.stringify(o), 'utf8');
@@ -1716,6 +1752,7 @@ async function main() {
   log(`   → src/data/data_mkt.json  ${kb(mkt)} KB   (tải ngay khi mở dashboard)`);
   log(`   → src/data/daily.json     ${kb(daily)} KB   (chỉ tải khi mở M1 Doanh thu)`);
   log(`   → src/data/product.json   ${kb(product)} KB   (chỉ tải khi mở M2 Menu)`);
+  log(`   → src/data/capacity.json  ${kb(capacity)} KB   (chỉ tải khi mở M3 Công suất)`);
   log(`   → src/data/campaign.json  ${kb(campaign)} KB   (chỉ tải khi mở cụm M7)${campaign.meta.demo ? ' · DỮ LIỆU MẪU' : ''}`);
   log(`   xong trong ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   log('─'.repeat(72));
