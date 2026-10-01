@@ -13,7 +13,7 @@
 ```
 data_input/
 ├── 01_master.xlsx      chiều & kế hoạch — sửa khi mở cửa hàng / chốt target / duyệt ngân sách
-├── 02_snapshot.xlsx    bảng luỹ kế toàn kỳ — product · heat · zone · staff · payment · dwell
+├── 02_snapshot.xlsx    bảng luỹ kế toàn kỳ — product · zone · staff · dwell
 └── monthly/
     ├── 2026-07.xlsx    ← mỗi tháng MỘT file, sheet giống hệt nhau
     └── 2026-08.xlsx

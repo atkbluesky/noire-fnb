@@ -177,10 +177,14 @@ def main():
     dwell += [dict(store=r["store"], mean=r.get("dwell")) for r in H.get("dwell_store") or []]
     snap = {
         "product": H.get("product"), "category": H.get("category"), "group": H.get("group"),
-        "heat": H.get("heat"), "zone": H.get("zone"), "staff": H.get("staff"),
-        "payment": H.get("payment"), "repeat": H.get("repeat"), "campaigns": H.get("campaigns"),
+        "zone": H.get("zone"), "staff": H.get("staff"),
+        "repeat": H.get("repeat"), "campaigns": H.get("campaigns"),
         "dwell": dwell, "voucher_prog": M.get("voucher_prog"),
     }
+    # heat · payment nay là bảng THEO THÁNG × cửa hàng do tools/build_month.py dựng (để bộ
+    # lọc brand ở M3 lọc được). Bản luỹ kế toàn chuỗi cũ phải gỡ khỏi snapshot — để lại thì
+    # loader đọc cả hai và cộng đôi mọi ô của ma trận giờ.
+    drop_sheets(SNAPSHOT, ["heat", "payment"])
     stats = stats_rows(H, M)
     if stats:
         snap["_stats"] = merge_stats(SNAPSHOT, stats)

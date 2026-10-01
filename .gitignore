@@ -11,6 +11,7 @@ src/data/data.json
 src/data/data_mkt.json
 src/data/daily.json
 src/data/product.json
+src/data/capacity.json
 
 # ─── Lane dữ liệu thô (chỉ tồn tại ở máy local, KHÔNG đẩy lên GitHub) ─
 # Cấu trúc thư mục + README hướng dẫn ĐƯỢC commit; file Excel thô thì KHÔNG.

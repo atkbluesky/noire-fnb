@@ -150,8 +150,8 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `daily` | **date** · **store** · **net** · guest · tc | date + store | — |
 | `daily_party` | **date** · **store** · **net** · guest · **tc** | date + store | — |
 | `coverage` | _month_ · days_data · days_month · first · last | month | partial |
-| `daypart` | _month_ · _daypart_ · net · tc · guest | month + daypart | — |
-| `channel` | _month_ · _channel_ · net · tc | month + channel | — |
+| `daypart` | _month_ · _store_ · _daypart_ · net · tc · guest | month + store + daypart | — |
+| `channel` | _month_ · _store_ · _channel_ · net · tc | month + store + channel | — |
 | `identify` | **month** · **bills** · **id_bills** · items | month | rate |
 | `nature` | **month** · **nature** · **brand** · **rev** · disc · bills | month + nature + brand | — |
 | `fact_promo_day` | **date** · **store** · brand · **name_pos** · nature · bills · guests · gross · disc · voucher · net · rev · items | date + store + name_pos | — |
@@ -159,6 +159,7 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `fact_lto_line` | **date** · **store** · brand · **bill** · **item_code** · item_base · item_name · group · qty · line_rev · bill_net · bill_gross · bill_disc · bill_voucher · bill_guests · bill_camp | date + store + bill + item_code | — |
 | `recon` | **month** · **store** · **net** · net_item · net_bill · tc · tc_bill · guest · guest_bill | month + store | d_bill |
 | `cogs_cov` | _month_ · rev · rev_cov · sku · sku_cov | month | pct |
+| `product_month` | _month_ · **store** · **ma** · name · cat · grp · **qty** · **rev** · cogs | month + store + ma | — |
 | `ads_month` | _month_ · spend · reach · impr · n | month | — |
 | `ads_brand` | _month_ · _brand_ · spend · reach | month + brand | — |
 | `ads_objective` | _month_ · _objective_ · spend · result | month + objective | — |
@@ -179,14 +180,16 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `lead_month` | _m_ · leads · exp | m | — |
 | `lead_source` | _month_ · _src_ · leads · exp | month + src | — |
 | `lead_type` | _month_ · _etype_ · leads · exp | month + etype | — |
+| `heat` | _month_ · _store_ · _dow_ · _hour_in_ · net · tc | month + store + dow + hour_in | — |
+| `payment` | _month_ · _store_ · _pttt_ · net · tc | month + store + pttt | — |
 
 - **`budget_nonmedia`** — Chi phí NGOÀI media theo tháng: KOL/KOC, POSM & in ấn, sản xuất nội dung, quà tặng, sự kiện.
 - **`store_month`** — XƯƠNG SỐNG của hệ thống. net = doanh thu thuần · guest = số khách · tc = số hoá đơn.
 - **`daily`** — Doanh thu theo NGÀY × cửa hàng. Ngày phải nằm trong tháng của file.
 - **`daily_party`** — Phần KHÁCH TIỆC của `daily`: chỉ các hoá đơn có Số khách ≥ $guest_segment.party_min_guests, gộp theo NGÀY × cửa hàng. ETL tự sinh từ bảng kê hoá đơn (S02). Khách lẻ = daily − daily_party.
 - **`coverage`** — Số ngày THỰC CÓ dữ liệu — nhận diện tháng chưa trọn kỳ. Không khai thì loader suy từ daily.
-- **`daypart`** — Doanh thu theo khung giờ trong ngày.
-- **`channel`** — Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…).
+- **`daypart`** — Doanh thu theo khung giờ trong ngày × cửa hàng (bộ lọc brand / phạm vi ở M3 cần cột store).
+- **`channel`** — Doanh thu theo kênh bán (tại chỗ, mang về, giao hàng…) × cửa hàng.
 - **`identify`** — Tỷ lệ hoá đơn nhận diện được khách — trần trên của mọi phép quy doanh thu về khách. `items` = số dòng món đã xử lý trong tháng, nuôi thẻ đếm ở tab D1.
 - **`nature`** — Bản chất chương trình khuyến mãi. nature ∈ COMMERCIAL|INTERNAL|PARTNER|LOYALTY. `rev` = doanh thu chạm (cấp dòng món, THÀNH TIỀN) · `disc` = chiết khấu thật (cấp HOÁ ĐƠN) — hai base khác nhau, xem fact_promo_day.
 - **`fact_promo_day`** — CTKM theo NGÀY × cửa hàng — nền của M7.2. `disc` = Giảm giá + Chiết khấu ở cấp HOÁ ĐƠN · `voucher` = Phiếu GG, để riêng vì voucher là phương thức thanh toán chứ không phải giảm giá. `net` = Tổng tiền (cùng base với daily/store_month — kỳ nền của M7.2 lấy từ đó). `rev`/`items` từ lane dòng món theo THÀNH TIỀN — base khác `net`, đừng cộng chung. `name_pos` giữ nguyên văn, chuẩn hoá ở dim_campaign.
@@ -194,6 +197,7 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 - **`fact_lto_line`** — Dòng món thuộc nhóm LTO (Nhóm món chứa $campaign.lto_group_rx) gắn TỔNG hoá đơn chứa nó — nền doanh thu CTKM của chương trình LTO chạy theo món. `bill_net` = Tổng tiền cả hoá đơn (gồm món khác) · `line_rev` = Thành tiền riêng dòng LTO. Một hoá đơn có nhiều dòng LTO → cộng bill_net theo hoá đơn DUY NHẤT.
 - **`recon`** — Đối soát ba tầng: bảng tháng ↔ bảng món ↔ bảng hoá đơn.
 - **`cogs_cov`** — Độ phủ giá vốn theo tháng.
+- **`product_month`** — Bán món theo tháng × cửa hàng (POS báo cáo bán hàng). rev = Thành tiền (trước phí DV & VAT). cogs = giá vốn BOM × số lượng — TRỐNG khi món chưa có BOM. M2 lọc brand / phạm vi / kỳ trên bảng này.
 - **`ads_month`** — Meta Ads tổng theo tháng. CHỈ cộng dòng cấp campaign — cộng cả adset là nhân đôi.
 - **`ads_brand`** — Meta Ads theo brand. Nhãn `Tuyển dụng` không phải marketing thương hiệu.
 - **`ads_objective`** — Meta Ads theo mục tiêu chiến dịch.
@@ -214,6 +218,8 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 - **`lead_month`** — Lead tiệc theo tháng. Loader tự sinh từ sheet booking nếu sheet này trống.
 - **`lead_source`** — Lead tiệc theo nguồn. Loader tự sinh từ sheet booking nếu sheet này trống.
 - **`lead_type`** — Lead tiệc theo loại sự kiện. Loader tự sinh từ sheet booking nếu sheet này trống.
+- **`heat`** — Ma trận giờ vào × thứ theo tháng × cửa hàng. dow: 0 = Thứ 2 … 6 = Chủ nhật.
+- **`payment`** — Doanh thu theo phương thức thanh toán × tháng × cửa hàng.
 
 ### TẦNG C · `02_snapshot.xlsx` — BẢNG LUỸ KẾ TOÀN KỲ
 
@@ -224,37 +230,33 @@ Cộng dồn mọi tháng đang có. Nộp lại là THAY THẾ toàn bộ, khô
 | `product` | **ma** · **name** · _cat_ · _grp_ · **qty** · **rev** · cogs | ma + name + cat + grp | has_cogs · cm · cm_pct · mclass |
 | `category` | _cat_ · qty · rev | cat | — |
 | `group` | _grp_ · qty · rev | grp | — |
-| `heat` | _dow_ · _hour_in_ · net · tc | dow + hour_in | — |
 | `zone` | _store_ · _zone_ · net · tc | store + zone | — |
 | `staff` | _store_ · _name_ · net · tc · guest | store + name | aov |
-| `payment` | _pttt_ · net · tc | pttt | — |
 | `dwell` | _store_ · n · mean · median | store | — |
 | `repeat` | _label_ · n | label | — |
 | `campaigns` | _name_ · _nature_ · _brand_ · rev · bills | name + nature + brand | — |
 | `voucher_prog` | _prog_ · _brand_ · issued · used · rev · disc | prog + brand | rate |
 | `social_format` | _platform_ · _format_ · posts · reach · views · engage | platform + format | er |
-| `campaign_result` | **campaign_id** · demo · label · measurable · reason · days_run · period_from · period_to · stores · overlap · ramp_warning · base_to · base_from · control_stores · control_factor · act_net · act_tc · act_guest · exp_net · exp_tc · exp_guest · incr_net · lift_pct · d_tc · d_aov · d_party · d_ta · d_mix · driver · lever_note · promo_bills · promo_guests · promo_net · cost_discount · cost_voucher · cost_manual · cost_ads_auto · cost_total · cost_planned_used · cm_pct · flow_through · roi · breakeven_lift · target_verified · att_net · att_tc · att_aov · att_ta · att_incr · eval_scope · eval_note · promo_disc · promo_voucher · noire_share · plan_sales · base_sales · plan_tc · act_sales · promo_share · store_incr_net · store_lift_pct · store_flow_through · cost_promo_actual · cost_fixed_actual · breakeven_sales · objective · cadence · recur_dow · plan_group · plan_primary · promo_gross · promo_sales · store_net · revenue_basis · lto_qty · lto_rev · lto_items · store_tc · quarter · plan_program_id · plan_locked_at · plan_lock_reason · plan_bills · plan_part · plan_cannib · plan_net_incr · plan_ebitda · plan_ebitda_low · plan_roi · plan_decision · act_part · act_cannib · act_net_incr_ex · act_ebitda · act_roi_m71 | campaign_id | — |
+| `campaign_result` | **campaign_id** · demo · label · measurable · reason · days_run · period_from · period_to · stores · overlap · ramp_warning · base_to · base_from · control_stores · control_factor · act_net · act_tc · act_guest · exp_net · exp_tc · exp_guest · incr_net · lift_pct · d_tc · d_aov · d_party · d_ta · d_mix · driver · lever_note · promo_bills · promo_guests · promo_net · cost_discount · cost_voucher · cost_manual · cost_ads_auto · cost_total · cost_planned_used · cm_pct · flow_through · roi · breakeven_lift · target_verified · att_net · att_tc · att_aov · att_ta · att_incr · eval_scope · eval_note · promo_disc · promo_voucher · noire_share · plan_sales · base_sales · plan_tc · act_sales · promo_share · store_incr_net · store_lift_pct · store_flow_through · cost_promo_actual · cost_fixed_actual · breakeven_sales · objective · cadence · recur_dow · plan_group · plan_primary · promo_gross · promo_sales · store_net · revenue_basis · lto_qty · lto_rev · lto_items · store_tc · quarter · plan_program_id · plan_locked_at · plan_lock_reason · plan_bills · plan_part · plan_cannib · plan_net_incr · plan_ebitda · plan_ebitda_low · plan_roi · plan_decision · act_part · act_cannib · act_net_incr_ex · act_ebitda · act_roi_m71 · u · basis · cannib_used | campaign_id | — |
 | `campaign_daily` | **campaign_id** · **date** · in_period · act_net · exp_net · promo_bills | campaign_id + date | — |
 | `campaign_month` | **campaign_id** · **month** · **store** · bills · guests · net · gross · disc · voucher · dup_bills · dup_guests · dup_net | campaign_id + month + store | — |
 | `campaign_unmapped` | **name_pos** · nature · _brand_ · first · last · days · bills · net · disc | name_pos + brand | — |
 | `campaign_issue` | **campaign_id** · **field** · level · **msg** | campaign_id + field | — |
 | `pre_plan` | **pre_id** · campaign_id · **name** · brand · kind · plan_status · est_tc · base_gross · growth · target_gross · incr_gross · target_aov · cogs_pct · cm_pct · promo_cost · fixed_cost · total_cost · net_contrib · roi · breakeven_incr · assessment · driver · source_file · label · period_from · period_to · act_net · act_tc · incr_net · cost_total · flow_through · roi_actual · act_promo_net · act_promo_bills | pre_id | — |
 | `pre_calib` | **program_id** · **campaign_id** · quarter · brand · lever · objective · locked_at · lock_reason · label · plan_bills · act_bills · plan_part · act_part · plan_cannib · act_cannib · plan_net_incr · act_net_incr · plan_ebitda · act_ebitda · err_ebitda · usable · note | program_id | — |
-| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id · quarter · season_factor · scheme_mode · tc_base · tc_share · participation_src · cannib_src · other_cogs_pct · opex_pct · base_note · safety_bills · input_source · missing · gift_cost | program_id + scenario | — |
+| `pre_eval` | **program_id** · _scenario_ · name · brand · stores · date_from · date_to · days · objective · lever · status · decision · decision_note · bills · bills_incr · cannib_pct · rev_incl · net_incr · gp_incr · promo_cost · program_cost · opex_incr · ebitda_incr · ebitda_pct · roi · breakeven_bills · max_cannib · redemption_needed · stock_days · gate_flags · campaign_id · quarter · season_factor · scheme_mode · tc_base · tc_share · participation_src · cannib_src · other_cogs_pct · opex_pct · base_note · safety_bills · input_source · missing · gift_cost · guests · cogs_cost · gift_total · gift_fixed · cost_ads · cost_kol · cost_posm · cost_other · disc_cost | program_id + scenario | — |
 | `pre_eval_scheme` | **program_id** · _scheme_id_ · scheme_name · condition · benefit · bills · bill_value · discount · rev_after_disc · ta · cogs · cogs_pct · margin_pct · merch_cost · promo_cost · basis_note | program_id + scheme_id | — |
 | `pre_eval_fin` | **program_id** · _scenario_ · _row_ · label · base · without · with_promo · total · cannib_pct · incr · incr_pct | program_id + scenario + row | — |
 | `pre_eval_base` | **program_id** · _store_ · base_from · base_to · base_days · net_incl · tc · guests · aov_incl · ta_incl · tc_day · net_day · tax_factor · disc_share · note | program_id + store | — |
 | `pre_eval_input` | **program_id** · **field** · value · source · level · status · hint | program_id + field | — |
 | `pre_eval_fix` | **program_id** · _target_ · **lever** · current · required · change · feasible · best · text | program_id + target + lever | — |
-| `pre_plan_lock` | **program_id** · quarter · locked_at · lock_reason · submitted · name · brand · stores · date_from · date_to · objective · lever · decision · bills · tc_base · tc_share · cannib_pct · net_incr · rev_incl · ebitda · ebitda_low · roi · promo_cost · program_cost · gift_per_bill · other_cogs_pct · opex_pct | program_id | — |
+| `pre_plan_lock` | **program_id** · quarter · locked_at · lock_reason · submitted · name · brand · stores · date_from · date_to · objective · lever · decision · bills · tc_base · tc_share · cannib_pct · net_incr · rev_incl · ebitda · ebitda_low · roi · promo_cost · program_cost · gift_per_bill · other_cogs_pct · opex_pct · guests · cogs · gift · gift_fixed · cost_ads · cost_kol · cost_posm · cost_other · disc · backfill | program_id | — |
 
 - **`product`** — Bảng món LUỸ KẾ toàn kỳ. Nếu cắt top-N thì bắt buộc khai tổng thật ở _stats.
 - **`category`** — Cơ cấu theo Loại món — tính trên TOÀN BỘ SKU, không chỉ phần đã cắt.
 - **`group`** — Cơ cấu theo Nhóm món — tính trên TOÀN BỘ SKU.
-- **`heat`** — Ma trận giờ vào × thứ. dow: 0 = Thứ 2 … 6 = Chủ nhật.
 - **`zone`** — Doanh thu theo khu vực bàn.
 - **`staff`** — Doanh thu theo nhân viên phục vụ.
-- **`payment`** — Doanh thu theo phương thức thanh toán.
 - **`dwell`** — Thời gian ngồi bàn (phút). Bỏ trống `store` = số toàn chuỗi.
 - **`repeat`** — Phân bố số lần quay lại của khách nhận diện được.
 - **`campaigns`** — Chương trình khuyến mãi luỹ kế toàn kỳ.
