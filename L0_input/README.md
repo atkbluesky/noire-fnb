@@ -46,5 +46,6 @@ cứ thả file là hệ thống tự cập nhật sau khi file chép xong.
 | `05_DOI_TAC/01_Danh_Muc` | Danh mục đối tác — Partner + Aggregator |  | `NOIRE_Doi_Tac*.xlsx` |
 | `05_DOI_TAC/02_eVoucher_Doi_Tac` | Log eVoucher đối tác (Techcombank × OneU…) |  | `eVoucher*.xlsx` |
 | `05_DOI_TAC/03_Aggregator` | Số Aggregator theo tháng (tự thống kê) |  | `NOIRE_Aggregator*.xlsx` |
+| `06_ĐAT_BAN` | Đặt bàn (iPOS Booking — 5 báo cáo xuất) |  | `Tháng */nguon_don_dat_ban*.xlsx` |
 
 _Sinh tự động từ tools/l0_registry.py._

@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Handshake,
   CalendarCheck,
+  Armchair,
   Lightbulb,
   ShieldCheck,
   Menu,
@@ -181,6 +182,16 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         icon: <CalendarCheck className="h-4 w-4" />,
         status: 'ok',
         statusText: 'Lead tiệc',
+      },
+      /* M11 tách khỏi M10 (trước là M10.1): khác grain, khác vòng đời, khác giá trị —
+         chung với M10 duy nhất tầng chi phí Ads. Xem docs/modules/M11_Dat_Ban.md §1b. */
+      {
+        id: 'm11',
+        code: 'M11',
+        title: 'Đặt bàn',
+        icon: <Armchair className="h-4 w-4" />,
+        status: 'warning',
+        statusText: 'iPOS Export',
       },
     ],
   },

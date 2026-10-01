@@ -1,5 +1,5 @@
 /**
- * M10.1 · Phase 0 — thăm dò iPOS Booking Open API trước khi viết migration.
+ * M11 · Phase 0 — thăm dò iPOS Booking Open API trước khi viết migration.
  *
  *   node scripts/ipos-probe.mjs auth                    lấy URL để admin brand bấm duyệt → sinh access token
  *   node scripts/ipos-probe.mjs brands                  liệt kê brand đã kết nối (pos_parent)
@@ -202,7 +202,7 @@ async function cmdSources(brand) {
   if (dupes.length) {
     console.log('\n  ⚠ Code khác nhau nhưng TRÙNG TÊN — biểu đồ iPOS sẽ tách thành nhiều lát:');
     for (const [name, codes] of dupes) console.log(`    "${name}" ← ${codes.join(' · ')}`);
-    console.log('    → gom ở dim_ipos_source.channel, KHÔNG đổi tên trong iPOS (xem M10_1 §3b)');
+    console.log('    → gom ở dim_ipos_source.channel, KHÔNG đổi tên trong iPOS (xem M11 §3b)');
   }
   console.log(`\n  Tổng: ${rows.length} nguồn`);
   save(`sources_${brand}.json`, rows);
@@ -290,7 +290,7 @@ function summarize(rows, sources, total, file) {
     { label: 'Khách', right: true, get: ([, v]) => n(v.reduce((s, r) => s + seats(r), 0)) },
   ]);
 
-  // ── kết quả: CHỈ tính trên đơn đã qua ngày phục vụ (M10_1 §1c)
+  // ── kết quả: CHỈ tính trên đơn đã qua ngày phục vụ (M11 §1c)
   const matured = rows.filter((r) => r.meal_day && r.meal_day < today);
   const future = rows.length - matured.length;
   const cnt = (s) => matured.filter((r) => s.includes(r.status)).length;
@@ -410,7 +410,7 @@ async function cmdDay(brand, posId, dateArg) {
     { label: 'max', right: true, get: (t) => t.max_person },
     { label: 'area_id', get: (t) => t.area_id ?? '—' },
   ]);
-  console.log('\n  Chỉ thấy bàn ĐÃ TỪNG có đơn đặt — không thay được sơ đồ bàn của Ops (M10_1 §8).');
+  console.log('\n  Chỉ thấy bàn ĐÃ TỪNG có đơn đặt — không thay được sơ đồ bàn của Ops (M11 §8).');
   save(`day_${posId}_${fmtDay(ts)}.json`, rows);
 }
 

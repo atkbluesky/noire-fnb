@@ -6,7 +6,7 @@
  * `_meta.ts` và `_google.ts`.
  *
  * Luật M5_1 §0.4: file này IMPORT `api/zalo/_shared.ts`, không sao chép lại logic.
- * M5.1 là module thứ TƯ dùng chung pool đó (sau M8.1 · M10.1 · M8.2) — khi chạy Vite
+ * M5.1 là module thứ TƯ dùng chung pool đó (sau M8.1 · M11 · M8.2) — khi chạy Vite
  * dev cả bốn nằm trong một tiến trình nên bắt buộc chung một pool.
  */
 import { getSql, ictDate, json, requireCron, type Sql } from '../zalo/_shared.js';

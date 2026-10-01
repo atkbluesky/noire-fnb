@@ -24,7 +24,7 @@
 
 ## 0. ❗ LUẬT SỬA CODE — ĐỌC TRƯỚC KHI GÕ PHÍM
 
-> M8.1 và M10.1 **đang chạy production** trên cùng repo, cùng database, cùng dự án Vercel.
+> M8.1 và M11 **đang chạy production** trên cùng repo, cùng database, cùng dự án Vercel.
 > Một lệnh `drop` hay một chữ ký hàm bị đổi là sập tab đang sống. Tám luật dưới đây là bắt buộc,
 > không phải khuyến nghị.
 
@@ -442,7 +442,7 @@ Gate 10 chạy **mỗi lần** deploy M8.2. Đó là cái chuông báo Luật §
 | Nhóm quyền Nội dung trên Zalo App | 🟡 | **Bớt lo hơn dự kiến.** Smoke-test 27/09/2026 cho thấy `/api/zalo/performance` đã trả `ok` với dữ liệu thật (OA "NOIRE Cafe & Bistro", 651 follower) ⇒ App ĐÃ liên kết OA và token đang sống. Chỉ còn phải cấp thêm nhóm quyền Nội dung cho app đó |
 | `SocialAutoView.tsx` | 🟡 | Chưa dựng. Server chạy được mà không có nó; duyệt tạm bằng `curl` tới `/api/social/review` |
 | Chạy `004_social_auto.sql` | 🟡 | Chưa chạy. `/api/social/performance` đang trả đúng `MIGRATION_PENDING` |
-| Vercel Hobby = phi thương mại theo ToS | 🟡 | Rủi ro đã tồn tại từ M8.1/M10.1, không do M8.2 sinh ra. Pro $20/tháng gỡ luôn cả trần cron |
+| Vercel Hobby = phi thương mại theo ToS | 🟡 | Rủi ro đã tồn tại từ M8.1/M11, không do M8.2 sinh ra. Pro $20/tháng gỡ luôn cả trần cron |
 | Quota broadcast 1–4/tháng | 🟡 | Không sửa được bằng kỹ thuật. Giảm đau bằng `broadcast_score` |
 | Chất lượng giọng văn AI | 🟡 | Giảm dần theo thời gian nhờ few-shot từ `social_draft` đã duyệt |
 | URL CDN Facebook hết hạn | 🟢 | Tải ngay lúc ingest, không lưu URL |
@@ -455,4 +455,4 @@ Gate 10 chạy **mỗi lần** deploy M8.2. Đó là cái chuông báo Luật §
 `social_post` giữ `fb_reactions` · `fb_comments` · `fb_shares` theo từng bài, refresh mỗi ngày ở
 reconcile. Đó **chính là** `social_month` mà **M6 · Social Media** đang chờ
 (`00_INDEX_MODULES.md`: *"🟡 chờ `social_month`"*). M8.2 chạy được thì M6 hết chặn mà không tốn
-thêm nguồn dữ liệu nào — giống cách M10.1 gỡ chốt chặn số chỗ ngồi cho M3.
+thêm nguồn dữ liệu nào — giống cách M11 gỡ chốt chặn số chỗ ngồi cho M3.

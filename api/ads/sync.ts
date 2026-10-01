@@ -1,7 +1,7 @@
 /**
  * M5.1 · GET|POST /api/ads/sync — cron ngày, kéo Meta + Google về Postgres.
  *
- * Bảo vệ bằng `Bearer CRON_SECRET` (luật chung với M8.1/M10.1/M8.2).
+ * Bảo vệ bằng `Bearer CRON_SECRET` (luật chung với M8.1/M11/M8.2).
  *
  * Vì sao cron chứ không webhook: Meta và Google KHÔNG có webhook cho số chi tiêu.
  * Vì sao cửa sổ nhiều ngày chứ không một ngày: số hôm nay chưa chốt — Meta còn hiệu

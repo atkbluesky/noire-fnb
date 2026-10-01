@@ -373,6 +373,8 @@ def execute(p):
     node = shutil.which("node")
     if node:
         ok &= run("Loader dashboard + chốt QA", [node, os.path.join(HERE, "scripts", "build-data.mjs"), "--strict"], log)
+        # M11 Đặt bàn: 5 báo cáo iPOS (L0_input/06_ĐAT_BAN) + thực chi Ads từ Postgres M5.1 → src/data/reservation.json
+        ok &= run("M11 Đặt bàn (build-reservation.mjs)", [node, os.path.join(HERE, "scripts", "build-reservation.mjs")], log)
     else:
         log.append(("Loader dashboard", False, 0, "không thấy Node.js — cài Node rồi chạy npm run build:data"))
         ok = False

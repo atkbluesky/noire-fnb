@@ -40,7 +40,7 @@
 
 ## 0. ❗ LUẬT SỬA CODE — ĐỌC TRƯỚC KHI GÕ PHÍM
 
-> M8.1 · M10.1 · M8.2 **đang chạy production** trên cùng repo, cùng database, cùng dự án Vercel.
+> M8.1 · M11 · M8.2 **đang chạy production** trên cùng repo, cùng database, cùng dự án Vercel.
 > Riêng M5 còn khác ba module kia một điểm sinh tử: **M5 đang có màn hình SỐNG mà BOD đọc hàng tuần**,
 > chạy bằng `src/data/data_mkt.json`. Làm vỡ nhánh đó là vỡ báo cáo đang dùng, không phải vỡ một tab thử nghiệm.
 
@@ -53,7 +53,7 @@
 | **4** | **`api/zalo/_shared.ts` chỉ được THÊM.** Cấm đổi chữ ký `getSql` · `json` · `ictDate` · `requireCron` · `validAccessToken` · `encryptToken` · `decryptToken` | M5.1 là module thứ **TƯ** import lại chính các hàm này. Đổi một chữ ký = hỏng bốn module cùng lúc |
 | **5** | **Mọi bảng mới bắt buộc prefix `ads_` hoặc `dim_ads_`.** Không đụng `zalo_oa_*` · `ipos_*` · `social_*` · `dim_ipos_*` | Nhìn tên là biết ai sở hữu, grep một phát ra hết |
 | **6** | **Migration chỉ cộng thêm.** Chỉ `create table if not exists` · `create index if not exists` · `alter table … add column if not exists`. **Cấm** `drop table` · `drop column` · `rename` · `alter column … type` | Chạy lại migration phải an toàn — luật đã ghi từ `003_ipos_reservation.sql` |
-| **7** | **`vercel.json` chỉ THÊM entry vào mảng `crons`.** Không sửa, không sắp lại 3 cron đang có (`/api/zalo/snapshot` 17:05 · `/api/ipos/sync` 17:15 · `/api/social/reconcile` 17:25) | Đổi lịch cron cũ = thủng chuỗi số liệu M8.1/M10.1. Cron mới đặt **17:35 UTC** để không chồng |
+| **7** | **`vercel.json` chỉ THÊM entry vào mảng `crons`.** Không sửa, không sắp lại 3 cron đang có (`/api/zalo/snapshot` 17:05 · `/api/ipos/sync` 17:15 · `/api/social/reconcile` 17:25) | Đổi lịch cron cũ = thủng chuỗi số liệu M8.1/M11. Cron mới đặt **17:35 UTC** để không chồng |
 | **8** | **`.env.example` chỉ THÊM key.** Không xoá, không đổi tên key cũ | `_shared.ts` của 3 module đọc theo tên cứng, thiếu key là throw lúc runtime |
 | **9** | **CHỈ gọi endpoint ĐỌC.** Meta: `GET /insights`. Google: `POST :searchStream` (POST nhưng là read-only GAQL). **Cấm tuyệt đối** mọi mutate: `campaignBudgets:mutate` · `campaigns:mutate` · `POST /act_*/campaigns` | Nhầm một lệnh là đổi ngân sách thật trên tài khoản đang tiêu tiền thật |
 | **10** | **Mỗi bước phải chạy lại được.** Mọi ghi `upsert` theo khoá tự nhiên `(platform, campaign_id, stat_date)`. Cron có thể bị gọi trùng, Vercel có thể timeout giữa chừng và retry | Serverless không đảm bảo exactly-once. Thiếu luật này là chi tiêu bị cộng đôi — đúng cái bẫy M5 §6.1 đã mắc một lần với Excel |
@@ -189,7 +189,7 @@ Thiếu `GADS_DEVELOPER_TOKEN`. Vẫn là điểm chặn 🔴 ở §8.
 | **QA gate 8 · chạy sync HAI lần** | ✅ `47.526.065đ` cả hai lần — upsert không cộng đôi |
 | `/api/ads/performance` | ✅ `complete: true` cho T8 · CPM 33.104đ · CPC 2.282đ · CTR 1,45% · Cost/Conversation 62.865đ |
 | `/api/ads/export?month=2026-08` | ✅ XLSX 19KB · 4 sheet đọc lại được · 401/400/404 đúng |
-| **QA gate 2 · 3 module cũ** | ✅ `/api/zalo/performance` 200 (cấu trúc key không đổi) · `/api/social/performance` 200 · `/api/ipos/sync` 503 `NOT_CONNECTED` — đúng trạng thái đã ghi ở M10.1 §8, không phải do M5.1 |
+| **QA gate 2 · 3 module cũ** | ✅ `/api/zalo/performance` 200 (cấu trúc key không đổi) · `/api/social/performance` 200 · `/api/ipos/sync` 503 `NOT_CONNECTED` — đúng trạng thái đã ghi ở M11 §8, không phải do M5.1 |
 
 ### NEC đã tách đúng — QA gate 13 từ ✖ sang ✅
 
@@ -218,7 +218,7 @@ Băng đối chiếu trên màn hình ban đầu cộng **mọi tháng đang l�
 ### ❗ Lỗ hổng QA của repo — phát hiện nhờ lỗi (1)
 
 `tsconfig.json` khai `"include": ["src"]`. Nghĩa là **`npx tsc --noEmit` chưa bao giờ kiểm thư mục `api/`** —
-mã server của M8.1 · M10.1 · M8.2 · M5.1 chỉ được esbuild *transpile*, mà transpile thì bỏ qua kiểu.
+mã server của M8.1 · M11 · M8.2 · M5.1 chỉ được esbuild *transpile*, mà transpile thì bỏ qua kiểu.
 Một lỗi kiểu trong `api/` lọt qua **cả** `tsc --noEmit` **lẫn** `npm run build`.
 
 → Thêm `tsconfig.api.json` + `npm run typecheck:api` (**không sửa** `tsconfig.json` đang chạy).
@@ -397,7 +397,7 @@ Ghi lại để lần sau không phải suy luận lại, và để người kh�
 `docs/modules/M5_Digital_Ads.md` · `M8_2_Social_Auto.md` · `00_INDEX_MODULES.md`.
 
 **Phát hiện quyết định kiến trúc:** repo đã có **3 tiền lệ** module API cùng một khuôn
-(M8.1 Zalo · M10.1 iPOS · M8.2 Social). M5.1 **không được sáng tạo khuôn thứ tư** — đi theo khuôn có sẵn
+(M8.1 Zalo · M11 iPOS · M8.2 Social). M5.1 **không được sáng tạo khuôn thứ tư** — đi theo khuôn có sẵn
 thì người bảo trì đọc một file hiểu cả bốn.
 
 ### QĐ-1 · Song song · API là nguồn chính · Excel là nguồn dự phòng
@@ -431,7 +431,7 @@ Ghi vào §7 để lần sau muốn mở thì biết đường.
 
 ### QĐ-3 · Phase 0 probe trước khi dựng migration
 
-M10.1 đã trả giá **hai lần** cho việc tin tài liệu: header `access-token` vs `access_token` gộp thành
+M11 đã trả giá **hai lần** cho việc tin tài liệu: header `access-token` vs `access_token` gộp thành
 giá trị nối đôi → 401; và `GET /v1/partner/brands` trả rỗng dù JWT khớp. Cả hai **chỉ lộ ra khi gọi thật**.
 
 Nên: `scripts/ads-probe.mjs` chạy **trước**, in ra tài khoản nào truy cập được, field nào có thật,
@@ -449,7 +449,7 @@ Hiện tại `build_mkt.py:114-124` gán brand/objective bằng regex trên **t�
 | Phương án | Vì sao |
 |---|---|
 | Port regex sang TS, mỗi bên tự chạy | ✖ **Hai bản luật.** Sửa regex ở Python mà quên TS → số API và số Excel lệch nhau mà không ai biết vì sao. Đây là lỗi **im lặng**, loại tệ nhất |
-| **Bảng `dim_ads_campaign` trong DB** | ✔ Sync **tự chèn** dòng cho mỗi chiến dịch mới, đoán brand/objective bằng regex **một lần duy nhất lúc chèn**. Cột `mapping_locked` = người đã sửa tay → sync **không bao giờ ghi đè**. Đúng khuôn `dim_ipos_source` đã dùng ở M10.1 |
+| **Bảng `dim_ads_campaign` trong DB** | ✔ Sync **tự chèn** dòng cho mỗi chiến dịch mới, đoán brand/objective bằng regex **một lần duy nhất lúc chèn**. Cột `mapping_locked` = người đã sửa tay → sync **không bao giờ ghi đè**. Đúng khuôn `dim_ipos_source` đã dùng ở M11 |
 
 Hệ quả: chỗ duy nhất trên đời quyết định "chiến dịch này thuộc brand nào" là **một dòng trong DB** —
 xem được, sửa được, không phải đi đọc regex. Regex chỉ còn là giá trị mặc định lúc sinh dòng.
@@ -511,7 +511,7 @@ Ghi ra để không ai tưởng là bỏ sót: xem §7.
 
 ### 1a. Vì sao là M5.1 chứ không nhập vào M5
 
-Cùng lý do M10.1 tách khỏi M10: **khác grain · khác vòng đời · khác nguồn sự thật**.
+Cùng lý do M11 tách khỏi M10: **khác grain · khác vòng đời · khác nguồn sự thật**.
 M5 là màn hình đọc Excel theo tháng, đang sống. M5.1 là pipeline API theo ngày, đang dựng.
 Nhập chung thì không ai phân biệt được lỗi thuộc bên nào khi số lệch.
 
@@ -738,7 +738,7 @@ Endpoint `performance` trả cờ `acrFullMonth` + `acrMonth` để view **ghi t
 
 ### 3c. Ba bẫy đơn vị phải chặn ngay ở tầng map
 
-Học từ M10.1 và M5 §6 — bẫy đơn vị là loại sai **im lặng** nhất.
+Học từ M11 và M5 §6 — bẫy đơn vị là loại sai **im lặng** nhất.
 
 1. **Google Ads trả `cost_micros`, không phải đồng.** `1.000.000 micros = 1 VND`.
    Quên chia là chi phí gấp **một triệu lần**. Chia ở `_google.ts` **ngay lúc map**, không để tầng trên chia.
