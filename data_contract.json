@@ -1438,7 +1438,26 @@
         "follower_total",
         "unfollows"
       ],
-      "desc": "Zalo OA · Tổng người quan tâm (snapshot tại ngày) + Bỏ quan tâm — sổ nhập tay S26 chép từ OA Manager. Ô trống = chưa nhập; KHÔNG suy tổng từ luỹ kế `follows`."
+      "desc": "Zalo OA · Tổng người quan tâm (snapshot tại ngày) + Bỏ quan tâm — export `Thống kê người quan tâm T*.xls` (S12, ưu tiên) hoặc sổ nhập tay S26. Ô trống = chưa nhập; KHÔNG suy tổng từ luỹ kế `follows`."
+    },
+    "oa_demo": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month",
+        "age"
+      ],
+      "req": [
+        "month",
+        "age"
+      ],
+      "cols": [
+        "month",
+        "age",
+        "male",
+        "female"
+      ],
+      "desc": "Zalo OA · người quan tâm theo giới tính × nhóm tuổi — export `Thống kê theo giới tính và độ tuổi T*.xls` (S12). Số là TỶ LỆ 0–1 trên tổng follower cuối tháng; mọi ô của một tháng cộng lại = 1."
     },
     "member": {
       "tier": "monthly",

@@ -63,7 +63,10 @@ MKT_SOURCES = {"S08_ads_meta", "S09_ads_google", "S10_budget", "S11_voucher", "S
                "S17_lto_actual"}
 # Nguồn luỹ kế: một file phủ nhiều tháng → đổi file là dựng lại mọi tháng.
 # S05_bom: giá vốn nằm trong product_month của MỌI tháng → đổi BOM là dựng lại phần pos mọi tháng.
-ALL_MONTH_SOURCES = {"S03_daily", "S00_targets", "S13_member", "S07_lead", "S22_tiktok", "S05_bom"}
+# S18_social: file Facebook_Tong_hop_* không mang tháng trong tên → không dựng lại thì
+# thả file T9 mới cũng không vào được dashboard.
+ALL_MONTH_SOURCES = {"S03_daily", "S00_targets", "S13_member", "S07_lead", "S22_tiktok", "S05_bom",
+                     "S18_social"}
 
 
 # ─────────────────────────── ảnh chụp L0 ───────────────────────────

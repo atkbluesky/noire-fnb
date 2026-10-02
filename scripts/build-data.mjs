@@ -1004,6 +1004,10 @@ function buildMkt(tables, over) {
       date: String(r.date).slice(0, 10), follows: n0(r.follows), msgs: n0(r.msgs), views: n0(r.views),
       menu: n0(r.menu), content: n0(r.content),
     })).sort((a, b) => a.date.localeCompare(b.date)),
+    // OA Manager › Người quan tâm › Giới tính & độ tuổi: TỶ LỆ trên tổng follower (cả tháng cộng = 1).
+    oa_demo: T(tables, 'oa_demo').map((r) => ({
+      month: r.month, age: String(r.age), male: Number(r.male) || 0, female: Number(r.female) || 0,
+    })),
     oa_follower: T(tables, 'oa_follower').map((r) => ({
       date: String(r.date).slice(0, 10),
       follower_total: r.follower_total == null || r.follower_total === '' ? null : Number(r.follower_total),
@@ -1257,14 +1261,20 @@ function buildPartner(tables) {
 */
 const PLATFORMS = new Set(['FACEBOOK', 'TIKTOK', 'INSTAGRAM', 'YOUTUBE', 'ZALO']);
 
-/** Nền tảng nào lấy con số nào làm mẫu số của tỷ lệ tương tác. */
+/** Nền tảng nào lấy con số nào làm mẫu số của tỷ lệ tương tác.
+ *  Facebook KHÔNG lùi về `views`: tháng thiếu reach (vd. T9/2026 chỉ có CSV ngày) thì để
+ *  trống — lấy lượt xem thế chỗ là đem số LƯỢT cộng vào số TÀI KHOẢN ở mọi tổng nhiều tháng. */
 const audienceOf = (r) =>
   r.platform === 'TIKTOK' || r.platform === 'YOUTUBE'
     ? (n0(r.views) || n0(r.reach) || n0(r.impr))
-    : (n0(r.reach) || n0(r.impr) || n0(r.views));
+    : (n0(r.reach) || n0(r.impr));
 
 /** Tên đơn vị đi kèm con số — để màn hình không tự bịa nhãn. */
 const audienceLabel = (p) => (p === 'TIKTOK' || p === 'YOUTUBE' ? 'lượt xem' : 'tài khoản tiếp cận');
+
+/** Tử số ER chỉ gồm tháng CÓ mẫu số — tháng thiếu reach (FB T9/2026) mà vẫn cộng tương
+ *  tác vào tử thì ER nhiều tháng bị thổi lên. */
+const engageWithAudience = (rs) => sum(rs.filter((r) => r.audience), (r) => r.engage);
 
 function buildSocial(tables, over) {
   const qa = [];
@@ -1297,6 +1307,7 @@ function buildSocial(tables, over) {
       profile_views: num(r.profile_views), clicks: num(r.clicks),
       likes: num(r.likes), comments: num(r.comments), shares: num(r.shares), saves: num(r.saves),
       engage, posts: num(r.posts), spend: num(r.spend), days: num(r.days),
+      contacts: num(r.contacts), msgs: num(r.msgs),
     };
     // ---- chỉ số dẫn xuất (NT2: tính đúng một lần, ở đây) ----
     row.audience = audienceOf(row) || null;
@@ -1330,7 +1341,7 @@ function buildSocial(tables, over) {
         net_follow: rs.some((r) => r.net_follow !== null) ? sum(rs, (r) => r.net_follow) : null,
         audience, engage, posts, spend: sum(rs, (r) => r.spend),
         clicks: sum(rs, (r) => r.clicks), profile_views: sum(rs, (r) => r.profile_views),
-        er: div(engage, audience), per_post: div(audience, posts),
+        er: div(engageWithAudience(rs), audience), per_post: div(audience, posts),
       };
     }).sort((a, b) => a.month.localeCompare(b.month) || a.platform.localeCompare(b.platform));
 
@@ -1356,7 +1367,9 @@ function buildSocial(tables, over) {
         audience, engage, posts: sum(rs, (r) => r.posts), spend: sum(rs, (r) => r.spend),
         clicks: sum(rs, (r) => r.clicks),
         profile_views: sum(rs, (r) => r.profile_views),
-        er: div(engage, audience), months: rs.length,
+        contacts: rs.some((r) => r.contacts !== null) ? sum(rs, (r) => r.contacts) : null,
+        msgs: rs.some((r) => r.msgs !== null) ? sum(rs, (r) => r.msgs) : null,
+        er: div(engageWithAudience(rs), audience), months: rs.length,
       };
     }).sort((a, b) => b.audience - a.audience);
 

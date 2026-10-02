@@ -469,6 +469,8 @@ def _fb_from_summary(month):
             if month_of(r.get("month")) != month:
                 continue
             code = str(r.get("page") or "").strip().upper()
+            if not code:                     # dòng ghi chú dưới bảng có chữ 'T9.2026' → bị nhận là tháng
+                continue
             brand, page = FB_PAGES.get(code, ("OTHER", str(r.get("page") or "").strip()))
             rec = {"month": month, "platform": "FACEBOOK", "brand": brand, "page": page,
                    "code": code or None}
@@ -498,9 +500,11 @@ def read_facebook_pages(month):
         sub = os.path.join(folder, d)
         if not os.path.isdir(sub):
             continue
-        brand, page = FB_PAGES.get(d.upper(), ("OTHER", d))
+        # Từ T9/2026 thư mục đặt kiểu 'NCB - 09.2026' — mã fanpage là chữ đầu tiên.
+        code = re.split(r"[\s\-_]+", d.strip())[0].upper()
+        brand, page = FB_PAGES.get(code, ("OTHER", d))
         rec = {"month": month, "platform": "FACEBOOK", "brand": brand, "page": page,
-               "code": d.upper()}
+               "code": code}
         days = 0
         for f in glob.glob(os.path.join(sub, "*.csv")):
             key = FB_METRIC.get(norm(os.path.splitext(os.path.basename(f))[0]))
@@ -694,25 +698,96 @@ def read_oa(month):
         rec[k] = sum(r[k] or 0 for r in daily) if daily else \
             round(sum(to_num(r[idx[k]], 0) or 0 for r in data if len(r) > idx[k]))
     log(f"      Zalo OA: {rec['days']} ngày · quan tâm {rec.get('follows', 0)}")
-    return {"oa": [rec], "oa_daily": daily} if daily else {"oa": [rec]}
+    out = {"oa": [rec], "oa_daily": daily} if daily else {"oa": [rec]}
+    demo = read_oa_demo(hit, month)
+    if demo:
+        out["oa_demo"] = demo
+    return out
+
+
+def _oa_companion(hit, *words):
+    """File đi kèm export Tổng quan, nằm CÙNG thư mục tháng (vd. `OA ZALO T9.2026/`):
+    `Thống kê theo giới tính và độ tuổi T9.2026.xls`, `Thống kê người quan tâm t9.2026.xls`."""
+    d = os.path.dirname(hit)
+    for f in sorted(os.listdir(d)):
+        n = norm(f)
+        if n.endswith((".xls", ".xlsx")) and all(w in n for w in words):
+            return os.path.join(d, f)
+    return None
+
+
+def read_oa_demo(hit, month):
+    """OA Manager › Thống kê › Người quan tâm › Giới tính & độ tuổi → `oa_demo`.
+    Export cho TỶ LỆ trên tổng người quan tâm (cả bảng cộng lại = 1), không cho số người."""
+    path = _oa_companion(hit, "giới tính", "tuổi")
+    if not path:
+        return []
+    header, data = read_html_table(path)
+    h = [norm(x) for x in header]
+    if "nam" not in h or "nữ" not in h:
+        warn(f"{os.path.basename(path)}: không thấy cột Nam/Nữ")
+        return []
+    jm, jf = h.index("nam"), h.index("nữ")
+    out = []
+    for r in data:
+        age = str(r[0]).strip() if r else ""
+        # Hai dòng cuối (`Nam`, `Nữ`) là tổng theo giới — suy lại được từ các nhóm tuổi.
+        if not age or norm(age) in ("nam", "nữ") or len(r) <= max(jm, jf):
+            continue
+        m, f = to_num(r[jm]), to_num(r[jf])
+        if m is None and f is None:
+            continue
+        out.append({"month": month, "age": age, "male": round(m or 0, 6), "female": round(f or 0, 6)})
+    if out:
+        male = sum(r["male"] for r in out)
+        log(f"      Zalo OA giới tính/tuổi: {len(out)} nhóm · nam {male:.1%} · nữ {1 - male:.1%}")
+    return out
+
+
+def read_oa_follower_export(month):
+    """`Thống kê người quan tâm T*.xls` (OA Manager › Thống kê › Người quan tâm) — có
+    Tổng người quan tâm và Bỏ quan tâm theo NGÀY, đúng hai trường export Tổng quan thiếu."""
+    hit = l0_month_file("S12_zalo_oa", month)
+    path = hit and _oa_companion(hit, "người quan tâm")
+    if not path:
+        return []
+    header, data = read_html_table(path)
+    h = [norm(x) for x in header]
+    jt = next((j for j, x in enumerate(h) if x.startswith("tổng")), None)
+    ju = next((j for j, x in enumerate(h) if "bỏ quan tâm" in x), None)
+    year, out = month[:4], []
+    for r in data:
+        m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})", str(r[0] if r else ""))
+        if not m:
+            continue
+        d = f"{year}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+        if d[:7] != month:
+            continue
+        tot = to_num(r[jt]) if jt is not None and len(r) > jt else None
+        unf = to_num(r[ju]) if ju is not None and len(r) > ju else None
+        out.append({"date": d, "follower_total": None if tot is None else round(tot),
+                    "unfollows": None if unf is None else round(unf)})
+    return out
 
 
 def read_oa_follower(month):
     """Sổ nhập tay `Zalo_OA_Follower*.xlsx` — Tổng người quan tâm (snapshot) và Bỏ quan tâm.
     Export OA Manager › Tổng quan KHÔNG có hai trường này; OpenAPI `getoa` thì chưa nối được.
     Ô trống = chưa nhập, KHÔNG phải 0 — không suy tổng follower từ luỹ kế `Quan tâm`."""
+    # Ngày có file export `Thống kê người quan tâm` thì dùng export (số chính thức), sổ tay bù phần còn lại.
+    out = read_oa_follower_export(month)
+    have = {r["date"] for r in out}
     path = l0_latest("S26_zalo_follower")
-    if not path:
-        return {}
-    rows = sheet_rows(path, "Follower") if "Follower" in _sheet_names(path) else sheet_rows(path)
+    rows = []
+    if path:
+        rows = sheet_rows(path, "Follower") if "Follower" in _sheet_names(path) else sheet_rows(path)
     c0 = rows[0] if rows else {}
     k_d = col(c0, exact="Ngày") or col(c0, "ngày", "date")
     k_t = col(c0, "tổng người quan tâm", "tổng follower")
     k_u = col(c0, "bỏ quan tâm")
-    out = []
     for r in rows:
         d = date_of(r.get(k_d)) if k_d else None
-        if not d or d[:7] != month:
+        if not d or d[:7] != month or d in have:
             continue
         tot = to_num(r.get(k_t)) if k_t else None
         unf = to_num(r.get(k_u)) if k_u else None
@@ -720,6 +795,7 @@ def read_oa_follower(month):
             continue
         out.append({"date": d, "follower_total": None if tot is None else round(tot),
                     "unfollows": None if unf is None else round(unf)})
+    out.sort(key=lambda r: r["date"])
     if not out:
         return {}
     last = max((r for r in out if r["follower_total"] is not None), key=lambda r: r["date"], default=None)
@@ -1579,7 +1655,7 @@ BUILDERS = [
     ("google", "Google Ads", read_google_ads, ["S09_ads_google"]),
     ("social", "Social · Facebook + TikTok", read_social, ["S18_social", "S22_tiktok"]),
     ("oa", "Zalo OA", read_oa, ["S12_zalo_oa"]),
-    ("oa_follower", "Zalo OA · tổng người quan tâm", read_oa_follower, ["S26_zalo_follower"]),
+    ("oa_follower", "Zalo OA · tổng người quan tâm", read_oa_follower, ["S26_zalo_follower", "S12_zalo_oa"]),
     ("member", "Member đăng ký", read_member, ["S13_member"]),
     ("promotion", "Chi phí ngoài media (báo cáo MKT)", read_promotion, ["S25_mkt_report"]),
     ("booking", "Booking tiệc", read_booking, ["S07_lead"]),
@@ -1595,7 +1671,7 @@ PART_SHEETS = {
     "meta": ["ads_month", "ads_brand", "ads_objective", "ads_campaign_detail"],
     "google": ["ads_google", "gads_channel", "gads_kw"],
     "social": ["social_month"],
-    "oa": ["oa", "oa_daily"],
+    "oa": ["oa", "oa_daily", "oa_demo"],
     "oa_follower": ["oa_follower"],
     "member": ["member"],
     "promotion": ["budget_nonmedia"],
