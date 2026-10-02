@@ -38,6 +38,7 @@ from monthly_lib import (  # noqa: E402
     to_num, write_workbook,
 )
 from split_to_monthly import guide_monthly  # noqa: E402
+import crm_reader  # noqa: E402
 
 # ══════════════════════════════════════════════════════════════════════
 # Gốc dữ liệu thô
@@ -874,6 +875,33 @@ def _crm_member(path, month):
 
 
 def read_member(month):
+    """Đăng ký theo NGÀY (CRM Dashboard / member_actual) là số chính; tháng chưa có số ngày
+    (vd. T9: biểu mẫu còn trống) thì lấy tổng tháng từ file CRM khách hàng T* (S27)."""
+    got = _read_member_daily(month)
+    rec = (got.get("member") or [None])[0] if got else None
+    if rec and rec.get("member"):
+        return got
+    tot, src = crm_reader.member_from_crm(month), "file CRM khách hàng"
+    if not tot:
+        tot, src = crm_reader.member_from_history(month), "CRM_Dashboard lịch sử"
+    if not tot:
+        return got
+    rec = dict(rec or {"month": month, "oa": None})
+    rec.update(month=month, member=tot, days=None)
+    log(f"      Member ({src}): {tot} member mới · tổng tháng, chưa có số theo ngày")
+    return {"member": [rec]}
+
+
+def read_crm(month):
+    got = crm_reader.read_crm(month)
+    for w in crm_reader.warnings():
+        if w not in WARN:
+            WARN.append(w)
+    crm_reader._WARN.clear()
+    return got
+
+
+def _read_member_daily(month):
     files = l0_files("S13_member")
     crm = [f for f in files if os.path.basename(f).upper().startswith("CRM_DASHBOARD")]
     act = [f for f in files if os.path.basename(f).lower().startswith("member_actual")]
@@ -1656,7 +1684,8 @@ BUILDERS = [
     ("social", "Social · Facebook + TikTok", read_social, ["S18_social", "S22_tiktok"]),
     ("oa", "Zalo OA", read_oa, ["S12_zalo_oa"]),
     ("oa_follower", "Zalo OA · tổng người quan tâm", read_oa_follower, ["S26_zalo_follower", "S12_zalo_oa"]),
-    ("member", "Member đăng ký", read_member, ["S13_member"]),
+    ("member", "Member đăng ký", read_member, ["S13_member", "S27_crm_customer", "S28_crm_history"]),
+    ("crm", "CRM khách hàng (M8)", read_crm, ["S27_crm_customer", "S28_crm_history", "S29_member_revenue", "S30_crm_variance"]),
     ("promotion", "Chi phí ngoài media (báo cáo MKT)", read_promotion, ["S25_mkt_report"]),
     ("booking", "Booking tiệc", read_booking, ["S07_lead"]),
 ]
@@ -1674,6 +1703,7 @@ PART_SHEETS = {
     "oa": ["oa", "oa_daily", "oa_demo"],
     "oa_follower": ["oa_follower"],
     "member": ["member"],
+    "crm": ["crm_month", "crm_store", "crm_snapshot", "crm_dist", "crm_rank"],
     "promotion": ["budget_nonmedia"],
     "booking": ["booking"],
 }

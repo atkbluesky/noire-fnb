@@ -42,6 +42,9 @@ cứ thả file là hệ thống tự cập nhật sau khi file chép xong.
 | `04_CRM/02_Zalo_OA` | Zalo OA export — Thống kê Tổng quan |  | `OA Zalo T*.xls* | */OA Zalo T*.xls*` |
 | `04_CRM/05_Zalo_OA_Follower` | Zalo OA · Tổng người quan tâm (nhập tay) |  | `Zalo_OA_Follower*.xlsx` |
 | `04_CRM/03_Member` | Member đăng ký (CRM Dashboard đã làm sạch) |  | `CRM_Dashboard*.xlsx | member_actual*.xlsx` |
+| `04_CRM/06_CRM_Khach_Hang` | CRM khách hàng — báo cáo tháng (iPOS CRM) |  | `CRM khách hàng T*.xlsx` |
+| `04_CRM/07_CRM_Lich_Su` | CRM Dashboard lịch sử T1–T8 (đã làm sạch) |  | `CRM_Dashboard*.xlsx` |
+| `04_CRM/05_Doanh_Thu_Thanh_Vien` | Doanh thu thành viên theo cửa hàng (CSV iPOS) |  | `revenue-report_thanh vien T*.csv` |
 | `04_CRM/04_KPI_CRM` | KPI CRM theo quý |  | `*KPI CRM*.xlsx` |
 | `05_DOI_TAC/01_Danh_Muc` | Danh mục đối tác — Partner + Aggregator |  | `NOIRE_Doi_Tac*.xlsx` |
 | `05_DOI_TAC/02_eVoucher_Doi_Tac` | Log eVoucher đối tác (Techcombank × OneU…) |  | `eVoucher*.xlsx` |

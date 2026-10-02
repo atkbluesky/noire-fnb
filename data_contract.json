@@ -1473,6 +1473,132 @@
       ],
       "desc": "Member đăng ký mới & OA follow mới theo tháng (số toàn chuỗi)."
     },
+    "crm_month": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month"
+      ],
+      "req": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "spend_total",
+        "spend_first",
+        "spend_second",
+        "spend_third",
+        "mem_rev",
+        "mem_disc",
+        "mem_inv",
+        "v_issued",
+        "v_used",
+        "v_rev_before",
+        "v_rev_after",
+        "v_disc",
+        "src",
+        "note"
+      ],
+      "desc": "CRM theo THÁNG toàn chuỗi (S27 file CRM tháng · S28 lịch sử T1–T8 · S29 CSV). spend_* = lượt chi tiêu của member theo lần (lần đầu / lần 2 / từ 3 lần); mem_rev = doanh thu thành viên SAU giảm; mem_inv = hoá đơn thành viên. Ô trống = nguồn không có (vd. T8 thiếu cơ cấu lượt) — KHÔNG phải 0. v_* = báo cáo voucher của CRM iPOS (khác nhật ký S11: bao mọi loại voucher)."
+    },
+    "crm_store": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month",
+        "store"
+      ],
+      "req": [
+        "month",
+        "store"
+      ],
+      "cols": [
+        "month",
+        "store",
+        "spend_first",
+        "spend_second",
+        "spend_third",
+        "spend_total",
+        "mem_rev",
+        "mem_disc",
+        "mem_inv",
+        "v_used",
+        "v_rev_before",
+        "v_rev_after",
+        "v_disc"
+      ],
+      "desc": "CRM theo THÁNG × CỬA HÀNG (mã dim_store). mem_* từ CSV doanh thu thành viên / sheet 2·4 file CRM; spend_* chỉ có tháng có file CRM tháng; v_* chỉ T8 (lịch sử) và tháng có sheet voucher hợp lệ."
+    },
+    "crm_snapshot": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month"
+      ],
+      "req": [
+        "month"
+      ],
+      "cols": [
+        "month",
+        "customers",
+        "cum_rev",
+        "cum_inv",
+        "aov",
+        "seg3_n",
+        "seg3_rev",
+        "seg3_inv",
+        "seg2_n",
+        "seg2_rev",
+        "seg2_inv",
+        "seg1_n",
+        "seg1_rev",
+        "seg1_inv"
+      ],
+      "desc": "Bức tranh khách hàng — ẢNH CHỤP LUỸ KẾ tại cuối tháng (tổng khách, chi tiêu luỹ kế, hoá đơn luỹ kế, 3 phân khúc theo tần suất). KHÁC grain với crm_month: không cộng, không so trực tiếp với số trong tháng."
+    },
+    "crm_dist": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month",
+        "grp",
+        "label"
+      ],
+      "req": [
+        "month",
+        "grp",
+        "label"
+      ],
+      "cols": [
+        "month",
+        "grp",
+        "label",
+        "n"
+      ],
+      "desc": "Phân bố của ảnh chụp khách hàng, dạng dài. grp ∈ gender | age | channel | spend. Một khách có thể ở nhiều kênh (channel không cộng thành tổng khách). Ô tuổi ước lượng (~60, <20) bị bỏ."
+    },
+    "crm_rank": {
+      "tier": "monthly",
+      "monthCol": "month",
+      "key": [
+        "month",
+        "kind",
+        "from_rank",
+        "to_rank"
+      ],
+      "req": [
+        "month",
+        "kind"
+      ],
+      "cols": [
+        "month",
+        "kind",
+        "from_rank",
+        "to_rank",
+        "n"
+      ],
+      "desc": "Hạng thành viên. kind=upgrade: lên hạng từ from_rank → to_rank (n khách) · kind=txn: số giao dịch theo hạng (from_rank = hạng, to_rank trống). Gồm cả giao dịch NỘI BỘ."
+    },
     "social_month": {
       "tier": "monthly",
       "monthCol": "month",
