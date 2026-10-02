@@ -773,6 +773,26 @@ function buildBooking(tables) {
     }))
     .sort((a, b) => String(a.month).localeCompare(String(b.month)) || b.spend - a.spend);
 
+  /* Tháng chưa có file Meta Ads: lấy từ Postgres M5.1 (scripts/build-booking-ads.mjs → booking_ads_api.json).
+     Chỉ dùng khi sheet tháng đó KHÔNG có dòng ads booking — file Meta Ads về sau luôn thắng. */
+  const ads_api_months = [];
+  const apiFile = path.join(IN, 'booking_ads_api.json');
+  if (existsSync(apiFile)) {
+    const have = new Set(booking_ads.map((r) => r.month));
+    for (const [month, v] of Object.entries(JSON.parse(readFileSync(apiFile, 'utf8')).months ?? {})) {
+      if (have.has(month)) continue;
+      ads_api_months.push(month);
+      for (const c of v.campaigns) {
+        booking_ads.push({
+          month, campaign: c.campaign, page: c.page ?? null, brand: c.brand ?? null,
+          rkind: c.rkind ?? BK.result_default,
+          spend: n0(c.spend), impr: n0(c.impr), reach: 0, clicks: n0(c.clicks), result: n0(c.result),
+        });
+      }
+    }
+    booking_ads.sort((a, b) => String(a.month).localeCompare(String(b.month)) || b.spend - a.spend);
+  }
+
   const booking_page = dedupe(T(tables, 'social_month'), ['month', 'platform', 'brand', 'page'])
     .filter((r) => BK_PAGES.has(String(r.code ?? '').toUpperCase()))
     .map((r) => ({
@@ -800,6 +820,7 @@ function buildBooking(tables) {
       result_kinds: BK.result_kinds.map(({ code, label, contact }) => ({ code, label, contact })),
       lost_reasons: [...BK.lost_reasons.map((x) => x.label), BK.lost_default, BK.lost_blank],
       pages: [...BK_PAGES],
+      ads_api_months,
     },
     booking_stat: {
       leads,
