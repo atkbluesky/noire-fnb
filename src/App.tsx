@@ -24,6 +24,7 @@ const CRMView = lazy(() => import('./views/CRMView').then(m => ({ default: m.CRM
 const ZaloOAView = lazy(() => import('./views/ZaloOAView').then(m => ({ default: m.ZaloOAView })));
 const PartnershipView = lazy(() => import('./views/PartnershipView').then(m => ({ default: m.PartnershipView })));
 const BookingView = lazy(() => import('./views/BookingView').then(m => ({ default: m.BookingView })));
+const ReservationView = lazy(() => import('./views/ReservationView').then(m => ({ default: m.ReservationView })));
 const InsightsView = lazy(() => import('./views/InsightsView').then(m => ({ default: m.InsightsView })));
 const DataWarehouseView = lazy(() => import('./views/DataWarehouseView').then(m => ({ default: m.DataWarehouseView })));
 const SystemMapView = lazy(() => import('./views/SystemMapView').then(m => ({ default: m.SystemMapView })));
@@ -78,6 +79,9 @@ const DashboardContent: React.FC = () => {
         return <PartnershipView />;
       case 'm10':
         return <BookingView />;
+      case 'm11':
+      case 'm101': // link cũ của M10.1 trước khi tách thành M11
+        return <ReservationView />;
       case 'r1':
         return <InsightsView />;
       default:
@@ -100,6 +104,8 @@ const DashboardContent: React.FC = () => {
     customNote = 'Sổ đánh giá Pre_Analysis_2026 — dự báo theo kỳ chạy của từng chương trình (lọc bằng chip Kỳ bên dưới), không theo bộ lọc tháng.';
   } else if (activeView === 'm10') {
     customNote = 'Tháng = tháng NHẬN LEAD. Brand lấy theo Outlet trong sổ booking; lịch doanh thu xếp theo tháng diễn ra tiệc.';
+  } else if (activeView === 'm11' || activeView === 'm101') {
+    customNote = 'Tháng = tháng của báo cáo iPOS (L0_input/06_ĐAT_BAN). Brand lọc ở nút trong phễu; đơn theo brand là ước tính phân bổ.';
   } else if (activeView === 'm8') {
     customNote = 'Tỷ lệ nhận diện khách là số liệu toàn chuỗi; voucher lọc được theo brand.';
   } else if (activeView === 'm6') {

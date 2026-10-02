@@ -110,7 +110,7 @@ function zaloApi(env: ZaloEnv): Plugin {
   };
 }
 
-/** Giữ API M10.1 chạy giống nhau giữa Vite local và Vercel Functions. */
+/** Giữ API M11 chạy giống nhau giữa Vite local và Vercel Functions. */
 function iposApi(env: IposEnv): Plugin {
   const mount = (
     pathName: string,

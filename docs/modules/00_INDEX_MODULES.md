@@ -1,6 +1,6 @@
 # DANH SÁCH MODULE — 17 TAB
 
-> M5.1 · M6.2 · M8.1 · M10.1 là **module con dùng chung tab với module mẹ** — không phải tab thứ 18.
+> M5.1 · M6.2 · M8.1 là **module con dùng chung tab với module mẹ** — không phải tab thứ 18.
 
 Mỗi file mô tả một tab theo cùng một cấu trúc:
 **chuỗi trace (nguồn → tầng → khoá) · màn hình hiển thị gì · chỉ số & công thức · bộ lọc ·
@@ -26,7 +26,7 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | └ M8.1 | [`M8_1_Zalo_OA.md`](M8_1_Zalo_OA.md) | Zalo OA Performance *(đọc OA)* | P6.1 | 🟢 gộp export + API (API sống từ 27/09/2026) |
 | M9 | [`M9_Partnership.md`](M9_Partnership.md) | Partnership — Aggregator + Partner | P7 | ✅ đo trên hoá đơn POS · chung số với M7 |
 | M10 | [`M10_Booking.md`](M10_Booking.md) | Booking & Sự kiện | P6 | ✅ chỉ NDC |
-| └ M10.1 | [`M10_1_Dat_Ban.md`](M10_1_Dat_Ban.md) | Đặt bàn — phễu từ iPOS Booking | P6.2 | 🟡 chưa nối · thiếu Webhook URL + access token |
+| M11 | [`M11_Dat_Ban.md`](M11_Dat_Ban.md) | Đặt bàn — phễu chi phí Ads → đơn iPOS theo brand *(trước là M10.1)* | P6.2 | 🟢 file xuất iPOS T9 · 🟡 API chờ duyệt kết nối |
 | R1 | [`R1_Insight.md`](R1_Insight.md) | Insight & Cảnh báo | P9 | ✅ |
 
 ---

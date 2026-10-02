@@ -11,7 +11,7 @@
 |---|---|---|---|
 | **0 · Quản trị dữ liệu** | D1 · D2 | Số có đáng tin không? Hệ thống đang phân mảnh ra sao? | ✅ ⚠️ |
 | **I · Kết quả kinh doanh** | M0 · M1 · M2 · M3 | Đang ở đâu so với kế hoạch? Bán được bao nhiêu, món gì, lúc nào? | ✅ ✅ ⚠️ ⚠️ |
-| **II · Marketing** | M4 → M10 | Kế hoạch bao nhiêu, tiêu bao nhiêu, ra kết quả gì? | mix |
+| **II · Marketing** | M4 → M11 | Kế hoạch bao nhiêu, tiêu bao nhiêu, ra kết quả gì? | mix |
 | **III · Chiến lược** | R1 | Có gì bất thường, nguyên nhân do đâu? | ✅ |
 
 Thứ tự khối II đọc thành một mạch:
@@ -43,7 +43,7 @@ M4 (Ngân sách) đứng **trước** M5 (Digital Ads) vì phải biết kế ho
 | └ **M8.1** | Zalo OA Performance *(đọc)* | `m81` | `ZaloOAView.tsx` | Export S12 + OpenAPI/Webhook (PostgreSQL) | `oa_daily` + `zalo_oa_daily_metric` | P6.1 | 🟢 gộp export + API |
 | **M9** | Partnership — Aggregator + Partner | `m9` | `PartnershipView.tsx` | mkt §5b | `MKT.partner_fact · partners · partner_campaigns · partner_check` | P7 | ✅ chung số với M7 |
 | **M10** | Booking & Sự kiện | `m10` | `BookingView.tsx` | hub L | `lead_month · lead_source · lead_type` | P6 | ✅ chỉ NDC |
-| └ **M10.1** | Đặt bàn *(iPOS Booking)* | `m101` | `ReservationView.tsx` | iPOS OpenAPI + Webhook + PostgreSQL | `ipos_reservation` | P6.2 | 🟡 chờ access token + Webhook URL |
+| **M11** | Đặt bàn *(iPOS Booking)* | `m11` | `ReservationView.tsx` | 5 báo cáo xuất iPOS (`06_ĐAT_BAN`) + Ads Postgres M5.1 · GĐ2: iPOS OpenAPI + Webhook | `reservation.json` · GĐ2 `ipos_reservation` | P6.2 | 🟢 T9/2026 · API 🟡 chờ duyệt |
 | **R1** | Insight & Cảnh báo | `r1` | `InsightsView.tsx` | tổng hợp | `store_month · nature · product_stat · identify · bom_stat · meta · stores` + `MKT.budget · gads_stat · voucher_join` | P9 | ✅ |
 
 ---
@@ -114,7 +114,7 @@ mỗi module ghi rõ ngay trên thanh lọc phần nào lọc được. Khai bá
 | M8.1 Zalo OA | — | toàn bộ | *Today/7D/MTD/Month; không dùng filter brand* |
 | M9 Partnership | mọi khối — hoá đơn đối tác theo brand cửa hàng | Dining City (báo cáo team) gán brand ở danh mục | |
 | M10 Booking | — | toàn bộ | *lead hiện chủ yếu NDC* |
-| M10.1 Đặt bàn | mọi khối — đơn gắn nhà hàng qua `restaurant.reference_pos` | — | *Today/7D/MTD/Month · chọn trục Ngày tạo / Ngày phục vụ* |
+| M11 Đặt bàn | brand qua nút trong phễu (đơn theo brand là ước tính — iPOS chỉ xuất nguồn ở cấp chuỗi) | — | *tháng của thư mục iPOS · cửa sổ = ngày có đơn* |
 
 Để bộ lọc brand hoạt động **thật** chứ không chỉ hiện nút, tầng ETL đã bổ sung chiều `brand`
 vào bảng CTKM (`nature`, `campaigns`) và chiều brand cho voucher suy từ cột `Nhà hàng sử dụng`.

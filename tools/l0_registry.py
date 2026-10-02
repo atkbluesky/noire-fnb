@@ -255,6 +255,16 @@ SOURCES = [
         how="MỘT file cho mọi tháng (tạo bằng python tools/partner_template.py), sheet AGG_THANG xếp sẵn THÁNG → BRAND → nền tảng. Nền tảng POS không ghi nhận (Dining City) điền đủ booking · khách · hoá đơn · doanh thu · phí; nền tảng đo trên POS (Grab) chỉ điền hoa hồng / phí thực trả theo sao kê.",
         produces=["partner_agg"], via="build_mkt.py", modules=["M7", "M9"],
     ),
+    # ═════════════════════════ 06 · ĐẶT BÀN ═════════════════════════
+    dict(
+        id="S27_dat_ban", group="06_ĐAT_BAN", dir="06_ĐAT_BAN",
+        name="Đặt bàn (iPOS Booking — 5 báo cáo xuất)", cadence="monthly_folder", since="2026-09", required=False,
+        pattern="Tháng */nguon_don_dat_ban*.xlsx", month_regex=MONTH_RX_T,
+        example="Tháng 9.2026/nguon_don_dat_ban__xuat_tep.xlsx",
+        how="Tạo thư mục `Tháng <tháng>.<năm>`, thả nguyên 5 file xuất từ iPOS Booking: nguồn đơn · theo dõi tình trạng · thống kê theo cửa hàng · tỷ lệ huỷ · xu hướng theo số lượng. Giữ tên iPOS đặt (có `(1)` cũng được).",
+        produces=["reservation"], via="scripts/build-reservation.mjs", modules=["M11"],
+        note="Nguồn đơn iPOS chỉ ở cấp toàn chuỗi — đơn theo brand là ước tính. Xuất thêm 'Nguồn đơn' lọc riêng từng nhà hàng để có số thật theo brand.",
+    ),
 ]
 
 # Nơi file đang nằm ở cây HIGHGATE — CHỈ dùng một lần khi dựng L0_input lần đầu
@@ -275,6 +285,7 @@ HIGHGATE_ORIGIN = {
     "S16_pre_analytics": "04 Marketing Campaigns/02 LTO Promotions/2026 Q3",
     "S17_lto_actual":   "04 Marketing Campaigns/02 LTO Promotions/2026 Q2",
     "S19_aggregator":   "10 Partnership Analytics/Aggregator",
+    "S27_dat_ban":      "iPOS Booking › Báo cáo (xuất tệp)",
     "S25_mkt_report":   "05 Data Raw/Promotion-AGG",
     "S11_voucher":      "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/01. Data Voucher iPOS",
     "S12_zalo_oa":      "03 Customer Engagement/02 Loyalty Program/Camp Loyalty report/02. Data CRM/04. KPI Actual/01. OA Zalo",
@@ -352,6 +363,7 @@ GROUP_TITLE = {
     "03_MARKETING": "Quảng cáo · social · ngân sách · khuyến mãi",
     "04_CRM": "Voucher · Zalo OA · member · KPI CRM",
     "05_DOI_TAC": "Đối tác · eVoucher",
+    "06_ĐAT_BAN": "Đặt bàn · iPOS Booking",
 }
 
 

@@ -1,16 +1,94 @@
-# M10.1 · ĐẶT BÀN — PHỄU ĐẶT BÀN TỪ iPOS BOOKING
+# M11 · ĐẶT BÀN — PHỄU CHI PHÍ ADS → ĐƠN ĐẶT BÀN iPOS
+
+> **Đổi mã 01/10/2026:** trước là **M10.1** (con của M10). Tách thành module riêng **M11** vì đặt bàn
+> khác hẳn tiệc ở grain, vòng đời, giá trị và nguồn dữ liệu (§1b) — chỉ chung tầng chi phí Ads.
+> Link cũ `#m101` vẫn mở được M11.
 
 | | |
 |---|---|
-| **Câu hỏi** | Quảng cáo chạy lead/tin nhắn có ra **đơn đặt bàn** không, và bao nhiêu đơn thành khách thật ngồi xuống bàn? |
-| **`activeView`** | `m101` |
-| **View** | `src/views/ReservationView.tsx` *(chưa dựng)* |
-| **Server** | `api/ipos/_shared.ts` · `webhook.ts` · `sync.ts` · `database/migrations/003_ipos_reservation.sql` |
-| **Nguồn** | iPOS Booking Open API — `POST /reservations/filters` + Webhook `RESERVATION_NEW/CHANGE` |
-| **Grain** | 1 `booking_code` (một đơn đặt bàn) |
+| **Câu hỏi** | Mỗi mục chi phí Ads (Meta Ads · Google Ads) chuyển thành **đơn đặt bàn** ra sao, theo từng brand? |
+| **`activeView`** | `m11` *(alias `m101`)* |
+| **View** | `src/views/ReservationView.tsx` · mô hình `src/utils/reservation.ts` |
+| **Giai đoạn 1 — đang chạy** | 5 báo cáo **xuất tệp** từ iPOS Booking → `L0_input/06_ĐAT_BAN/Tháng M.YYYY/` → `scripts/build-reservation.mjs` → `src/data/reservation.json` (nguồn `S27_dat_ban`) |
+| **Giai đoạn 2 — chờ iPOS** | `api/ipos/_shared.ts` · `webhook.ts` · `sync.ts` · `database/migrations/003_ipos_reservation.sql` (§2 → §8) |
+| **Chi phí Ads** | Postgres M5.1 (`ads_campaign_daily ⋈ dim_ads_campaign`), chỉ `funnel = store` của NCB · NDC · NJFB |
+| **Grain** | GĐ1: tháng × nguồn / ngày / cửa hàng · GĐ2: 1 `booking_code` |
 | **Phạm vi** | Performance only — đọc đơn để đo phễu. **Không** tạo đơn, **không** đổi trạng thái, **không** CRM |
-| **Giai đoạn** | P6.2 |
-| **Trạng thái** | 🟡 hạ tầng xong, **chặn ở bước brand duyệt kết nối**. Migration + `/api/ipos/webhook` + `/api/ipos/sync` đã dựng & test 26/09/2026; `GET /v1/partner/brands` vẫn trả rỗng — xem §5 bước 0 |
+| **Trạng thái** | 🟢 GĐ1 có số T9/2026 · 🟡 GĐ2 hạ tầng xong, **chặn ở bước brand duyệt kết nối** (§5 bước 0) |
+
+---
+
+## 0. Giai đoạn 1 — báo cáo xuất iPOS (đang chạy từ T9/2026)
+
+### 0a. Thả file
+
+Mỗi tháng một thư mục `L0_input/06_ĐAT_BAN/Tháng <M>.<YYYY>/`, thả nguyên 5 file iPOS xuất (giữ tên, có `(1)` cũng được —
+trùng loại thì lấy file sửa gần nhất):
+
+| File iPOS | Cột | Dùng cho |
+|---|---|---|
+| `nguon_don_dat_ban__xuat_tep` | Nguồn · Giá trị | **số đơn theo nguồn** — chỉ ở cấp toàn chuỗi |
+| `theo_doi_tinh_trang_dat_ban` | Ngày · Tổng đơn · Đơn hủy · Số khách | xu hướng ngày, cửa sổ đối chiếu Ads |
+| `thong_ke_luong_dat_ban_theo_cu` | Nhà hàng · Tổng số khách · Khách hủy | **tách brand** (map qua `dim_store.aliases`) |
+| `ti_le_huy_don` | Trạng thái · Số đơn | đơn huỷ |
+| `xu_huong_dat_ban_theo_so_luong` | Nhóm · Lượt | quy mô nhóm khách |
+
+Rồi chạy `npm run build:reservation` (hoặc `CAP_NHAT.bat` — `update.py` tự gọi). Script đọc thêm thực chi Ads từ
+Postgres M5.1 bằng `DATABASE_URL` (biến môi trường hoặc `.env.local`), cắt **đúng cửa sổ ngày có đơn**
+(T9/2026: 03/09 → 30/09 — iPOS Booking bắt đầu ghi đơn từ 03/09). Không có DB thì giữ số Ads của bản json cũ.
+`reservation.json` được commit — Vercel không cần DB lúc build.
+
+### 0b. Mục chi phí ↔ nguồn đơn *(quy ước Marketing chốt 01/10/2026)*
+
+| Mục chi phí (Ads) | Hành động trên nền tảng | Nguồn đơn iPOS ghép cặp | Khoá chia brand |
+|---|---|---|---|
+| **Meta Ads** = Tin nhắn + Tương tác | hội thoại (`messaging_conversations`) | **Fanpage** = FacebookCRM + Fanpage | hội thoại Meta của brand |
+| **Google Ads** = PMax Local | chuyển đổi Google | **Google Ads** = Google Ads *(7 mã cùng tên)* + Website | chuyển đổi Google của brand |
+
+**Zalo Ads không tính** — chưa có thực chi; ZaloCRM xếp vào kênh sở hữu, không gắn chi phí.
+Nguồn không gắn chi phí: ZaloCRM · Marketing · Gọi đặt · Hotline · Vãng lai · Sales · CTV · Nội bộ · Đối tác.
+Luật gán nằm ở `SOURCE_RULES` / `ADS_ITEMS` trong `build-reservation.mjs` và đi kèm dữ liệu — view không tự phân loại lại.
+
+### 0c. Phân bổ brand — vì sao là ƯỚC TÍNH
+
+iPOS chỉ xuất nguồn đơn ở **cấp toàn chuỗi**; brand chỉ tách được ở báo cáo **khách** theo cửa hàng. Nên:
+
+1. Tầng Ads (chi phí · hiển thị · click · hội thoại · chuyển đổi) — **số thật** theo brand.
+2. Đơn của nguồn trả phí chia cho brand theo **tín hiệu Ads của đúng mục đó** (bảng 0b).
+3. Nguồn còn lại lấp phần còn thiếu của mỗi brand so với *đơn ước tính theo tỷ trọng khách đặt*, chuẩn hoá về đúng tổng.
+   Tổng đơn mọi brand **luôn bằng** tổng đơn iPOS.
+4. Đơn giữ = đơn × (1 − tỷ lệ khách huỷ của brand). Khách giữ chỗ = đơn giữ × khách/đơn trung bình chuỗi.
+
+Hệ quả cần nói rõ trên màn hình: tỷ lệ *hội thoại → đơn* giống nhau giữa các brand (do cách chia). Khác biệt thật
+giữa brand nằm ở **chi phí / hội thoại** và **chi phí / chuyển đổi**. Muốn số thật theo brand: xuất thêm
+"Nguồn đơn đặt bàn" **lọc riêng từng nhà hàng** — đây là việc của Ops, không phải việc code.
+
+### 0d. QA giai đoạn 1 (in khi build, hiện ở cuối màn hình)
+
+| # | Chốt | T9/2026 |
+|---|---|---|
+| 1 | Đủ 5 báo cáo | ✔ 5/5 |
+| 2 | Tổng đơn khớp giữa nguồn · ngày · tỷ lệ huỷ · quy mô nhóm | ✔ 592 ở cả 4 |
+| 3 | Đơn huỷ khớp (ngày ↔ tỷ lệ huỷ) | ✔ 93 |
+| 4 | Số khách khớp (cửa hàng ↔ ngày) | ⚠ 1.839 ↔ 1.550, lệch 289 — iPOS không ghi trục ngày của từng báo cáo |
+| 5 | Cửa hàng iPOS nhận ra hết | ✔ 11/11 |
+| 6 | Nguồn đơn phân loại hết | ✔ 13 nguồn |
+| 7 | Mã nguồn trùng tên | ⚠ "Google Ads" ×7 mã — cùng vụ §3b |
+
+### 0e. Kết quả T9/2026 (03/09 → 30/09)
+
+592 đơn · 93 huỷ (15,7%) · 1.839 khách đặt · thực chi Ads nhà hàng 23,7 tr (cả tháng 25,1 tr; tiệc NEC 7,0 tr thuộc M10).
+
+| Mục chi phí | Thực chi | Hành động | Đơn (nguồn) | Chi phí / đơn | Chi phí / đơn giữ |
+|---|---:|---:|---:|---:|---:|
+| Meta Ads *(Tin nhắn 12,7 tr + Tương tác 8,5 tr)* | 21,2 tr | 556 hội thoại (38 k) | 83 Fanpage *(FacebookCRM 81 + Fanpage 2)* | 255 k | 310 k |
+| Google Ads | 2,5 tr | 1.402 chuyển đổi | 76 Google Ads *(Google Ads 38 + Website 38)* | 33 k | 41 k |
+
+Kênh có Ads tạo 159/592 đơn (27%) · thực chi ÷ đơn từ Ads = 149 k; điện thoại + vãng lai 54%.
+Chi phí Meta / hội thoại (gồm cả chi Tương tác): NJFB 27 k · NDC 41 k · NCB 115 k.
+Tỷ trọng chi ↔ đơn: NCB 23% ↔ 16% · NDC 41% ↔ 41% · NJFB 36% ↔ 42%. Khách huỷ: NDC 24% · NCB 14% · NJFB 14%.
+
+---
 
 > Tài liệu gốc: [iPOS Booking Open API](https://documenter.getpostman.com/view/2386655/2s83t9LZno) ·
 > `BASE_URL = https://booking.ipos.vn/api`
@@ -37,18 +115,18 @@ Vercel Cron 00:15 ICT ─▶ /api/ipos/sync
                               dim_ipos_source · dim_ipos_restaurant · ipos_table
                               ipos_sync_run (audit)
                                                      ▼
-Dashboard ──GET /api/ipos/reservations?period=──▶ M10.1
+Dashboard ──GET /api/ipos/reservations?period=──▶ M11 (GĐ2)
            │
            └─ 503 NOT_CONFIGURED ─▶ màn hình hiện trạng thái chờ kết nối, không dựng số giả
 ```
 
-### 1b. Vì sao tách khỏi M10 chứ không nhập chung
+### 1b. Vì sao tách khỏi M10 — và vì sao thành module riêng M11
 
 `M10_Booking.md` §3 đã ghi sẵn bằng chứng: sổ Sales lẫn ~110 dòng đặt bàn 2 khách NJFB T7.
 **Để lẫn:** 142 lead · chốt 86% · TB 3,3 tr/tiệc. **Tách ra:** 32 lead · TB 13,5 tr/tiệc.
 Nhập đặt bàn vào M10 là tái tạo đúng lỗi đã vá ngày 17/09/2026.
 
-| | M10 · Tiệc & sự kiện | M10.1 · Đặt bàn |
+| | M10 · Tiệc & sự kiện | M11 · Đặt bàn |
 |---|---|---|
 | Đơn vị | 1 lead trong sổ Sales | 1 `booking_code` trong iPOS |
 | Nguồn | Excel `S07_lead` nhập tay | API + webhook, realtime |
@@ -58,8 +136,9 @@ Nhập đặt bàn vào M10 là tái tạo đúng lỗi đã vá ngày 17/09/202
 | Trục thời gian | tháng nhận lead ↔ tháng diễn ra | `created_at` ↔ `meal_day` |
 | Bộ lọc brand | không tách được | tách được theo `restaurant.reference_pos` |
 
-Chung nhau **duy nhất** tầng chi phí ads (M5). Vì vậy M10.1 là **con của M10** trong Sidebar —
-đúng khuôn `M8 → M8.1`: cha là dữ liệu file, con là live API + PostgreSQL.
+Chung nhau **duy nhất** tầng chi phí ads (M5) — và M11 chỉ lấy phễu nhà hàng (`funnel = store`), chi tiệc NEC
+(`funnel = booking`) vẫn thuộc M10. Bản đầu xếp M10.1 là **con của M10** theo khuôn `M8 → M8.1`; khi có số thật
+T9/2026 thì rõ đây là một câu hỏi riêng (Ads → đặt bàn theo brand), nên tách thành **M11** ngang hàng M10.
 
 ### 1c. Hai trục thời gian — không được trộn
 
@@ -155,7 +234,7 @@ code mới là thứ đơn cũ trỏ tới).
 
 API chỉ trả `deposit` (tiền cọc) và `total_amount` (món đặt trước, thường = 0) — **không có
 bill thật**. Nối sang doanh thu POS phải qua `phone_hash`, mà `M8_CRM.md` ghi
-**chỉ 8,6% hoá đơn có SĐT**. Nên phễu M10.1 dừng ở *đã đến / số khách*. Không dựng cột
+**chỉ 8,6% hoá đơn có SĐT**. Nên phễu M11 dừng ở *đã đến / số khách*. Không dựng cột
 doanh thu ước lượng.
 
 ---
@@ -227,7 +306,7 @@ trang; nếu dính 429 thì lùi theo cấp số nhân và ghi vào `ipos_sync_r
 |---|---|---|---|
 | `/api/ipos/webhook` | POST | secret trong query `?k=` | nhận tiếng gõ cửa → refetch → upsert · ✅ **đã dựng** |
 | `/api/ipos/sync` | GET/POST | `Authorization: Bearer CRON_SECRET` | cron ngày: cửa sổ `created_at` + re-sync đơn mở + dọn hàng đợi webhook · ✅ **đã dựng** |
-| `/api/ipos/reservations` | GET | quyền đọc dashboard hiện hữu | KPI + daily trend cho M10.1 · ⬜ chưa dựng |
+| `/api/ipos/reservations` | GET | quyền đọc dashboard hiện hữu | KPI + daily trend cho M11 (GĐ2) · ⬜ chưa dựng |
 
 Mã nguồn: `api/ipos/_shared.ts` · `api/ipos/webhook.ts` · `api/ipos/sync.ts`. Nối vào Vite dev
 qua plugin `iposApi` trong `vite.config.ts`; cron khai ở `vercel.json` lúc `15 17 * * *` UTC
