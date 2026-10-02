@@ -221,6 +221,72 @@ export interface ZaloOADemo {
   female: number;
 }
 
+/* ── M8 · CRM khách hàng theo tháng (tools/crm_reader.py → crm_*) ──
+ * null = nguồn không có số (KHÔNG phải 0): T8 thiếu cơ cấu lượt, T1–T5 thiếu voucher… */
+export interface CrmMonth {
+  month: string;
+  /** S27 = file CRM khách hàng tháng · S28+S29 = lịch sử CRM_Dashboard + CSV doanh thu thành viên. */
+  src: string | null;
+  note: string | null;
+  spend_total: number | null;
+  spend_first: number | null;
+  spend_second: number | null;
+  spend_third: number | null;
+  /** Doanh thu thành viên SAU giảm · giảm giá · số hoá đơn thành viên. */
+  mem_rev: number | null;
+  mem_disc: number | null;
+  mem_inv: number | null;
+  /** Báo cáo voucher của CRM iPOS (bao mọi loại voucher — khác nhật ký S11). */
+  v_issued: number | null;
+  v_used: number | null;
+  v_rev_before: number | null;
+  v_rev_after: number | null;
+  v_disc: number | null;
+}
+
+export interface CrmStore {
+  month: string;
+  store: string;
+  spend_first: number | null;
+  spend_second: number | null;
+  spend_third: number | null;
+  spend_total: number | null;
+  mem_rev: number | null;
+  mem_disc: number | null;
+  mem_inv: number | null;
+  v_used: number | null;
+  v_rev_before: number | null;
+  v_rev_after: number | null;
+  v_disc: number | null;
+}
+
+/** Ảnh chụp LUỸ KẾ cuối tháng — khác grain với CrmMonth, không cộng/so trực tiếp. */
+export interface CrmSnapshot {
+  month: string;
+  customers: number | null;
+  cum_rev: number | null;
+  cum_inv: number | null;
+  aov: number | null;
+  seg3_n: number | null; seg3_rev: number | null; seg3_inv: number | null;
+  seg2_n: number | null; seg2_rev: number | null; seg2_inv: number | null;
+  seg1_n: number | null; seg1_rev: number | null; seg1_inv: number | null;
+}
+
+export interface CrmDist {
+  month: string;
+  grp: 'gender' | 'age' | 'channel' | 'spend' | string;
+  label: string;
+  n: number | null;
+}
+
+export interface CrmRank {
+  month: string;
+  kind: 'upgrade' | 'txn' | string;
+  from_rank: string | null;
+  to_rank: string | null;
+  n: number | null;
+}
+
 /** Member đăng ký mới theo tháng — lấy từ bảng theo dõi tay. */
 export interface MemberMonth {
   month: string;
@@ -455,6 +521,11 @@ export interface MktData {
   member_month: MemberMonth[];
   member_stat: { total: number; months_filled: number; months_template: number };
   crm_target: { month: string; kpi: string; target: number }[];
+  crm_month?: CrmMonth[];
+  crm_store?: CrmStore[];
+  crm_snapshot?: CrmSnapshot[];
+  crm_dist?: CrmDist[];
+  crm_rank?: CrmRank[];
   partners: PartnerItem[];
   pre_q3: PreAnalyticsQ3[];
   pre_stat: PreStat;

@@ -34,6 +34,10 @@ S13 member · S14 KPI CRM → member_month · member_stat · crm_target
 
 > Zalo OA đã tách khỏi M8 sang [`M8.1 · Zalo OA Performance`](M8_1_Zalo_OA.md).
 
+**Tăng/giảm so tháng trước** *(chuẩn hoá 02/10/2026 theo `AGENTS.md` QT2)*: thẻ Khách đăng ký mới · Lượt chi tiêu · Doanh thu ·
+AOV thành viên · Tổng khách luỹ kế và cột “DT vs Tx” của bảng cửa hàng vẽ bằng `DeltaText` — icon + xanh khi tăng, icon + đỏ khi giảm,
+nhãn `vs T8/26`. Đã sửa lỗi thẻ Tổng khách luôn ghép dấu `+` kể cả khi số khách giảm.
+
 ## 3. ⛔ Điểm nghẽn lớn nhất — nhận diện khách 8,6%
 
 **Chỉ ~8,6% hoá đơn có số điện thoại.** Trong nhóm nhận diện được thì tỷ lệ quay lại rất tốt
@@ -46,6 +50,31 @@ S13 member · S14 KPI CRM → member_month · member_stat · crm_target
 
 ⚠️ **Bẫy đã chặn:** iPOS xuất ô rỗng thành ký tự vô hình `​`. Nếu không có `clean_txt()`,
 `notna()` sẽ báo nhầm và **tỷ lệ nhận diện hiện 100% thay vì 8,6%**. Đừng gỡ hàm này.
+
+## 3b. CRM iPOS theo tháng (thêm 02/10/2026)
+
+Khối đầu màn M8 (`src/views/crm/CRMCustomerSection.tsx`) đọc `crm_*` trong `data_mkt.json`, dựng bởi
+`tools/crm_reader.py` (phần `crm` của `tools/build_month.py`):
+
+| Nguồn L0 | File | Cho tháng |
+|---|---|---|
+| `S27_crm_customer` · `04_CRM/06_CRM_Khach_Hang` | `CRM khách hàng T9.2026.xlsx` (4 sheet iPOS) | từ T9/2026 — **thả mỗi tháng một file** |
+| `S28_crm_history` · `04_CRM/07_CRM_Lich_Su` | `CRM_Dashboard_T1-T8.2026.xlsx` | T1–T8 (lượt chi tiêu, voucher T6–T8, ảnh chụp T7–T8) |
+| `S30_crm_variance` · `04_CRM/08_Bien_Dong_KH` | `Biến động khách hàng T8.2026.xlsx` | bù cơ cấu lần đầu/2/≥3 + theo cửa hàng + lên hạng cho tháng chưa có file CRM T* (T8 chỉ tới 30/08) |
+| `S29_member_revenue` · `04_CRM/05_Doanh_Thu_Thanh_Vien` | `revenue-report_thanh vien T*.csv` | T1–T8 theo cửa hàng |
+
+Bảng: `crm_month` (tháng) · `crm_store` (tháng × cửa hàng) · `crm_snapshot` (ảnh chụp luỹ kế) ·
+`crm_dist` (giới tính/kênh/chi tiêu/tuổi) · `crm_rank` (lên hạng, giao dịch theo hạng). Hợp đồng: `data_contract.json`.
+
+**Luật đọc số**
+- Ô nguồn không có = `null`, hiện "—", không vẽ 0 (T8 thiếu cơ cấu lần đầu/2/≥3).
+- File iPOS lưu `1.517` thành số thực 1,517 → `cnt()` đưa về số nguyên 1517 và đối chiếu bằng tổng cửa hàng.
+- **Sheet "Báo cáo voucher" trùng hệt tháng trước bị loại** + cảnh báo (T9: trùng T8 7.780 phát / 2.551 dùng).
+- Ảnh chụp luỹ kế khác grain với số trong tháng — không cộng, không so trực tiếp.
+- Đăng ký member: số theo NGÀY (member_actual) ưu tiên → tổng tháng file CRM (S27) → CRM_Dashboard (S28).
+  T7: ngày = 116, dashboard cũ = 124 (nhập từ ảnh).
+
+---
 
 ## 4. Ngược lại — voucher là kênh đo được gần như hoàn hảo
 

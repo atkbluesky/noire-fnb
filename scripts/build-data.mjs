@@ -152,6 +152,7 @@ async function readWorkbooks() {
 const T = (tables, name) => tables[name] ?? [];
 const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
 const n0 = (v) => Number(v) || 0;
+const nul = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));   // ô trống = null
 const sum = (a, f) => a.reduce((s, r) => s + n0(f(r)), 0);
 const div = (a, b) => (b ? a / b : null);          // chia 0 trả null, KHÔNG trả 0
 
@@ -1021,6 +1022,32 @@ function buildMkt(tables, over) {
       total: sum(T(tables, 'member'), (r) => r.member),
       months_template: null,
     }, over.member_stat),
+    /* M8 · CRM khách hàng theo tháng (tools/crm_reader.py). Ô nguồn không có = null — KHÔNG ép 0:
+       T8 thiếu cơ cấu lượt, T1–T5 thiếu voucher… phải hiện "—" chứ không phải 0. */
+    crm_month: T(tables, 'crm_month').map((r) => {
+      const o = { month: r.month, src: r.src ?? null, note: r.note ?? null };
+      for (const k of ['spend_total', 'spend_first', 'spend_second', 'spend_third', 'mem_rev', 'mem_disc',
+        'mem_inv', 'v_issued', 'v_used', 'v_rev_before', 'v_rev_after', 'v_disc']) o[k] = nul(r[k]);
+      return o;
+    }).sort((a, b) => String(a.month).localeCompare(String(b.month))),
+    crm_store: T(tables, 'crm_store').map((r) => {
+      const o = { month: r.month, store: r.store };
+      for (const k of ['spend_first', 'spend_second', 'spend_third', 'spend_total', 'mem_rev', 'mem_disc',
+        'mem_inv', 'v_used', 'v_rev_before', 'v_rev_after', 'v_disc']) o[k] = nul(r[k]);
+      return o;
+    }),
+    crm_snapshot: T(tables, 'crm_snapshot').map((r) => {
+      const o = { month: r.month };
+      for (const k of ['customers', 'cum_rev', 'cum_inv', 'aov', 'seg3_n', 'seg3_rev', 'seg3_inv', 'seg2_n',
+        'seg2_rev', 'seg2_inv', 'seg1_n', 'seg1_rev', 'seg1_inv']) o[k] = nul(r[k]);
+      return o;
+    }).sort((a, b) => String(a.month).localeCompare(String(b.month))),
+    crm_dist: T(tables, 'crm_dist').map((r) => ({
+      month: r.month, grp: String(r.grp), label: String(r.label), n: nul(r.n),
+    })),
+    crm_rank: T(tables, 'crm_rank').map((r) => ({
+      month: r.month, kind: String(r.kind), from_rank: r.from_rank ?? null, to_rank: r.to_rank ?? null, n: nul(r.n),
+    })),
     crm_target: T(tables, 'crm_target').map((r) => ({
       month: r.month, kpi: r.kpi, target: n0(r.target),
     })),
