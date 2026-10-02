@@ -18,7 +18,7 @@ Mỗi file mô tả một tab theo cùng một cấu trúc:
 | M5 | [`M5_Digital_Ads.md`](M5_Digital_Ads.md) | Digital Ads (Meta + Google) | P7 | ⚠️ thiếu Zalo |
 | └ M5.1 | [`M5_1_Ads_Auto.md`](M5_1_Ads_Auto.md) | Ads Auto — Meta API + Google Ads API *(tự động lấy số)* | P7.1 | 🟢 Meta chạy thật · 8 tháng khớp Excel 0,000% · Google chờ developer token |
 | M6 | [`M6_Social_Media.md`](M6_Social_Media.md) | Social Media (Fanpage + TikTok) | P7.5 | 🟡 chờ `social_month` |
-| └ M6.2 | [`M6_2_Social_Auto.md`](M6_2_Social_Auto.md) | Social Auto — Fanpage → Zalo OA *(ghi lên OA)* | P6.3 | 🟡 có giao diện + API + DB · chờ cấu hình dịch vụ |
+| └ M6.2 | [`M6_2_Social_Auto.md`](M6_2_Social_Auto.md) | Social Auto *(ghi lên OA)* | P6.3 | 🟡 có giao diện + API + DB · chờ cấu hình dịch vụ |
 | **M7** | [`M7_Promotion.md`](M7_Promotion.md) | **Promotion** — mục mẹ · tổng quan 5 bản chất chi phí ưu đãi | P4 | ✅ |
 | └ M7.1 | [`M7_1_Pre_Analytics.md`](M7_1_Pre_Analytics.md) | Pre-Analytics · Plan — kế hoạch Pre-Analysis + thực tế | P5.5 | ✅ nối 5/25 CT với POS |
 | └ M7.2 | [`M7_2_Promotion_Tracking.md`](M7_2_Promotion_Tracking.md) | Promotion Tracking — chấm từng chương trình | P5.5 | 🟡 chờ team brand điền ô CAM |

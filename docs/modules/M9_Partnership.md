@@ -80,11 +80,11 @@ danh mục · sao kê ────────── ⑥ phí hợp tác / cố 
 Log iPOS của mã đối tác (cùng định dạng log voucher S11): trạng thái, ngày phát hành, ngày dùng, nhà hàng dùng,
 HĐ trước giảm, tiền giảm. Gắn vào đối tác qua **Campaign ID** ở `3_CHUONG_TRINH`. Không đưa số điện thoại khách ra dashboard.
 
-| Campaign | Brand | Phát | Hạn | Mã | Đã dùng *(tới 17/09)* |
+| Campaign | Brand | Phát | Hạn | Mã | Đã dùng *(tới 30/09)* |
 |---|---|---|---|---:|---:|
-| 337795 | NCB — giảm 15%, tối đa 100k, HĐ ≥ 300k | 21/07 | 30/09 | 3.000 | 16 (0,5%) |
-| 344574 | NDC — giảm 200.000đ | 26/08 | 31/10 | 1.500 | 10 (0,7%) |
-| 344575 | NJFB — giảm 400.000đ | 26/08 | 31/10 | 1.500 | 5 (0,3%) |
+| 337795 | NCB — giảm 15%, tối đa 100k, HĐ ≥ 300k | 21/07 | 30/09 | 3.000 | 20 (0,7%) |
+| 344574 | NDC — giảm 200.000đ | 26/08 | 31/10 | 1.500 | 16 (1,1%) |
+| 344575 | NJFB — giảm 400.000đ | 26/08 | 31/10 | 1.500 | 10 (0,7%) |
 
 ## 5. Màn hình
 
@@ -114,6 +114,34 @@ HĐ trước giảm, tiền giảm. Gắn vào đối tác qua **Campaign ID** �
 
 Chi phí đối tác 22,8 tr = 11,0% doanh thu đối tác (ưu đãi NOIRE chịu 10,4 tr + phí 12,4 tr, trong đó 11,8 tr ước tính
 13,8% Grab Dine Out — nhập hoa hồng thực trả để thay). M7 thẻ “Đối tác” = tổng M9 từng tháng.
+
+### Chốt 02/10/2026 — PTTT GRAB DEBIT là căn cứ dữ liệu Grab
+
+Hoá đơn có PTTT chứa GRAB DEBIT (kể cả Nguồn = TẠI CHỖ, trả chia VISA / chuyển khoản) được tính cho Grab:
+có Hoa hồng hoặc 0 khách → GrabFood (P11), còn lại → Grab Dine Out (P03), basis `PTTT`. Cờ `pttt_confirmed`
+ở `data_contract.json → $partner.pos[0]` (bỏ cờ = quay lại XAC_NHAN, không tính). Áp cho mọi tháng; khối
+“Cần kiểm tra” hiện trống. Chênh lệch kỳ này: T8 Grab Dine Out 92,1 tr → 164,4 tr (+45 HĐ), T7 +2 HĐ.
+Căn cứ: báo cáo T9 của team ghi 156 đơn Grab, POS có 154 HĐ Dine Out theo cách tính này.
+Lưu ý: HĐ trả chia (GRAB DEBIT + VISA…) được tính TOÀN BỘ hoá đơn, không tách phần Grab.
+
+### Số liệu T9/2026
+
+| | Doanh thu | HĐ |
+|---|---:|---:|
+| Grab Dine Out *(POS · PTTT GRAB DEBIT)* | 191,1 tr | 154 |
+| GrabFood giao hàng | 1,6 tr | 11 |
+| Dining City *(tự thống kê: 14 booking × 18.000đ)* | 12,6 tr | 13 |
+| **Aggregator** | **205,4 tr** | **178** |
+| Techcombank × OneU | 41,0 tr | 33 |
+| **Đối tác T9** | **246,4 tr** | **211** |
+
+Luỹ kế T1–T9: 532,9 tr. M7 thẻ “Đối tác” T9 = 246.374.455 = M9. eVoucher log đủ tới 30/09.
+
+- **Hoa hồng / ưu đãi Grab T9 thực** (báo cáo Aggregator T9): hoa hồng 21.666.685 · ưu đãi NOIRE chịu 37.623.816,
+  nhập ở `AGG_THANG` dòng P03, chia NDC 39,0% / NJFB 61,0% theo doanh thu POS (thay ước tính 13,8%).
+  Số booking Dining City 14 suy từ hoa hồng 252.000 ÷ 18.000.
+- ⚠️ Nguồn đọc theo **file sửa gần nhất** khớp `NOIRE_Aggregator*.xlsx`: `…Theo_Thang 8/9.xlsx` là báo cáo team
+  (không có sheet `AGG_THANG`) — mở/lưu chúng sau file chuẩn thì lần cập nhật sau báo lỗi; nên chuyển ra khỏi thư mục.
 
 ## 7. Xuất CSV
 

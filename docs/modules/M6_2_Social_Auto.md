@@ -1,4 +1,4 @@
-# M6.2 · Social Auto — Fanpage → Zalo OA
+# M6.2 · Social Auto
 
 M6.2 là tên và vị trí mới của module từng được thiết kế là M8.2. Bản thiết kế chi tiết và các quyết định kỹ thuật cũ vẫn được giữ nguyên tại [`M8_2_Social_Auto.md`](M8_2_Social_Auto.md). Không đổi đường dẫn API, tên bảng, migration hoặc `PROMPT_VERSION` để giữ tương thích dữ liệu và tích hợp đã có.
 

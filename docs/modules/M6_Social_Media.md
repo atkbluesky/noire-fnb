@@ -197,7 +197,7 @@ Business Suite. ETL ánh xạ tên file sang trường:
 **BẪY:** các file này mã hoá **UTF-16**, dòng đầu là `sep=,`, dòng hai là tựa đề biểu đồ,
 dòng ba mới là header thật. Đọc bằng trình `csv` mặc định ra toàn ký tự rác.
 
-**Bốn kênh đang có:** NCB · NDC · NJFB · và **NOIRE Express · Creative Park** (thư mục `NEC`).
+**Bốn kênh đang có:** NCB · NDC · NJFB · và **NOIRE Events & Catering** (viết tắt `NEC`, thư mục `NEC`).
 Kênh NEC không thuộc ba brand chính nên gắn `brand = OTHER` — nó vẫn hiện ở chế độ "tất cả"
 nhưng không lẫn vào số của brand nào.
 

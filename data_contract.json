@@ -259,9 +259,9 @@
       },
       {
         "code": "PTTT",
-        "label": "POS · trả qua nền tảng + hoa hồng",
+        "label": "POS · trả qua ví nền tảng (GRAB DEBIT)",
         "count": true,
-        "desc": "Trả qua ví nền tảng (GRAB DEBIT) VÀ POS ghi Hoa hồng — chắc chắn là đơn nền tảng dù thu ngân quên chọn Nguồn."
+        "desc": "Trả qua ví nền tảng (GRAB DEBIT), kể cả Nguồn = TẠI CHỖ / trả chia VISA·chuyển khoản — căn cứ dữ liệu Grab (chốt 02/10/2026)."
       },
       {
         "code": "XAC_NHAN",
@@ -292,7 +292,8 @@
         "pttt_re": [
           "grab"
         ],
-        "why": "Hoá đơn Grab không gắn CTKM, nhận theo cột Nguồn. Grab Dine Out (khách ăn tại quán) có Số khách > 0 và KHÔNG có Hoa hồng trên POS. GrabFood giao hàng có Hoa hồng trên POS (≈25%) hoặc Số khách = 0 → tách sang delivery_partner. Khớp PTTT mà không có Nguồn lẫn Hoa hồng → basis XAC_NHAN, không tính."
+        "pttt_confirmed": true,
+        "why": "Hoá đơn Grab không gắn CTKM, nhận theo cột Nguồn HOẶC PTTT GRAB DEBIT (chốt 02/10/2026: PTTT GRAB DEBIT là căn cứ dữ liệu Grab — gồm cả hoá đơn Nguồn TẠI CHỖ trả chia VISA/chuyển khoản + GRAB DEBIT). Grab Dine Out (khách ăn tại quán) có Số khách > 0 và KHÔNG có Hoa hồng trên POS. GrabFood giao hàng có Hoa hồng trên POS (≈25%) hoặc Số khách = 0 → tách sang delivery_partner. Khớp PTTT, không có Nguồn lẫn Hoa hồng → basis PTTT, tính (đặt pttt_confirmed=false thì quay lại XAC_NHAN, không tính)."
       }
     ],
     "overlap": "Một hoá đơn chỉ thuộc MỘT đối tác. Thứ tự nhận: tên CTKM (luật PARTNER) → Nguồn → PTTT. Hoá đơn Grab có gắn CTKM không phải đối tác (vd. quà sinh nhật) vẫn tính cho Grab ở M7 · M9 — loader rút nó khỏi bản chất của CTKM để tổng không bị đếm đôi. Nền tảng nguồn 'Tự thống kê' KHÔNG lấy số POS và ngược lại.",

@@ -116,7 +116,7 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
       {
         id: 'm62',
         code: 'M6.2',
-        title: 'Social Auto → Zalo OA',
+        title: 'Social Auto',
         icon: <Share2 className="h-4 w-4" />,
         status: 'warning',
         statusText: 'Cần cấu hình',
