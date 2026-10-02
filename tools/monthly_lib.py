@@ -254,7 +254,8 @@ PARTNER = CONTRACT["$partner"]
 PARTNER_OTHER = PARTNER["other"]["code"]
 _PARTNER_POS = [(p["partner"], p.get("delivery_partner"),
                  [re.compile(x) for x in p.get("source_re", [])],
-                 [re.compile(x) for x in p.get("pttt_re", [])]) for p in PARTNER["pos"]]
+                 [re.compile(x) for x in p.get("pttt_re", [])],
+                 bool(p.get("pttt_confirmed"))) for p in PARTNER["pos"]]
 
 
 def classify_nature(name):
@@ -293,17 +294,19 @@ def partner_of_bill(camp, source, pttt, guests, commission):
 
     Chỉ khớp PTTT (vd GRAB DEBIT) mà Nguồn là TẠI CHỖ và POS không ghi Hoa hồng → basis
     XAC_NHAN: KHÔNG cộng vào doanh thu đối tác (đối soát T8/2026: 45 HĐ như vậy, nhiều HĐ
-    trả chia VISA + GRAB DEBIT, không mã voucher — chưa đủ căn cứ là đơn Grab Dine Out)."""
+    trả chia VISA + GRAB DEBIT, không mã voucher — chưa đủ căn cứ là đơn Grab Dine Out).
+    Hợp đồng đặt `pttt_confirmed: true` (02/10/2026) → PTTT ví nền tảng là căn cứ đủ: hoá đơn đó
+    được tính (basis PTTT) cho đối tác; không đặt cờ thì giữ hành vi cũ (XAC_NHAN)."""
     code = classify_partner(camp)
     if code:
         return code, "CTKM"
     s, p = norm(source), norm(pttt)
-    for part, deliv, src_re, pay_re in _PARTNER_POS:
+    for part, deliv, src_re, pay_re, pttt_ok in _PARTNER_POS:
         basis = ("NGUON" if s and any(x.search(s) for x in src_re)
                  else "PTTT" if p and any(x.search(p) for x in pay_re) else None)
         if basis:
             delivery = (commission or 0) > 0 or not guests
-            if basis == "PTTT" and not (commission or 0) > 0:
+            if basis == "PTTT" and not pttt_ok and not (commission or 0) > 0:
                 return part, "XAC_NHAN"
             return (deliv if delivery and deliv else part), basis
     return None, None
