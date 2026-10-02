@@ -33,6 +33,9 @@ export interface SocialMonth {
   posts: number | null;
   spend: number | null;
   days: number | null;
+  /** Tổng số người liên hệ / lượt bắt đầu trò chuyện qua tin nhắn (Facebook). */
+  contacts: number | null;
+  msgs: number | null;
 
   /** Mẫu số tiếp cận ĐÚNG của nền tảng này — reach với Facebook, views với TikTok. */
   audience: number | null;

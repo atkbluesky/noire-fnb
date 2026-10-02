@@ -191,7 +191,7 @@ export const SocialView: React.FC = () => {
 
   const grandTotalNetFollow = sumOf(allPlatformRows, r => r.net_follow);
   const fbAudience = sumOf(fbRows, r => r.audience);
-  const fbEngage = sumOf(fbRows, r => r.engage);
+  const fbEngage = sumOf(fbRows.filter(r => r.audience), r => r.engage);
   const fbER = fbAudience > 0 ? fbEngage / fbAudience : 0;
   const fbClicks = sumOf(fbRows, r => r.clicks);
   const fbProfileViews = sumOf(fbRows, r => r.profile_views);
@@ -199,6 +199,48 @@ export const SocialView: React.FC = () => {
   const ttAudience = sumOf(ttRows, r => r.audience);
   const ttEngage = sumOf(ttRows, r => r.engage);
   const ttER = ttAudience > 0 ? ttEngage / ttAudience : 0;
+  const ttShares = sumOf(ttRows, r => r.shares);
+  const fbContacts = sumOf(fbRows, r => r.contacts);
+  const fbMsgs = sumOf(fbRows, r => r.msgs);
+
+  // Khoảng tháng thực sự có số social — tiêu đề không ghi cứng tháng.
+  const dataMonths = [...new Set(rawRows.map(r => r.month))].sort();
+  const rangeLabel = dataMonths.length === 0
+    ? 'kỳ đang chọn'
+    : dataMonths.length === 1
+      ? formatMonthLabel(dataMonths[0])
+      : `${formatMonthLabel(dataMonths[0])} – ${formatMonthLabel(dataMonths[dataMonths.length - 1])}`;
+
+  /* ── Thẻ từng kênh: gộp social_month theo kênh trong khoảng tháng đang chọn ── */
+  const CARD_KEYS = ['NCB', 'NDC', 'NJFB', 'NEC', 'TIKTOK'] as const;
+  const channelCards = CARD_KEYS.map(key => {
+    const rs = rawRows.filter(r => key === 'TIKTOK'
+      ? r.platform === 'TIKTOK'
+      : r.platform === 'FACEBOOK' && r.brand === (key === 'NEC' ? 'OTHER' : key));
+    const withAud = rs.filter(r => r.audience);
+    const audience = withAud.length ? sumOf(withAud, r => r.audience) : null;
+    const anyOf = (f: (r: (typeof rs)[number]) => number | null) =>
+      rs.some(r => f(r) !== null) ? sumOf(rs, f) : null;
+    return {
+      key,
+      meta: CHANNEL_META[key],
+      rows: rs.length,
+      audience,
+      engage: sumOf(rs, r => r.engage),
+      // ER chỉ trên các tháng có mẫu số — tháng thiếu reach không được đẩy ER lên.
+      er: audience ? sumOf(withAud, r => r.engage) / audience : null,
+      netFollow: anyOf(r => r.net_follow),
+      profileViews: sumOf(rs, r => r.profile_views),
+      clicks: sumOf(rs, r => r.clicks),
+      contacts: anyOf(r => r.contacts),
+      shares: anyOf(r => r.shares),
+      likes: anyOf(r => r.likes),
+      comments: anyOf(r => r.comments),
+      missingAudience: rs.filter(r => !r.audience).map(r => r.month).sort(),
+      missingContacts: rs.filter(r => r.contacts === null).map(r => r.month).sort(),
+    };
+  }).filter(c => c.rows > 0 && (platformTab === 'ALL'
+    || (platformTab === 'TIKTOK') === (c.key === 'TIKTOK')));
 
   /* ── 1. Biểu đồ Tăng trưởng Follower theo tháng ──────────────────── */
   const followOption: EChartsOption = {
@@ -705,7 +747,7 @@ export const SocialView: React.FC = () => {
           </h2>
           <p className="text-xs text-brand-muted mt-1 max-w-2xl">
             Báo cáo toàn cảnh 4 Fanpage Facebook (<span className="text-brand-text font-semibold">NCB · NDC · NEC · NJFB</span>)
-            và kênh <span className="text-brand-text font-semibold">TikTok Official</span> trong Tháng 7 và Tháng 8/2026.
+            và kênh <span className="text-brand-text font-semibold">TikTok Official</span> trong {rangeLabel}.
           </p>
         </div>
 
@@ -784,235 +826,110 @@ export const SocialView: React.FC = () => {
           subLabel="NOIRE F&B Official"
           value={formatNumber(ttAudience)}
           icon={<Music2 className="h-4 w-4" />}
-          customDeltaText={`ER ${formatPercent(ttER, 2)} (Cao nhất chuỗi) · 931 chia sẻ`}
+          customDeltaText={`ER ${formatPercent(ttER, 2)} · ${formatNumber(ttShares)} chia sẻ`}
         />
         <MetricCard
           label="Tương Tác &amp; Hỏi Bàn"
           subLabel="Khách hàng tiềm năng trực tiếp"
-          value={formatNumber(2333)}
+          value={formatNumber(fbContacts)}
           icon={<MessageSquare className="h-4 w-4" />}
-          customDeltaText={`${formatNumber(fbClicks)} clicks · 2,324 tin nhắn trò chuyện`}
+          customDeltaText={`${formatNumber(fbClicks)} clicks · ${formatNumber(fbMsgs)} tin nhắn trò chuyện`}
         />
       </div>
 
-      {/* Thẻ Showcase 5 Kênh (4 Fanpage + 1 TikTok) */}
+      {/* Thẻ từng kênh — số tính từ social_month theo khoảng tháng đang chọn */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-brand-gold font-display">
-              Chi Tiết Sức Khoẻ 5 Kênh Social
+              Chi Tiết Sức Khoẻ {channelCards.length} Kênh Social
             </h3>
-            <p className="text-xs text-brand-muted">Đặc trưng, định dạng thế mạnh và kết quả của từng trang/kênh.</p>
+            <p className="text-xs text-brand-muted">Kết quả của từng trang/kênh trong {rangeLabel}.</p>
           </div>
-          <span className="text-xs font-mono text-brand-sand">4 Fanpage + 1 TikTok</span>
+          <span className="text-xs font-mono text-brand-sand">
+            {channelCards.filter(c => c.key !== 'TIKTOK').length} Fanpage
+            {channelCards.some(c => c.key === 'TIKTOK') ? ' + 1 TikTok' : ''}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {/* Card 1: NCB */}
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4 hover:border-[#AE8966]/60 transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#AE8966]/15 border border-[#AE8966]/40 text-[#AE8966]">
-                  <Facebook className="h-4 w-4" />
+          {channelCards.map(c => {
+            const isTT = c.key === 'TIKTOK';
+            return (
+              <div
+                key={c.key}
+                className={`rounded-xl border border-brand-border bg-brand-surface p-4 transition-all ${isTT ? 'md:col-span-2 lg:col-span-2' : ''}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border"
+                      style={{ color: c.meta.color, background: `${c.meta.color}26`, borderColor: `${c.meta.color}66` }}
+                    >
+                      {isTT ? <Music2 className="h-4 w-4" /> : <Facebook className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-extrabold text-brand-text">{c.meta.fullName}</h4>
+                      <span className="text-[10px] font-bold" style={{ color: c.meta.color }}>
+                        ● {isTT ? 'Kênh TikTok Toàn Chuỗi NOIRE' : `Brand ${c.meta.brand}`}
+                      </span>
+                    </div>
+                  </div>
+                  {c.netFollow !== null && (
+                    <span className="text-[10px] font-mono rounded bg-status-okBg text-status-ok px-1.5 py-0.5 font-semibold">
+                      {c.netFollow > 0 ? '+' : ''}{formatNumber(c.netFollow)} follower ròng
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-brand-text">NOIRE Café &amp; Bistro (NCB)</h4>
-                  <span className="text-[10px] font-bold text-[#AE8966]">● Brand NCB · 3 Cơ sở</span>
+                <p className="mt-2 text-[11px] text-brand-muted leading-relaxed">{c.meta.tagline}</p>
+                <div className={`mt-3.5 grid ${isTT ? 'grid-cols-4' : 'grid-cols-3'} gap-2 border-t border-brand-border/60 pt-3 text-center`}>
+                  <div>
+                    <div className="text-[10px] text-brand-faint">{isTT ? 'Lượt xem video' : 'Tiếp cận'}</div>
+                    <div className="text-xs font-bold font-mono">{c.audience !== null ? formatNumber(c.audience) : '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-brand-faint">Tương tác</div>
+                    <div className="text-xs font-bold font-mono">{formatNumber(c.engage)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-brand-faint">ER %</div>
+                    <div className="text-xs font-bold font-mono text-status-ok">{c.er !== null ? formatPercent(c.er, 2) : '—'}</div>
+                  </div>
+                  {isTT && (
+                    <div>
+                      <div className="text-[10px] text-brand-faint">Lượt chia sẻ</div>
+                      <div className="text-xs font-bold font-mono text-brand-sand">{c.shares !== null ? formatNumber(c.shares) : '—'}</div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <span className="text-[10px] font-mono rounded bg-status-okBg text-status-ok px-1.5 py-0.5 font-semibold">
-                +90 Mới
-              </span>
-            </div>
-            <p className="mt-2 text-[11px] text-brand-muted leading-relaxed">
-              Kênh có lượng người theo dõi lớn nhất hệ thống với cộng đồng tệp khách văn phòng và gia đình trung thành.
-            </p>
-            <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-brand-border/60 pt-3 text-center">
-              <div>
-                <div className="text-[10px] text-brand-faint">Follower</div>
-                <div className="text-xs font-bold font-mono text-brand-goldLight">7,946</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Tiếp cận</div>
-                <div className="text-xs font-bold font-mono">416.8K</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">ER %</div>
-                <div className="text-xs font-bold font-mono text-status-ok">1.43%</div>
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-center justify-between text-[10px] text-brand-muted bg-brand-surface/70 rounded p-1.5 border border-brand-border/40">
-              <span>Ghé trang: <b>15,155</b></span>
-              <span>Clicks: <b>1,484</b></span>
-              <span>Hỏi bàn: <b>535</b></span>
-            </div>
-          </div>
-
-          {/* Card 2: NDC */}
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4 hover:border-[#82846C]/60 transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#82846C]/15 border border-[#82846C]/40 text-[#82846C]">
-                  <Facebook className="h-4 w-4" />
+                <div className="mt-2.5 flex items-center justify-between gap-2 text-[10px] text-brand-muted bg-brand-surface/70 rounded p-1.5 border border-brand-border/40">
+                  {isTT ? (
+                    <>
+                      <span>Xem hồ sơ: <b>{formatNumber(c.profileViews)}</b></span>
+                      <span>Thích: <b>{c.likes !== null ? formatNumber(c.likes) : '—'}</b></span>
+                      <span>Bình luận: <b>{c.comments !== null ? formatNumber(c.comments) : '—'}</b></span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Ghé trang: <b>{formatNumber(c.profileViews)}</b></span>
+                      <span>Clicks: <b>{formatNumber(c.clicks)}</b></span>
+                      <span>Hỏi bàn: <b>{c.contacts !== null ? formatNumber(c.contacts) : '—'}</b></span>
+                    </>
+                  )}
                 </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-brand-text">NOIRE Dining &amp; Cafe (NDC)</h4>
-                  <span className="text-[10px] font-bold text-[#82846C]">● Brand NDC · Flagship</span>
-                </div>
+                {c.missingAudience.length > 0 && (
+                  <div className="mt-2 text-[10px] text-status-warning">
+                    Chưa có số {isTT ? 'lượt xem' : 'người xem cả kỳ'} {c.missingAudience.map(formatMonthLabel).join(', ')} — tiếp cận &amp; ER chỉ tính các tháng còn lại.
+                  </div>
+                )}
+                {!isTT && c.contacts !== null && c.missingContacts.length > 0 && (
+                  <div className="mt-1 text-[10px] text-brand-faint">
+                    Hỏi bàn chưa gồm {c.missingContacts.map(formatMonthLabel).join(', ')}.
+                  </div>
+                )}
               </div>
-              <span className="text-[10px] font-mono rounded bg-status-okBg text-status-ok px-1.5 py-0.5 font-semibold">
-                +142 Mới
-              </span>
-            </div>
-            <p className="mt-2 text-[11px] text-brand-muted leading-relaxed">
-              Dẫn đầu lượng ghé thăm trang và click menu/link nhờ các bộ ảnh ẩm thực sang trọng và trải nghiệm brunch.
-            </p>
-            <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-brand-border/60 pt-3 text-center">
-              <div>
-                <div className="text-[10px] text-brand-faint">Follower</div>
-                <div className="text-xs font-bold font-mono text-brand-goldLight">4,044</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Tiếp cận</div>
-                <div className="text-xs font-bold font-mono">380.4K</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">ER %</div>
-                <div className="text-xs font-bold font-mono">0.77%</div>
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-center justify-between text-[10px] text-brand-muted bg-brand-surface/70 rounded p-1.5 border border-brand-border/40">
-              <span>Ghé trang: <b>21,092</b> (Top 1)</span>
-              <span>Clicks: <b>2,338</b></span>
-              <span>Hỏi bàn: <b>784</b></span>
-            </div>
-          </div>
-
-          {/* Card 3: NJFB */}
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4 hover:border-[#C28B4B]/60 transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C28B4B]/15 border border-[#C28B4B]/40 text-[#C28B4B]">
-                  <Facebook className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-brand-text">NOIRE Japanese Fusion &amp; Bar</h4>
-                  <span className="text-[10px] font-bold text-[#C28B4B]">● Brand NJFB · Fusion &amp; Bar</span>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono rounded bg-status-okBg text-status-ok px-1.5 py-0.5 font-semibold">
-                +149 Mới
-              </span>
-            </div>
-            <p className="mt-2 text-[11px] text-brand-muted leading-relaxed">
-              Tỷ lệ tương tác ER cao nhất trong 4 Fanpage (2.53%) và mang về lượng tin nhắn đặt bàn/hỏi tiệc áp đảo (972 lượt).
-            </p>
-            <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-brand-border/60 pt-3 text-center">
-              <div>
-                <div className="text-[10px] text-brand-faint">Follower</div>
-                <div className="text-xs font-bold font-mono text-brand-goldLight">2,428</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Tiếp cận</div>
-                <div className="text-xs font-bold font-mono">256.9K</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">ER %</div>
-                <div className="text-xs font-bold font-mono text-status-ok font-extrabold">2.53%</div>
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-center justify-between text-[10px] text-brand-muted bg-brand-surface/70 rounded p-1.5 border border-brand-border/40">
-              <span>Clicks: <b>2,668</b> (Top 1)</span>
-              <span>Ghé trang: <b>15,586</b></span>
-              <span>Hỏi bàn: <b>972</b> (Top 1)</span>
-            </div>
-          </div>
-
-          {/* Card 4: NEC */}
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4 hover:border-[#D97706]/60 transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#D97706]/15 border border-[#D97706]/40 text-[#D97706]">
-                  <Facebook className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-brand-text">NOIRE Express · Creative Park</h4>
-                  <span className="text-[10px] font-bold text-[#D97706]">● Brand OTHER · Express &amp; Event</span>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono rounded bg-status-okBg text-status-ok px-1.5 py-0.5 font-semibold">
-                +874 Bứt phá!
-              </span>
-            </div>
-            <p className="mt-2 text-[11px] text-brand-muted leading-relaxed">
-              Trang phục vụ khách văn phòng khu công viên sáng tạo và nhận booking tiệc ngoài trời, teabreak sự kiện.
-            </p>
-            <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-brand-border/60 pt-3 text-center">
-              <div>
-                <div className="text-[10px] text-brand-faint">Follower</div>
-                <div className="text-xs font-bold font-mono text-brand-goldLight">862</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Tiếp cận</div>
-                <div className="text-xs font-bold font-mono">43.9K</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">ER %</div>
-                <div className="text-xs font-bold font-mono">0.68%</div>
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-center justify-between text-[10px] text-brand-muted bg-brand-surface/70 rounded p-1.5 border border-brand-border/40">
-              <span>Tăng T8: <b>+560</b></span>
-              <span>Ghé trang: <b>2,640</b></span>
-              <span>Hỏi tiệc: <b>42</b></span>
-            </div>
-          </div>
-
-          {/* Card 5: TikTok Official */}
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-4 hover:border-[#82846C]/60 transition-all md:col-span-2 lg:col-span-2">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#82846C]/20 border border-[#82846C]/40 text-[#82846C]">
-                  <Music2 className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-brand-text">NOIRE F&amp;B (TikTok Official)</h4>
-                  <span className="text-[10px] font-bold text-[#82846C]">● Kênh TikTok Toàn Chuỗi NOIRE</span>
-                </div>
-              </div>
-              <span className="text-[10px] font-mono rounded bg-[#82846C]/20 text-[#82846C] px-1.5 py-0.5 font-bold border border-[#82846C]/40">
-                Top 1 Tỷ Lệ Tương Tác
-              </span>
-            </div>
-            <p className="mt-2 text-[11px] text-brand-muted leading-relaxed">
-              Lượt xem video tăng bứt phá <b className="text-brand-goldLight">+130%</b> trong tháng 8 (đạt 57,900 lượt xem). Tỷ lệ tương tác <b className="text-status-ok">2.93%</b> dẫn đầu toàn chuỗi. Đặc biệt, <b className="text-brand-text">62.4%</b> lượt xem đến từ Tìm kiếm tự nhiên (SEO TikTok).
-            </p>
-            <div className="mt-3.5 grid grid-cols-4 gap-2 border-t border-brand-border/60 pt-3 text-center">
-              <div>
-                <div className="text-[10px] text-brand-faint">Follower Tích Luỹ</div>
-                <div className="text-xs font-bold font-mono text-brand-goldLight">574</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Lượt Xem Video</div>
-                <div className="text-xs font-bold font-mono">83.1K</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Lượt Chia Sẻ</div>
-                <div className="text-xs font-bold font-mono text-brand-sand">931</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-brand-faint">Tỷ Lệ ER</div>
-                <div className="text-xs font-bold font-mono text-status-ok font-extrabold">2.93%</div>
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-center justify-between text-[10px] text-brand-muted bg-brand-surface/70 rounded p-1.5 border border-brand-border/40">
-              <span>Xem hồ sơ: <b>3,100</b></span>
-              <span>Tổng thích: <b>1,463</b></span>
-              <span>Bình luận: <b>38</b></span>
-              <span>Nguồn Search: <b>62.4%</b></span>
-              <span>Follower: <b>75% Nữ</b></span>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
