@@ -57,6 +57,12 @@ tổng = lẻ + tiệc, không so chênh lệch tuyệt đối (AOV tiệc gấp
 Lấy từ `aggByMonth`. Xem [`../13_L3_METRIC.md`](../13_L3_METRIC.md) §1.
 `Net TB/ngày` chia cho **số ngày thực có dữ liệu** (`coverage.days_data`), không phải số ngày của tháng.
 
+**So sánh trên 4 thẻ luỹ kế** *(thêm 02/10/2026 — trước đó 4 thẻ không có so sánh)* — cùng cách với M0:
+kỳ liền trước cùng số tháng (`prevPeriodAgg`, nhãn `vs T4/26 → T6/26`); kỳ chọn bắt đầu từ tháng dữ liệu đầu tiên
+thì so **tháng cuối kỳ với tháng liền trước** (nhãn `T9/26 vs T8/26`). Net TB/ngày so `net ÷ days_data` hai bên.
+Mọi tăng/giảm (4 thẻ · ô “So với kỳ trước” · ô Lẻ vs Tiệc) vẽ theo `AGENTS.md` QT2 — icon + xanh khi tăng, icon + đỏ khi giảm
+(`MetricCard` / `DeltaText`).
+
 ## 4. Bộ lọc
 
 Brand · Từ · Đến · scope · perday.

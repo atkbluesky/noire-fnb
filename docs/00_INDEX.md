@@ -13,6 +13,7 @@ Bộ `docs/` này là tài liệu **hiện trạng code** — mô tả đúng nh
 
 | Bạn đang cần | Đọc file |
 |---|---|
+| **Sắp sửa code — quy tắc bắt buộc** (sửa đúng cổng · không xoá code hệ thống · icon + màu tăng/giảm) | [`../AGENTS.md`](../AGENTS.md) |
 | Hiểu tổng thể hệ thống trong 5 phút | [`01_KIEN_TRUC_TONG_THE.md`](01_KIEN_TRUC_TONG_THE.md) |
 | **Sắp gõ một hằng số vào code — kiểm tra trước** | [`02_NGUON_SU_THAT_DUY_NHAT.md`](02_NGUON_SU_THAT_DUY_NHAT.md) *(mỗi định nghĩa một chỗ)* |
 | **Cập nhật số liệu tháng mới — làm gì, theo thứ tự nào** | [`16_CAP_NHAT_HANG_THANG.md`](16_CAP_NHAT_HANG_THANG.md) ← **bắt đầu ở đây** |

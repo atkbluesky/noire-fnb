@@ -1,5 +1,5 @@
 import React from 'react';
-import { useFilters } from '../context/FilterContext';
+import { useFilters, type AggregatedMonth } from '../context/FilterContext';
 import { HUB_DATA, BRANDS, BRAND_COLORS } from '../data';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
@@ -37,19 +37,24 @@ export const ScorecardView: React.FC = () => {
   const perDay = (v: number, dcov: number) => (dcov > 0 ? v / dcov : 0);
 
   const curNet = filters.perday ? perDay(currentAgg.net, currentAgg.dcov) : currentAgg.net;
-  const prevNet = prevAgg ? (filters.perday ? perDay(prevAgg.net, prevAgg.dcov) : prevAgg.net) : null;
-
   const curGuest = filters.perday ? Math.round(perDay(currentAgg.guest, currentAgg.dcov)) : currentAgg.guest;
-  const prevGuest = prevAgg ? (filters.perday ? Math.round(perDay(prevAgg.guest, prevAgg.dcov)) : prevAgg.guest) : null;
-
   const curTC = filters.perday ? Math.round(perDay(currentAgg.tc, currentAgg.dcov)) : currentAgg.tc;
-  const prevTC = prevAgg ? (filters.perday ? Math.round(perDay(prevAgg.tc, prevAgg.dcov)) : prevAgg.tc) : null;
-
   const curTA = currentAgg.ta;
-  const prevTA = prevAgg ? prevAgg.ta : null;
-
   const curAOV = currentAgg.aov;
-  const prevAOV = prevAgg ? prevAgg.aov : null;
+
+  // Kỳ so sánh của thẻ KPI. Ưu tiên kỳ liền trước cùng số tháng. Kỳ chọn bắt đầu từ tháng dữ liệu
+  // đầu tiên (mặc định T1 → tháng trọn gần nhất) thì không có kỳ đó — trước đây thẻ mất hẳn so sánh.
+  // Khi ấy so tháng cuối kỳ với tháng liền trước (MoM) và ghi rõ nhãn, vì giá trị thẻ là số cộng dồn.
+  const lastM = ms[ms.length - 1];
+  const prevM = ms[ms.length - 2];
+  const cmp: { cur: AggregatedMonth; prev: AggregatedMonth; label: string } | null = prevAgg
+    ? { cur: currentAgg, prev: prevAgg, label: `vs ${prevLabel}` }
+    : prevM && aggByMonth[lastM] && aggByMonth[prevM]
+    ? { cur: aggByMonth[lastM], prev: aggByMonth[prevM], label: `${formatMonthLabel(lastM)} vs ${formatMonthLabel(prevM)}` }
+    : null;
+  const vol = (a: AggregatedMonth, v: number) => (filters.perday ? perDay(v, a.dcov) : v);
+  const pair = (f: (a: AggregatedMonth) => number | null) =>
+    cmp ? { curRawValue: f(cmp.cur), prevValue: f(cmp.prev), deltaLabel: cmp.label } : {};
 
   // % Đạt KH = Net của cửa hàng×tháng có target ÷ Σ target (không cộng Net cửa hàng chưa giao target)
   const planAchieve = currentAgg.target > 0 ? currentAgg.netTargeted / currentAgg.target : null;
@@ -326,7 +331,11 @@ export const ScorecardView: React.FC = () => {
           <p className="text-xs text-brand-muted mt-1 leading-relaxed">
             Hàng trên phản ánh quy mô (Volume), hàng dưới phản ánh chất lượng vận hành (Quality).
             {' '}Số liệu cộng dồn {ms.length} tháng
-            {prevLabel ? <> · so với kỳ liền trước <b>{prevLabel}</b></> : ' · không có kỳ liền trước cùng độ dài để so sánh'}.
+            {prevLabel
+              ? <> · so với kỳ liền trước <b>{prevLabel}</b></>
+              : cmp
+              ? <> · chưa có kỳ liền trước cùng độ dài nên thẻ so <b>{cmp.label}</b> (tháng cuối kỳ với tháng liền trước)</>
+              : ' · không có kỳ trước để so sánh'}.
           </p>
         </div>
 
@@ -348,8 +357,7 @@ export const ScorecardView: React.FC = () => {
           subLabel="Cột Tổng tiền POS"
           value={formatVND(curNet)}
           unit={filters.perday ? '/ngày' : ''}
-          curRawValue={curNet}
-          prevValue={prevNet}
+          {...pair(a => vol(a, a.net))}
           variant="hero"
         />
         <MetricCard
@@ -357,32 +365,28 @@ export const ScorecardView: React.FC = () => {
           subLabel="Tổng lượt khách"
           value={formatNumber(curGuest)}
           unit={filters.perday ? 'khách/ngày' : 'khách'}
-          curRawValue={curGuest}
-          prevValue={prevGuest}
+          {...pair(a => vol(a, a.guest))}
         />
         <MetricCard
           label="TC (Transactions)"
           subLabel="Số lượng hoá đơn"
           value={formatNumber(curTC)}
           unit={filters.perday ? 'HĐ/ngày' : 'HĐ'}
-          curRawValue={curTC}
-          prevValue={prevTC}
+          {...pair(a => vol(a, a.tc))}
         />
         <MetricCard
           label="TA (Net ÷ Guest)"
           subLabel="Chi tiêu TB / khách"
           value={formatNumber(Math.round(curTA || 0))}
           unit="đ"
-          curRawValue={curTA}
-          prevValue={prevTA}
+          {...pair(a => a.ta)}
         />
         <MetricCard
           label="AOV (Net ÷ TC)"
           subLabel="Chi tiêu TB / hoá đơn"
           value={formatNumber(Math.round(curAOV || 0))}
           unit="đ"
-          curRawValue={curAOV}
-          prevValue={prevAOV}
+          {...pair(a => a.aov)}
         />
       </div>
 
@@ -415,8 +419,7 @@ export const ScorecardView: React.FC = () => {
           subLabel="Guest ÷ TC (Khách/bàn)"
           value={partySize.toFixed(2)}
           unit="khách"
-          prevValue={prevAgg && prevAgg.tc > 0 ? prevAgg.guest / prevAgg.tc : null}
-          curRawValue={partySize}
+          {...pair(a => (a.tc > 0 ? a.guest / a.tc : null))}
         />
         <MetricCard
           label="Độ phủ COGS"

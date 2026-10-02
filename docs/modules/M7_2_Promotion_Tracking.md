@@ -507,6 +507,10 @@ att_<metric> = actual / target        với metric ∈ {net, tc, aov, ta, incr_n
 | **Lỗi khai báo** | Từ `campaign_issue` — sửa ở L0 rồi chạy lại `CAP_NHAT.bat` |
 | **CTKM trên POS chưa khai** | Tên CTKM có doanh thu nhưng chưa gắn chương trình — danh sách việc cho team brand |
 
+**Tăng/giảm** *(chuẩn hoá 02/10/2026 theo `AGENTS.md` QT2)*: thẻ Doanh thu CTKM · Hoá đơn · Guest là **tỷ trọng** so brand
+(QT2.6) nên không gắn icon tăng/giảm nữa (trước đây luôn ↗ xanh). Thẻ AOV · DT tăng thêm và cột AOV · DT tăng thêm của
+Scorecard là so sánh → icon + xanh khi tăng, icon + đỏ khi giảm (`DeltaText` cho ô bảng).
+
 **Luật nhãn đã chốt:** `CHUA_CHIN` = đợt BURST **đang chạy** (hoặc CT lặp < 2 lần). Đợt đã kết thúc
 luôn được kết luận dù ngắn (8/3 chạy 3 ngày vẫn phải có ĐẠT/KHÔNG ĐẠT).
 

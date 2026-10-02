@@ -18,6 +18,7 @@ import { MKT_DATA, HUB_DATA } from '../../data';
 import { useFilters } from '../../context/FilterContext';
 import { Card } from '../../components/common/Card';
 import { MetricCard } from '../../components/common/MetricCard';
+import { DeltaText } from '../../components/common/DeltaText';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { DataTable, type Column } from '../../components/common/DataTable';
 import { EChartWrapper } from '../../components/charts/EChartWrapper';
@@ -27,7 +28,7 @@ import {
   ACCENT, PLAN_GRAY, PLATFORM_COLOR, SEGMENTS, SEGMENT_LABEL, SEGMENT_SHORT, STATUS_TEXT,
   acrStatus, acrTarget, addEff, addUp, costDelta, effRatios, frequencyStatus, googleMonthly, mediaSpend,
   monthEnd, monthSegmentSpend, netByMonth, pacingStatus, pageColor, planMonths, planRows,
-  planToDate, ratios, revenuePartial, segmentColor, volumeDelta, type Status,
+  planToDate, ratios, revenuePartial, segmentColor, volumeDelta, type PeriodDelta, type Status,
 } from './adsModel';
 
 type SegFilter = 'ALL' | AdsSegment;
@@ -38,6 +39,9 @@ interface Props {
   prevMonths: string[];
   windowStart: string;
   windowEnd: string;
+  /** Kỳ = tháng cuối kỳ, chỉ dùng cho mũi tên tăng/giảm khi kỳ trước của `api` rỗng (xem DigitalAdsView). */
+  cmpApi?: AdsDashboardResponse | null;
+  cmpStart?: string | null;
 }
 
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
@@ -64,14 +68,13 @@ const TierHeader: React.FC<{ n: number; title: string; question: string; note?: 
 );
 
 /** Dòng phụ dưới số lớn: nhãn + mức thay đổi có màu theo NGHĨA (chi phí giảm = tốt). */
-const Delta: React.FC<{ d: { text: string; status: Status }; suffix?: string }> = ({ d, suffix = 'vs kỳ trước' }) => (
-  <span>
-    <b className={STATUS_TEXT[d.status]}>{d.text}</b>
-    <span className="ml-1 text-[10px] text-brand-faint">{suffix}</span>
-  </span>
+/* So kỳ trước theo quy chuẩn QT2 (AGENTS.md): icon + xanh khi tăng, icon + đỏ khi giảm;
+   chỉ số chi phí (costDelta) đảo màu — chi phí tăng = đỏ. */
+const Delta: React.FC<{ d: PeriodDelta; suffix?: string }> = ({ d, suffix = 'vs kỳ trước' }) => (
+  <DeltaText change={d.change} text={d.text} inverse={d.inverse} label={suffix} />
 );
 
-export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowStart, windowEnd }) => {
+export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowStart, windowEnd, cmpApi = null, cmpStart = null }) => {
   const { theme, filters } = useFilters();
   const dark = theme === 'dark';
   const surface = dark ? '#141417' : '#FFFFFF';
@@ -91,13 +94,24 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
 
   /* ═══ Số liệu nền ═══════════════════════════════════════════════════════ */
 
-  const meta = useMemo(() => {
-    const cur = addUp(api.segments.filter(s => segList.includes(s.segment)).map(s => s.current));
-    const prev = addUp(api.segments.filter(s => segList.includes(s.segment)).map(s => s.previous));
-    const eff = addEff(api.efficiency.filter(e => segList.includes(e.segment)).map(e => e.current));
-    const effPrev = addEff(api.efficiency.filter(e => segList.includes(e.segment)).map(e => e.previous));
+  const metaOf = (src: AdsDashboardResponse) => {
+    const cur = addUp(src.segments.filter(s => segList.includes(s.segment)).map(s => s.current));
+    const prev = addUp(src.segments.filter(s => segList.includes(s.segment)).map(s => s.previous));
+    const eff = addEff(src.efficiency.filter(e => segList.includes(e.segment)).map(e => e.current));
+    const effPrev = addEff(src.efficiency.filter(e => segList.includes(e.segment)).map(e => e.previous));
     return { cur, prev, r: ratios(cur), rp: ratios(prev), e: effRatios(eff), ep: effRatios(effPrev), eff };
-  }, [api, seg]);
+  };
+  const meta = useMemo(() => metaOf(api), [api, seg]);
+  /* Kỳ so sánh cho MŨI TÊN tăng/giảm. Bình thường = kỳ trước cùng số ngày của `api`. Kỳ trước đó rỗng
+     (kỳ chọn bắt đầu từ tháng dữ liệu đầu tiên) thì so tháng cuối kỳ với kỳ trước cùng số ngày của nó
+     (AGENTS.md QT2.3) — số hiển thị trên thẻ vẫn là của cả kỳ chọn. */
+  const cmpOn = !!(cmpApi && cmpStart);
+  const metaCmp = useMemo(() => (cmpApi && cmpStart ? metaOf(cmpApi) : meta), [cmpApi, cmpStart, meta, seg]);
+  const cmpLabel = cmpApi && cmpStart
+    ? `${formatMonthLabel(cmpStart.slice(0, 7))} vs ${dm(cmpApi.previous.start)}–${dm(cmpApi.previous.end)}`
+    : 'vs kỳ trước';
+  /** Hậu tố mũi tên: thêm tên tháng khi đang so tháng cuối kỳ, để không lẫn với số cả kỳ trên thẻ. */
+  const sfx = (label: string) => (cmpApi && cmpStart ? `${label} · ${formatMonthLabel(cmpStart.slice(0, 7))}` : label);
 
   const googleApi = api.google?.ready ? api.google : null;
   const googleRows = useMemo(() => googleMonthly(api), [api]);
@@ -115,8 +129,15 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     const cur = sum(googleApi ? inRange(windowStart, windowEnd) : pick(months));
     const prev = sum(googleApi ? inRange(api.previous.start, api.previous.end) : pick(prevMonths));
     const monthsWith = [...new Set(pick(months).map(g => g.month))].sort();
-    return { cur, prev, monthsWith };
-  }, [googleRows, months, prevMonths, seg, googleApi, windowStart, windowEnd, api.previous]);
+    // Kỳ so sánh (xem metaCmp): cả hai kỳ nằm trong cửa sổ đang tải nên lọc thẳng từ số theo ngày / tháng.
+    const cmp = cmpApi && cmpStart
+      ? {
+          cur: sum(googleApi ? inRange(cmpStart, windowEnd) : pick(months.slice(-1))),
+          prev: sum(googleApi ? inRange(cmpApi.previous.start, cmpApi.previous.end) : pick(months.slice(-2, -1))),
+        }
+      : { cur, prev };
+    return { cur, prev, monthsWith, cmp };
+  }, [googleRows, months, prevMonths, seg, googleApi, windowStart, windowEnd, api.previous, cmpApi, cmpStart]);
 
   const hrCur = api.segments.find(s => s.segment === 'HR')?.current.spend ?? 0;
   const tiecCur = api.segments.find(s => s.segment === 'TIEC')?.current.spend ?? 0;
@@ -151,19 +172,22 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
     };
   }, [monthly, months, seg, api]);
 
-  const blended = useMemo(() => {
-    const spend = meta.cur.spend + google.cur.spend;
-    const spendPrev = meta.prev.spend + google.prev.spend;
-    const actions = meta.cur.messages + meta.cur.leads + google.cur.conv;
-    const actionsPrev = meta.prev.messages + meta.prev.leads + google.prev.conv;
+  type GoogleSum = typeof google.cur;
+  const blend = (m: typeof meta, g: { cur: GoogleSum; prev: GoogleSum }) => {
+    const spend = m.cur.spend + g.cur.spend;
+    const spendPrev = m.prev.spend + g.prev.spend;
+    const actions = m.cur.messages + m.cur.leads + g.cur.conv;
+    const actionsPrev = m.prev.messages + m.prev.leads + g.prev.conv;
     return {
       spend, spendPrev, actions, actionsPrev,
       cpa: actions > 0 ? spend / actions : null,
       cpaPrev: actionsPrev > 0 ? spendPrev / actionsPrev : null,
-      metaShare: spend > 0 ? meta.cur.spend / spend : null,
-      googleShare: spend > 0 ? google.cur.spend / spend : null,
+      metaShare: spend > 0 ? m.cur.spend / spend : null,
+      googleShare: spend > 0 ? g.cur.spend / spend : null,
     };
-  }, [meta, google]);
+  };
+  const blended = useMemo(() => blend(meta, google), [meta, google]);
+  const blendedCmp = useMemo(() => blend(metaCmp, google.cmp), [metaCmp, google]);
 
   /* Giải ngân Q3 — độc lập với kỳ đang xem: đây là câu hỏi kiểm soát ngân sách QUÝ. */
   const pacing = useMemo(() => {
@@ -397,18 +421,19 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
   const segTable = useMemo(() => SEGMENTS.filter(s => seg === 'ALL' || s === seg).map(s => {
     const b = api.segments.find(x => x.segment === s)!;
     const ef = api.efficiency.find(x => x.segment === s)!;
+    const efc = (cmpApi && cmpStart ? cmpApi.efficiency.find(x => x.segment === s) : null) ?? ef;
     const r = ratios(b.current);
     const e = effRatios(ef.current);
-    const ep = effRatios(ef.previous);
+    const ep = effRatios(efc.previous);
     return {
       segment: s, label: SEGMENT_LABEL[s],
       spend: b.current.spend, messages: b.current.messages, leads: b.current.leads,
       linkClicks: b.current.linkClicks,
       cpm: r.cpm, ctrLink: r.ctrLink, cpt: e.cpt, cpl: e.cpl,
       clickToMsg: r.clickToMessage,
-      cptDelta: costDelta(e.cpt, ep.cpt),
+      cptDelta: costDelta(effRatios(efc.current).cpt, ep.cpt),
     };
-  }), [api, seg]);
+  }), [api, seg, cmpApi, cmpStart]);
 
   const optSegCpt = useMemo<EChartsOption>(() => {
     const rows = segTable.filter(r => r.cpt != null);
@@ -586,6 +611,10 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
         <span className="ml-auto text-[11px] text-brand-faint">
           Kỳ Meta: <b className="text-brand-text">{dmy(windowStart)} → {dmy(windowEnd)}</b>
           {' · '}so với {dmy(api.previous.start)} → {dmy(api.previous.end)} (cùng số ngày)
+          {cmpApi && cmpStart && <>
+            {' · '}kỳ đó chưa có số nên mũi tên so <b className="text-brand-text">{dmy(cmpStart)} → {dmy(windowEnd)}</b>
+            {' '}với {dmy(cmpApi.previous.start)} → {dmy(cmpApi.previous.end)}
+          </>}
           {' · '}dữ liệu tới {api.syncedThrough ? dmy(api.syncedThrough) : '—'}
         </span>
       </div>
@@ -614,7 +643,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
         <MetricCard label="Tổng chi media trong kỳ"
           subLabel={`Meta ${formatVND(meta.cur.spend)} + Google ${formatVND(google.cur.spend)}`}
           value={formatVND(blended.spend)}
-          customDeltaText={<Delta d={volumeDelta(blended.spend, blended.spendPrev) && { ...volumeDelta(blended.spend, blended.spendPrev), status: 'neutral' }} />} />
+          customDeltaText={<Delta d={volumeDelta(blendedCmp.spend, blendedCmp.spendPrev)} suffix={cmpLabel} />} />
         <MetricCard label="Tỷ trọng kênh" subLabel="Phần chi của từng nền tảng trong kỳ"
           value={blended.metaShare == null ? '—' : `${Math.round(blended.metaShare * 100)} / ${Math.round((blended.googleShare ?? 0) * 100)}`}
           unit="Meta / Google %"
@@ -625,7 +654,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
           customDeltaText={<span>{formatNumber(meta.cur.messages)} tin nhắn · {formatNumber(meta.cur.leads)} lead · {formatNumber(google.cur.conv)} Google</span>} />
         <MetricCard label="Chi phí / hành động" subLabel="Bình quân mọi hành động inbound"
           value={blended.cpa == null ? '—' : vnd(blended.cpa)}
-          customDeltaText={<Delta d={costDelta(blended.cpa, blended.cpaPrev)} />} />
+          customDeltaText={<Delta d={costDelta(blendedCmp.cpa, blendedCmp.cpaPrev)} suffix={cmpLabel} />} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -728,11 +757,11 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <MetricCard label="Chi Meta" subLabel={`${pct(blended.metaShare)} tổng chi media`} value={formatVND(meta.cur.spend)}
-          customDeltaText={<Delta d={{ ...volumeDelta(meta.cur.spend, meta.prev.spend), status: 'neutral' }} />} />
+          customDeltaText={<Delta d={volumeDelta(metaCmp.cur.spend, metaCmp.prev.spend)} suffix={cmpLabel} />} />
         <MetricCard label="Tin nhắn mới" subLabel={`CPTB ${vnd(meta.e.cpt)} · chiến dịch mục tiêu Tin nhắn`} value={formatNumber(meta.cur.messages)}
-          customDeltaText={<span><Delta d={volumeDelta(meta.cur.messages, meta.prev.messages)} suffix="số lượng" />{' · '}<Delta d={costDelta(meta.e.cpt, meta.ep.cpt)} suffix="CPTB" /></span>} />
+          customDeltaText={<span><Delta d={volumeDelta(metaCmp.cur.messages, metaCmp.prev.messages)} suffix={sfx('số lượng')} />{' · '}<Delta d={costDelta(metaCmp.e.cpt, metaCmp.ep.cpt)} suffix={sfx('CPTB')} /></span>} />
         <MetricCard label="Lead · form đặt tiệc" subLabel={`CP / lead ${vnd(meta.e.cpl)} · chiến dịch có lead`} value={formatNumber(meta.cur.leads)}
-          customDeltaText={<span><Delta d={volumeDelta(meta.cur.leads, meta.prev.leads)} suffix="số lượng" />{' · '}<Delta d={costDelta(meta.e.cpl, meta.ep.cpl)} suffix="CPL" /></span>} />
+          customDeltaText={<span><Delta d={volumeDelta(metaCmp.cur.leads, metaCmp.prev.leads)} suffix={sfx('số lượng')} />{' · '}<Delta d={costDelta(metaCmp.e.cpl, metaCmp.ep.cpl)} suffix={sfx('CPL')} /></span>} />
         <MetricCard label="Tần suất 7 ngày" subLabel="Toàn tài khoản · ngưỡng bão hoà 3,5"
           value={api.reach.last7d?.frequency != null ? api.reach.last7d.frequency.toFixed(2) : '—'}
           variant={frequencyStatus(api.reach.last7d?.frequency ?? null) === 'bad' ? 'critical' : 'default'}
@@ -744,15 +773,15 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
           value={seg === 'ALL' && api.reach.month?.reach != null ? formatNumber(api.reach.month.reach) : '—'}
           customDeltaText={<span>Tần suất tháng {api.reach.month?.frequency != null ? api.reach.month.frequency.toFixed(2) : '—'} · {formatNumber(meta.cur.impressions)} hiển thị trong kỳ</span>} />
         <MetricCard label="CPM" subLabel="Chi / 1.000 hiển thị" value={vnd(meta.r.cpm)}
-          customDeltaText={<Delta d={costDelta(meta.r.cpm, meta.rp.cpm)} />} />
+          customDeltaText={<Delta d={costDelta(metaCmp.r.cpm, metaCmp.rp.cpm)} suffix={cmpLabel} />} />
         <MetricCard label="Link click" subLabel={`CPC link ${vnd(meta.r.cpcLink)}`} value={formatNumber(meta.cur.linkClicks)}
-          customDeltaText={<Delta d={costDelta(meta.r.cpcLink, meta.rp.cpcLink)} suffix="CPC link" />} />
+          customDeltaText={<Delta d={costDelta(metaCmp.r.cpcLink, metaCmp.rp.cpcLink)} suffix={sfx('CPC link')} />} />
         <MetricCard label="CTR" subLabel="Tất cả · link" value={`${pct(meta.r.ctrAll, 2)} · ${pct(meta.r.ctrLink, 2)}`}
-          customDeltaText={<Delta d={volumeDelta(meta.r.ctrLink, meta.rp.ctrLink)} suffix="CTR link" />} />
+          customDeltaText={<Delta d={volumeDelta(metaCmp.r.ctrLink, metaCmp.rp.ctrLink)} suffix={sfx('CTR link')} />} />
         <MetricCard label="Video ≥ 3 giây" subLabel={`ThruPlay ${formatNumber(meta.cur.thruplays)}`} value={formatNumber(meta.cur.videoViews)}
           customDeltaText={<span>Xem hết / xem 3 giây: <b>{pct(meta.r.thruplayRate)}</b></span>} />
         <MetricCard label="Link click → tin nhắn" subLabel="Nội dung dẫn khách vào inbox tốt tới đâu" value={pct(meta.r.clickToMessage)}
-          customDeltaText={<Delta d={volumeDelta(meta.r.clickToMessage, meta.rp.clickToMessage)} />} />
+          customDeltaText={<Delta d={volumeDelta(metaCmp.r.clickToMessage, metaCmp.rp.clickToMessage)} suffix={cmpLabel} />} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -809,7 +838,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
                     <td className="p-2 font-sans font-bold"><span style={{ color: segmentColor(r.segment, dark) }}>●</span> {SEGMENT_SHORT[r.segment]}</td>
                     <td className="p-2 text-right">{formatVND(r.spend)}</td>
                     <td className="p-2 text-right">{formatNumber(r.messages)}</td>
-                    <td className="p-2 text-right">{vnd(r.cpt)} <span className={`text-[10px] ${STATUS_TEXT[r.cptDelta.status]}`}>{r.cptDelta.text}</span></td>
+                    <td className="p-2 text-right">{vnd(r.cpt)} <DeltaText className="text-[10px]" change={r.cptDelta.change} text={r.cptDelta.text} inverse={r.cptDelta.inverse} /></td>
                     <td className="p-2 text-right">{formatNumber(r.leads)}</td>
                     <td className="p-2 text-right">{vnd(r.cpl)}</td>
                     <td className="p-2 text-right">{pct(r.ctrLink, 2)}</td>
@@ -854,10 +883,10 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <MetricCard label="Chi Google" subLabel={`${pct(blended.googleShare)} tổng chi media`} value={formatVND(google.cur.spend)}
-              customDeltaText={<Delta d={{ ...volumeDelta(google.cur.spend, google.prev.spend), status: 'neutral' }} suffix={googleApi ? "vs kỳ trước" : "vs các tháng trước"} />} />
+              customDeltaText={<Delta d={volumeDelta(google.cmp.cur.spend, google.cmp.prev.spend)} suffix={cmpOn ? cmpLabel : googleApi ? "vs kỳ trước" : "vs các tháng trước"} />} />
             <MetricCard label="Chuyển đổi" subLabel={`CP / chuyển đổi ${vnd(google.cur.conv ? google.cur.spend / google.cur.conv : null)}`}
               value={formatNumber(google.cur.conv)}
-              customDeltaText={<Delta d={costDelta(google.cur.conv ? google.cur.spend / google.cur.conv : null, google.prev.conv ? google.prev.spend / google.prev.conv : null)} suffix="CP/chuyển đổi" />} />
+              customDeltaText={<Delta d={costDelta(google.cmp.cur.conv ? google.cmp.cur.spend / google.cmp.cur.conv : null, google.cmp.prev.conv ? google.cmp.prev.spend / google.cmp.prev.conv : null)} suffix={sfx('CP/chuyển đổi')} />} />
             <MetricCard label="Lượt nhấp · CTR" subLabel={`${formatNumber(google.cur.impr)} hiển thị`}
               value={formatNumber(google.cur.clicks)} unit={pct(google.cur.impr ? google.cur.clicks / google.cur.impr : null, 2)} />
             <MetricCard label="CPC trung bình" subLabel="Chi ÷ lượt nhấp"

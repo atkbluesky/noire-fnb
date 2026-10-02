@@ -67,6 +67,17 @@ Hệ thống luôn tính ACR trên tháng trọn kỳ gần nhất và ghi rõ �
 | **Top chiến dịch Meta Ads theo chi tiêu** | |
 | **Google Ads — Performance Max hướng Google Maps (từ T8/2026)** | |
 
+### Mũi tên tăng/giảm *(chuẩn hoá 02/10/2026 theo `AGENTS.md` QT2)*
+
+- Vẽ bằng `DeltaText` qua `Delta` trong `ads/AdsDashboard.tsx`: luôn có icon + màu, không còn vùng xám ±5% / ±10%
+  (`status` của `costDelta` / `volumeDelta` vẫn giữ vùng đó cho đánh giá ngưỡng, không dùng để tô mũi tên).
+- **Ngoại lệ “càng thấp càng tốt”** (`costDelta`): Chi phí / hành động · CPTB · CPL · CPM · CPC link · CP / chuyển đổi ·
+  CPTB trong bảng theo mảng — icon theo hướng thật, **tăng = đỏ, giảm = xanh**.
+- Chi media (tổng · Meta · Google) theo quy tắc mặc định: tăng = xanh, giảm = đỏ (trước đây để xám).
+- **Kỳ so sánh:** kỳ trước cùng số ngày do API trả (`api.previous`). Kỳ chọn bắt đầu từ tháng dữ liệu đầu tiên thì kỳ đó rỗng
+  → `DigitalAdsView` gọi thêm API cho **tháng cuối kỳ** và mũi tên so tháng đó với kỳ trước cùng số ngày của nó
+  (nhãn `T9/26 vs 02/08–31/08`, dòng kỳ ở đầu tầng ghi rõ). Số lớn trên thẻ vẫn là của cả kỳ chọn.
+
 ## 4. Google Ads — điểm chặn cũ đã được giải quyết
 
 Blueprint v3.0 ghi Google Ads bị chặn vì *“ba brand chưa có website”*. **Điều đó không còn đúng.**

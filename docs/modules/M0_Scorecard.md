@@ -36,8 +36,16 @@ Cửa hàng không có target hiển thị `—`, **không hiển thị 0%** —
 ## 3. Chỉ số & công thức
 
 Toàn bộ lấy từ `FilterContext.periodAgg` (cộng dồn **cả kỳ Từ → Đến**, không chỉ tháng cuối kỳ) — **không tính lại ở view** (NT2).
-So sánh với `prevPeriodAgg` = kỳ liền trước **cùng số tháng** (T8 → T7 · T7–T8 → T5–T6); không đủ dữ liệu thì ẩn delta.
-Thẻ KPI, donut cơ cấu brand và bảng xếp hạng cửa hàng đều theo cùng kỳ này; biểu đồ xu hướng vẫn tách từng tháng.
+**Kỳ so sánh của thẻ KPI** (Net Sales · Guest · TC · TA · AOV · Party Size), theo thứ tự ưu tiên:
+
+1. `prevPeriodAgg` = kỳ liền trước **cùng số tháng** (T8 → T7 · T7–T8 → T5–T6) — nhãn `vs T7/26`.
+2. Không có kỳ đó (kỳ chọn bắt đầu từ tháng dữ liệu đầu tiên — chính là kỳ mặc định T1 → tháng trọn gần nhất)
+   thì so **tháng cuối kỳ với tháng liền trước** — nhãn `T9/26 vs T8/26`. Giá trị thẻ vẫn là số cộng dồn cả kỳ,
+   nên nhãn bắt buộc ghi rõ hai tháng đem so. *(Trước 02/10/2026 trường hợp này ẩn delta → thẻ Net Sales mất so sánh.)*
+3. Kỳ chọn chỉ có tháng đầu tiên → `—`.
+
+Tăng / giảm hiển thị theo quy chuẩn `AGENTS.md` QT2 (icon + xanh khi tăng, icon + đỏ khi giảm) — `MetricCard` tự vẽ.
+Thẻ KPI, donut cơ cấu brand và bảng xếp hạng cửa hàng đều theo cùng kỳ chọn; biểu đồ xu hướng vẫn tách từng tháng.
 
 | Chỉ số | Công thức |
 |---|---|
@@ -58,7 +66,7 @@ Brand · Từ · Đến · **scope** (main/all) · **perday**.
 `perday` quan trọng ở đây: T7 có 31 ngày, T6 có 30 ngày — chênh cơ học +3,3%.
 Ví dụ thật: Net −7,69% MoM nhưng Net/ngày −10,67% — hai kết luận khác nhau.
 
-Dashboard mở mặc định ở **tháng trọn kỳ gần nhất** (`LAST_FULL_MONTH`), không phải tháng mới nhất.
+Dashboard mở mặc định ở kỳ **tháng dữ liệu đầu tiên → tháng trọn kỳ gần nhất** (`LAST_FULL_MONTH`), không phải tháng mới nhất.
 
 ## 5. Đang chặn bởi gì
 
@@ -68,6 +76,8 @@ Dashboard mở mặc định ở **tháng trọn kỳ gần nhất** (`LAST_FULL
 | **COGS 46,3%** | Không đưa được CM% lên Scorecard |
 | **Target chỉ có Q3** | % Đạt Kế hoạch chỉ có nghĩa ở T7 · T8 · T9 |
 | **Chỉ The Mett đủ 18 tháng** | YoY toàn chuỗi chưa có ý nghĩa thống kê |
+| **Số khách nhập sai trên POS** *(soát 02/10/2026)* — HĐ `NET12214` NCB_ET 29/09/2026 ghi **5.017 khách** cho 289.737 đ · HĐ `GW0037` NCB_GW 12/05/2026 ghi **1.111 khách** cho 177.000 đ | Guest T9 (7 CH chính) +29,8% vs T8 thay vì ≈ +4,0% · TA −18,9% thay vì ≈ +1,2% · Party Size cũng lệch. Sửa ở iPOS rồi xuất lại file T9 / T5 — chưa có chốt QA nào bắt số khách bất thường |
+| **`store_month` chưa có cột `voucher`** | Dòng “Voucher” dưới thẻ Discount % luôn `—` — ETL `tools/build_month.py` chưa ghi cột này (hợp đồng có khai) |
 
 ## 6. Checklist nâng cấp
 

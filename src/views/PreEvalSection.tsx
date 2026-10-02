@@ -78,6 +78,17 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
   }
 
   const count = (code: string) => inQ.filter(p => p.decision === code).length;
+
+  /* Số liệu cho 4 khung BƯỚC: bao nhiêu chương trình ĐẠT từng bước, trên các chương trình đã tính được
+     theo bộ lọc đang chọn. BRANDING bỏ ra — duyệt theo ngân sách, không theo EBITDA. */
+  const scored = rows.filter(r => !pending(r.decision) && r.decision !== 'BRANDING');
+  const stepPass = [
+    scored.filter(r => r.eb_base >= 0),
+    scored.filter(r => r.eb_cons >= 0),
+    // không có phí cố định (safety = null) mà đã lãi thì không có mốc hoà vốn để vượt
+    scored.filter(r => (r.safety === null ? r.eb_base >= 0 : r.safety >= 1.5)),
+    scored.filter(r => !r.gates),
+  ];
   const pos = rows.filter(r => r.decision === 'DUYET' || r.decision === 'CHAY_THU');
 
   /* ── MA TRẬN QUYẾT ĐỊNH (chỉ chương trình đã tính được) ── */
@@ -207,13 +218,21 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
           ['2', 'Chịu được rủi ro?', `Kịch bản ${THAN?.label ?? 'Thận trọng'} (${pct(THAN?.bills_mult ?? 0)} số hoá đơn tham gia) vẫn ≥ 0`],
           ['3', 'Dư địa an toàn?', 'Hoá đơn dự kiến ≥ 1,5 lần mức hoà vốn · %cannib giả định còn cách mức tối đa'],
           ['4', 'Vượt cổng?', `%COGS ≤ ${pct(PE.gates.max_cogs_pct)} · chi ưu đãi ≤ ${pct(PE.gates.max_promo_cost_pct_net)} doanh thu thuần`],
-        ].map(([n, t, d]) => (
-          <div key={n} className="rounded-xl border border-brand-border bg-brand-surface p-3">
-            <div className="text-[10px] font-bold text-brand-gold">BƯỚC {n}</div>
-            <div className="text-xs font-bold text-brand-text">{t}</div>
-            <div className="mt-0.5 text-[10px] text-brand-muted">{d}</div>
-          </div>
-        ))}
+        ].map(([n, t, d]) => {
+          const pass = stepPass[+n - 1];
+          const allPass = scored.length > 0 && pass.length === scored.length;
+          return (
+            <div key={n} className="rounded-xl border border-brand-border bg-brand-surface p-3">
+              <div className="text-[10px] font-bold text-brand-gold">BƯỚC {n}</div>
+              <div className="text-xs font-bold text-brand-text">{t}</div>
+              <div className={`mt-1 font-display text-xl font-extrabold ${!scored.length ? 'text-brand-muted' : allPass ? 'text-status-ok' : 'text-brand-text'}`}>
+                {scored.length ? <>{formatNumber(pass.length)}<span className="text-sm text-brand-muted">/{formatNumber(scored.length)}</span></> : '—'}
+              </div>
+              <div className="text-[10px] font-semibold text-brand-muted">chương trình đạt</div>
+              <div className="mt-0.5 text-[10px] text-brand-faint">{d}</div>
+            </div>
+          );
+        })}
         <div className="rounded-xl border border-brand-gold/50 bg-brand-surface p-3 text-[10px] leading-relaxed">
           <div className="font-bold text-brand-gold">→ QUYẾT ĐỊNH</div>
           <div><b className="text-status-ok">DUYỆT</b>: đạt 1 + 2</div>

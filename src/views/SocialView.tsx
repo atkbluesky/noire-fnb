@@ -184,7 +184,8 @@ export const SocialView: React.FC = () => {
   const ttRows = allPlatformRows.filter(r => r.platform === 'TIKTOK');
 
   const fbFollowers = 7946 + 4044 + 862 + 2428; // 15,280
-  const ttFollowers = 574;
+  // Follower TikTok = số 'Tổng follower' của tháng mới nhất có khai (file TikTok), không gõ cứng.
+  const ttFollowers = S.page.find(p => p.platform === 'TIKTOK')?.followers ?? 574;
   const grandTotalFollowers = filters.brand === 'ALL'
     ? fbFollowers + ttFollowers
     : (filters.brand === 'NCB' ? 7946 : filters.brand === 'NDC' ? 4044 : 2428);

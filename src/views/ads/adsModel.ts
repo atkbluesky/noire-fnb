@@ -225,23 +225,27 @@ export const pacingStatus = (r: number | null): Status =>
 export const frequencyStatus = (f: number | null): Status =>
   f == null ? 'neutral' : f < 3.5 ? 'ok' : f < 4 ? 'warning' : 'bad';
 
+/** Kết quả so kỳ trước. `change` + `inverse` để vẽ theo quy chuẩn QT2 (AGENTS.md) bằng DeltaText:
+ *  icon theo hướng thật, màu theo tốt/xấu. `status` giữ lại cho đánh giá ngưỡng (có vùng đứng yên). */
+export interface PeriodDelta { text: string; status: Status; change: number | null; inverse: boolean }
+
 /**
- * Chi phí trên kết quả so kỳ trước: THẤP HƠN là tốt. Dao động ±10% coi như đứng yên —
- * dưới ngưỡng đó là nhiễu của một tuần nhiều/ít tiệc, không phải xu hướng.
+ * Chi phí trên kết quả so kỳ trước: THẤP HƠN là tốt (inverse — tăng = đỏ). `status` coi dao động ±10% là
+ * đứng yên — dưới ngưỡng đó là nhiễu của một tuần nhiều/ít tiệc, không phải xu hướng.
  */
-export function costDelta(cur: number | null, prev: number | null): { text: string; status: Status } {
-  if (cur == null || prev == null || prev === 0) return { text: '—', status: 'neutral' };
+export function costDelta(cur: number | null, prev: number | null): PeriodDelta {
+  if (cur == null || prev == null || prev === 0) return { text: '—', status: 'neutral', change: null, inverse: true };
   const d = (cur - prev) / prev;
   const t = `${d > 0 ? '+' : ''}${(d * 100).toFixed(1)}%`;
-  return { text: t, status: Math.abs(d) < 0.1 ? 'neutral' : d < 0 ? 'ok' : 'bad' };
+  return { text: t, status: Math.abs(d) < 0.1 ? 'neutral' : d < 0 ? 'ok' : 'bad', change: d, inverse: true };
 }
 
-/** Khối lượng (tin nhắn, lead…) so kỳ trước: CAO HƠN là tốt. */
-export function volumeDelta(cur: number | null, prev: number | null): { text: string; status: Status } {
-  if (cur == null || prev == null || prev === 0) return { text: '—', status: 'neutral' };
+/** Khối lượng (tin nhắn, lead, chi tiêu…) so kỳ trước: tăng = xanh theo QT2. */
+export function volumeDelta(cur: number | null, prev: number | null): PeriodDelta {
+  if (cur == null || prev == null || prev === 0) return { text: '—', status: 'neutral', change: null, inverse: false };
   const d = (cur - prev) / prev;
   const t = `${d > 0 ? '+' : ''}${(d * 100).toFixed(1)}%`;
-  return { text: t, status: Math.abs(d) < 0.05 ? 'neutral' : d > 0 ? 'ok' : 'bad' };
+  return { text: t, status: Math.abs(d) < 0.05 ? 'neutral' : d > 0 ? 'ok' : 'bad', change: d, inverse: false };
 }
 
 export const STATUS_TEXT: Record<Status, string> = {

@@ -57,6 +57,24 @@ export const DigitalAdsView: React.FC = () => {
     return () => { alive = false; };
   }, [windowStart, windowEnd]);
 
+  /* Kỳ chọn bắt đầu từ tháng dữ liệu đầu tiên (mặc định T1 → tháng trọn gần nhất) thì kỳ trước cùng
+     số ngày của API rỗng → mọi mũi tên so sánh thành "—". Khi ấy gọi thêm một kỳ = tháng cuối kỳ;
+     API trả kèm kỳ trước cùng số ngày của nó, dùng riêng cho mũi tên tăng/giảm (AGENTS.md QT2.3). */
+  const cmpStart = !prevPeriodMonths.length && months.length >= 2 ? `${months[months.length - 1]}-01` : null;
+  const [cmpApi, setCmpApi] = useState<AdsDashboardResponse | null>(null);
+  useEffect(() => {
+    setCmpApi(null);
+    if (!cmpStart || !windowEnd || cmpStart > windowEnd) return;
+    let alive = true;
+    fetch(`/api/ads/performance?from=${cmpStart}&to=${windowEnd}`)
+      .then(async res => {
+        const body = await res.json().catch(() => null);
+        if (alive && res.ok && body?.ok && Array.isArray(body.segments)) setCmpApi(body as AdsDashboardResponse);
+      })
+      .catch(() => { /* không có kỳ so sánh thì mũi tên giữ "—" như cũ */ });
+    return () => { alive = false; };
+  }, [cmpStart, windowEnd]);
+
   const useApi = preferApi && state === 'ready' && api != null;
 
   /* Đối chiếu Meta API vs Excel — chỉ trên tháng CẢ HAI nguồn cùng có, ĐỦ tháng. */
@@ -121,7 +139,8 @@ export const DigitalAdsView: React.FC = () => {
       {state === 'loading' && preferApi
         ? <div className="rounded-xl border border-brand-border bg-brand-surface p-10 text-center text-xs text-brand-muted animate-pulse">Đang tải số liệu quảng cáo…</div>
         : useApi && api
-          ? <AdsDashboard api={api} months={months} prevMonths={prevPeriodMonths} windowStart={windowStart} windowEnd={windowEnd} />
+          ? <AdsDashboard api={api} months={months} prevMonths={prevPeriodMonths} windowStart={windowStart} windowEnd={windowEnd}
+              cmpApi={cmpStart ? cmpApi : null} cmpStart={cmpStart} />
           : <DigitalAdsExcelView />}
     </div>
   );
