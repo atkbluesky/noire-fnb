@@ -253,6 +253,11 @@ S16 Pre-Analysis Q3 (sheet "1. Tổng hợp (Master)", header=3)
 
 ## 3. Màn hình hiển thị gì
 
+**4 khung BƯỚC đầu trang** *(02/10/2026)*: mỗi khung hiện số `x/N chương trình đạt` — N = chương trình đã tính được theo bộ lọc Kỳ ·
+Quyết định đang chọn, **không tính BRANDING và THIẾU DỮ LIỆU** (BRANDING duyệt theo ngân sách, không theo EBITDA).
+Bước 1 EBITDA Cơ sở ≥ 0 · Bước 2 EBITDA Thận trọng ≥ 0 · Bước 3 hoá đơn dự kiến ≥ 1,5× hoà vốn (không có phí cố định mà đã lãi thì tính đạt) ·
+Bước 4 không dính cổng %COGS / chi ưu đãi. Trước đó 4 khung chỉ là chú giải, không có số. Số trong phiếu từng chương trình (khung A–C) không đổi.
+
 > **Bố cục hiện hành: xem §0.7.** Bảng dưới là màn hình kế hoạch Q3 lập tay (nay thu gọn cuối trang M7.1).
 
 | Khối | Nội dung |
