@@ -3,6 +3,7 @@ import { useFilters } from '../context/FilterContext';
 import { HUB_DATA, BRAND_COLORS } from '../data';
 import { DAILY, DAILY_PARTY, GUEST_SEGMENT } from '../data/daily';
 import { MetricCard } from '../components/common/MetricCard';
+import { DeltaText } from '../components/common/DeltaText';
 import { Card } from '../components/common/Card';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
 import { formatVND, formatNumber, formatMonthLabel, formatPercent } from '../utils/formatters';
@@ -149,7 +150,7 @@ const formatMetric = (metric: TrendMetric, value: number) =>
   metric === 'tc' ? `${formatNumber(Math.round(value))} HĐ` : `${formatNumber(Math.round(value))} đ`;
 
 export const RevenueView: React.FC = () => {
-  const { filters, inScope, selectedMonths, aggByMonth } = useFilters();
+  const { filters, inScope, selectedMonths, aggByMonth, prevPeriodAgg, prevPeriodMonths } = useFilters();
   const [trendMetric, setTrendMetric] = useState<TrendMetric>('tc');
   const [trendGranularity, setTrendGranularity] = useState<TrendGranularity>('week');
   const [trendBreakdown, setTrendBreakdown] = useState<TrendBreakdown>('brand');
@@ -592,6 +593,22 @@ export const RevenueView: React.FC = () => {
   const totalDaysCovered = ms.reduce((acc, m) => acc + (aggByMonth[m]?.dcov || 0), 0);
   const avgNetPerDay = totalDaysCovered > 0 ? totalNet / totalDaysCovered : 0;
 
+  // So sánh cho 4 thẻ luỹ kế — cùng cách với M0 (AGENTS.md QT2): kỳ liền trước cùng số tháng;
+  // không có (kỳ bắt đầu từ tháng dữ liệu đầu tiên) thì tháng cuối kỳ vs tháng liền trước,
+  // ghi rõ nhãn vì giá trị thẻ là số luỹ kế cả kỳ.
+  type CmpBase = { net: number; guest: number; tc: number; dcov: number };
+  const prevMonthOfLast = ms[ms.length - 2];
+  const prevPeriodLabel = prevPeriodMonths.length > 1
+    ? `${formatMonthLabel(prevPeriodMonths[0])} → ${formatMonthLabel(prevPeriodMonths[prevPeriodMonths.length - 1])}`
+    : formatMonthLabel(prevPeriodMonths[0]);
+  const cumCmp: { cur: CmpBase; prev: CmpBase; label: string } | null = prevPeriodAgg
+    ? { cur: { net: totalNet, guest: totalGuest, tc: totalTC, dcov: totalDaysCovered }, prev: prevPeriodAgg, label: `vs ${prevPeriodLabel}` }
+    : prevMonthOfLast && aggByMonth[lastMonth] && aggByMonth[prevMonthOfLast]
+    ? { cur: aggByMonth[lastMonth], prev: aggByMonth[prevMonthOfLast], label: `${formatMonthLabel(lastMonth)} vs ${formatMonthLabel(prevMonthOfLast)}` }
+    : null;
+  const cumPair = (f: (a: CmpBase) => number | null) =>
+    cumCmp ? { curRawValue: f(cumCmp.cur), prevValue: f(cumCmp.prev), deltaLabel: cumCmp.label } : {};
+
   // 1. Daily Sales series
   const dailyMap: Record<string, number> = {};
   DAILY.forEach(r => {
@@ -894,6 +911,7 @@ export const RevenueView: React.FC = () => {
           label="Net Luỹ Kế Kỳ Chọn"
           subLabel={`Từ ${formatMonthLabel(ms[0])} → ${formatMonthLabel(lastMonth)}`}
           value={formatVND(totalNet)}
+          {...cumPair(a => a.net)}
           variant="hero"
         />
         <MetricCard
@@ -901,18 +919,21 @@ export const RevenueView: React.FC = () => {
           subLabel={`Tổng lượt khách ${ms.length} tháng`}
           value={formatNumber(totalGuest)}
           unit="lượt"
+          {...cumPair(a => a.guest)}
         />
         <MetricCard
           label="TC (Hoá đơn) Luỹ Kế"
           subLabel={`Tổng hoá đơn ${ms.length} tháng`}
           value={formatNumber(totalTC)}
           unit="HĐ"
+          {...cumPair(a => a.tc)}
         />
         <MetricCard
           label="Net Trung Bình / Ngày"
           subLabel="Loại trừ các ngày chưa có dữ liệu"
           value={formatVND(avgNetPerDay)}
           unit="/ngày"
+          {...cumPair(a => (a.dcov > 0 ? a.net / a.dcov : null))}
         />
       </div>
 
@@ -1056,16 +1077,8 @@ export const RevenueView: React.FC = () => {
             <div className="text-[10px] font-bold uppercase tracking-wider text-brand-faint">
               So với kỳ trước{comparePerDay ? ' · bình quân/ngày' : ''}
             </div>
-            <div className={`mt-1 font-mono text-lg font-extrabold ${
-              trendDelta == null
-                ? 'text-brand-muted'
-                : trendDelta > 0
-                  ? 'text-status-ok'
-                  : trendDelta < 0
-                    ? 'text-status-bad'
-                    : 'text-brand-text'
-            }`}>
-              {signedPercent(trendDelta)}
+            <div className="mt-1 font-mono text-lg font-extrabold">
+              <DeltaText change={trendDelta} text={signedPercent(trendDelta)} iconClassName="h-4 w-4" />
             </div>
             <div className="mt-0.5 text-[10px] text-brand-muted">
               {driverLine
@@ -1106,10 +1119,10 @@ export const RevenueView: React.FC = () => {
                 <div className="mt-0.5 font-mono text-sm font-bold text-brand-text">
                   {cell.agg.tc > 0 ? formatMetric(trendMetric, cell.value) : '—'}
                 </div>
-                <div className={`font-mono text-[10px] ${
-                  cell.delta == null ? 'text-brand-faint' : cell.delta > 0 ? 'text-status-ok' : cell.delta < 0 ? 'text-status-bad' : 'text-brand-muted'
-                }`}>
-                  {cell.thin ? `mẫu nhỏ · ${cell.agg.tc} HĐ` : `${signedPercent(cell.delta)} vs kỳ trước`}
+                <div className={`font-mono text-[10px] ${cell.thin ? 'text-brand-faint' : ''}`}>
+                  {cell.thin
+                    ? `mẫu nhỏ · ${cell.agg.tc} HĐ`
+                    : <DeltaText change={cell.delta} text={signedPercent(cell.delta)} label="vs kỳ trước" />}
                 </div>
               </div>
             ))}

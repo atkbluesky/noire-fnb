@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { PromoScoreTable } from '../components/common/PromoScoreTable';
+import { DeltaText } from '../components/common/DeltaText';
 import type { EChartsOption } from 'echarts';
 import { AlertTriangle, FlaskConical, Info, TrendingUp, TrendingDown } from 'lucide-react';
 import { useFilters } from '../context/FilterContext';
@@ -293,8 +294,8 @@ export const CampaignTrackingView: React.FC = () => {
         return (
           <div className="text-right font-mono leading-tight" title={`AOV brand cùng kỳ ${vnd(bAov)}`}>
             <div className="text-brand-text">{formatVND(c.aov)}</div>
-            <div className={`text-[10px] ${d === null ? 'text-brand-muted' : d >= 0 ? 'text-status-ok' : 'text-status-bad'}`}>
-              {d === null ? '—' : `${d >= 0 ? '+' : ''}${pct(d, 0)} so AOV brand`}
+            <div className="text-[10px]">
+              <DeltaText change={d} text={d === null ? undefined : `${d > 0 ? '+' : ''}${pct(d, 0)}`} label="so AOV brand" />
             </div>
           </div>
         );
@@ -316,8 +317,9 @@ export const CampaignTrackingView: React.FC = () => {
           <div className="text-right font-mono leading-tight"
             title={`${c.u?.plan ? `Theo kế hoạch ${c.u.plan_id} · đạt ${pct(c.att.incr)} target tăng thêm` : 'Chưa có kế hoạch'} · ${c.basis === 'DO' ? '%cannib đo từ TC cửa hàng' : '≈ %cannib theo kế hoạch'} · cả kỳ chạy ${vnd(c.incr)}${c.alloc < 0.999 ? ` · phân bổ ${pct(c.alloc)} vào kỳ lọc theo tỷ trọng doanh thu CTKM` : ''}`}>
             <div className={`font-bold ${col}`}>{c.basis === 'UOC' ? '≈ ' : ''}{c.incr_s > 0 ? '+' : ''}{vnd(c.incr_s)}</div>
-            <div className={`text-[10px] ${col}`}>
-              {d === null ? '—' : `${d >= 0 ? '+' : ''}${pct(d, 1)} DT brand`}{c.alloc < 0.999 ? ' · pb' : ''}
+            <div className="text-[10px]">
+              <DeltaText change={d} text={d === null ? undefined : `${d > 0 ? '+' : ''}${pct(d, 1)}`}
+                label={`DT brand${c.alloc < 0.999 ? ' · pb' : ''}`} />
             </div>
           </div>
         );
@@ -673,9 +675,9 @@ export const CampaignTrackingView: React.FC = () => {
         <MetricCard label="Doanh thu CTKM" subLabel={`${periodTxt} · Tổng tiền hóa đơn CTKM`} value={formatVND(kpiNet)}
           customDeltaText={
             B.net ? (
-              <span className="flex flex-wrap items-center gap-1 font-semibold text-status-ok">
-                <TrendingUp className="h-3 w-3" />
-                {pct(kpiNet / B.net, 1)} so vs DT brand
+              <span className="flex flex-wrap items-center gap-1">
+                {/* Tỷ trọng, không phải so sánh kỳ — không gắn icon tăng/giảm (AGENTS.md QT2.6) */}
+                <b className="text-brand-text">{pct(kpiNet / B.net, 1)}</b> so vs DT brand
                 <span className="text-brand-faint text-[10px] font-normal ml-1">
                   · {kpiWith} CT có HĐ{kpiLto ? ` · ${kpiLto} LTO` : ''}
                 </span>
@@ -685,18 +687,16 @@ export const CampaignTrackingView: React.FC = () => {
         <MetricCard label="Hoá đơn" subLabel="Hóa đơn CTKM" value={formatNumber(kpiBills)}
           customDeltaText={
             B.tc ? (
-              <span className="flex flex-wrap items-center gap-1 font-semibold text-status-ok">
-                <TrendingUp className="h-3 w-3" />
-                {pct(kpiBills / B.tc, 1)} so vs HĐ brand
+              <span className="flex flex-wrap items-center gap-1">
+                <b className="text-brand-text">{pct(kpiBills / B.tc, 1)}</b> so vs HĐ brand
               </span>
             ) : '—'
           } />
         <MetricCard label="Guest" subLabel="Khách CTKM" value={formatNumber(kpiGuests)}
           customDeltaText={
             B.guest ? (
-              <span className="flex flex-wrap items-center gap-1 font-semibold text-status-ok">
-                <TrendingUp className="h-3 w-3" />
-                {pct(kpiGuests / B.guest, 1)} so vs khách brand
+              <span className="flex flex-wrap items-center gap-1">
+                <b className="text-brand-text">{pct(kpiGuests / B.guest, 1)}</b> so vs khách brand
               </span>
             ) : '—'
           } />

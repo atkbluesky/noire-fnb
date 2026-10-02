@@ -9,6 +9,8 @@ interface MetricCardProps {
   unit?: string;
   prevValue?: number | null;
   curRawValue?: number | null;
+  /** Nhãn kỳ so sánh cạnh % tăng/giảm (vd. "T9/26 vs T8/26"). Bỏ trống = "vs kỳ trước". */
+  deltaLabel?: string;
   customDeltaText?: React.ReactNode;
   isFlagged?: boolean;
   flagMessage?: string;
@@ -23,6 +25,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   unit,
   prevValue,
   curRawValue,
+  deltaLabel,
   customDeltaText,
   isFlagged,
   flagMessage,
@@ -89,7 +92,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             {delta.trend === 'down' && <TrendingDown className="h-3 w-3" />}
             {delta.trend === 'neutral' && <Minus className="h-3 w-3" />}
             <span>{delta.text}</span>
-            <span className="text-[10px] font-normal text-brand-faint">vs kỳ trước</span>
+            <span className="text-[10px] font-normal text-brand-faint">{deltaLabel ?? 'vs kỳ trước'}</span>
           </div>
         ) : (
           <span className="text-brand-faint text-[10px]">—</span>
