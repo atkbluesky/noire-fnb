@@ -1,18 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFilters } from '../context/FilterContext';
 import { HUB_DATA, MKT_DATA, FULL_MONTHS } from '../data';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { DeltaText } from '../components/common/DeltaText';
 import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
-import { formatVND, formatNumber, formatPercent, formatMonthLabel, calculateDelta } from '../utils/formatters';
+import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../utils/formatters';
 import {
   decompose, explainDecomposition, detectAnomalies, sameStore, storeContributions,
   type Anomaly, type StoreContribution,
 } from '../utils/analytics';
 import { AlertCircle, AlertTriangle, CheckCircle, Filter, Users, Coins, Activity } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
+import type { DailySales as DailyRow } from '../types/hub';
 
 export interface InsightItem {
   id: string;
@@ -65,8 +67,51 @@ export const InsightsView: React.FC = () => {
     [prevFull, lastFull, filters.scope, filters.brand],
   );
 
-  const deltaNet = calculateDelta(lastAgg.net, prevAgg.net);
-  const deltaPerDay = calculateDelta(lastAgg.net / lastAgg.days, prevAgg.net / prevAgg.days);
+  const cmpLabel = `${formatMonthLabel(lastFull)} vs ${formatMonthLabel(prevFull)}`;
+  const excludedMs = HUB_DATA.meta.months.filter(m => !fullMs.includes(m));
+
+  /* ❺ Ngày có SỐ KHÁCH vô lý trên POS — gõ nhầm ô "số khách" (vd. 5.133 khách / 76 hoá đơn).
+     Một ngày như vậy làm Guest tháng phình ra, TA tụt, và bóc tách ❶ đọc sai nguyên nhân.
+     Bảng theo ngày nằm ở chunk riêng của M1 → tải lười, không làm nặng lần mở R1.
+     Luật: số khách ≥ GUEST_X × trung vị ngày của chính cửa hàng trong tháng VÀ dư ≥ GUEST_EXCESS khách.
+     Không sửa số ở đây (NT1) — chỉ báo để POS sửa nguồn. */
+  const GUEST_X = 5;
+  const GUEST_EXCESS = 500;
+  const [daily, setDaily] = useState<DailyRow[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    import('../data/daily').then(m => { if (alive) setDaily(m.DAILY); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const guestOutliers = useMemo(() => {
+    if (!daily) return [];
+    const groups = new Map<string, DailyRow[]>();
+    for (const r of daily) {
+      const m = r.date.slice(0, 7);
+      if (!fullMs.includes(m) || !inScope(r.store)) continue;
+      const k = `${r.store}|${m}`;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(r);
+    }
+    const out: { store: string; date: string; month: string; guest: number; tc: number; median: number; excess: number }[] = [];
+    groups.forEach(rows => {
+      const g = rows.map(r => r.guest ?? 0).sort((a, b) => a - b);
+      const at = (i: number) => g[i] ?? 0;
+      const median = g.length % 2 ? at((g.length - 1) / 2) : (at(g.length / 2 - 1) + at(g.length / 2)) / 2;
+      for (const r of rows) {
+        const guest = r.guest ?? 0;
+        const excess = guest - median;
+        if (guest >= GUEST_X * Math.max(median, 1) && excess >= GUEST_EXCESS) {
+          out.push({ store: r.store, date: r.date, month: r.date.slice(0, 7), guest, tc: r.tc ?? 0, median, excess });
+        }
+      }
+    });
+    return out.sort((a, b) => b.date.localeCompare(a.date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [daily, fullMs, filters.scope, filters.brand]);
+  const outlierInDecomp = guestOutliers.filter(o => o.month === lastFull || o.month === prevFull);
+  const excessOf = (m: string) => outlierInDecomp.filter(o => o.month === m).reduce((a, o) => a + o.excess, 0);
+  const dayLabel = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
   // Anomaly: Stores dropping 2+ consecutive months
   const droppingStores: { store: string; n: number; dropPct: number }[] = [];
@@ -110,10 +155,34 @@ export const InsightsView: React.FC = () => {
   const GS = MKT_DATA.gads_stat || { spend: 0, paused_spend: 0, unmapped: [] };
   const B = MKT_DATA.budget || { channel: [], store_ads: [] };
   const CH = B.channel || [];
-  const zaloBudget = CH.filter(c => c.channel === 'Zalo Ads').reduce((a, c) => a + c.plan, 0);
+  const zaloRows = CH.filter(c => c.channel === 'Zalo Ads');
+  const zaloBudget = zaloRows.reduce((a, c) => a + c.plan, 0);
+  const zaloMonths = [...new Set(zaloRows.flatMap(c => Object.keys(c).filter(k => /^\d{4}-\d{2}$/.test(k))))].sort();
+  const zaloPeriod = zaloMonths.length
+    ? `${formatMonthLabel(zaloMonths[0])}–${formatMonthLabel(zaloMonths[zaloMonths.length - 1])}`
+    : 'kỳ ngân sách';
+  const pausedCamps = [...new Set((MKT_DATA.gads || [])
+    .filter(r => /tạm dừng|paused/i.test(String(r.status ?? '')))
+    .map(r => r.campaign))];
+  const gadsPeriod = (GS as { period?: string }).period;
 
   // Generate automated insights list
   const insights: InsightItem[] = [
+    ...(guestOutliers.length > 0
+      ? [
+          {
+            id: 'ins-guest',
+            title: `${guestOutliers.length} ngày có số khách vô lý trên POS — Guest và TA của tháng đó đang sai`,
+            desc: guestOutliers
+              .map(o => `${HUB_DATA.stores[o.store]?.name || o.store} ${dayLabel(o.date)}: `
+                + `${formatNumber(o.guest)} khách / ${formatNumber(o.tc)} hoá đơn (ngày thường ~${formatNumber(o.median)} khách)`)
+              .join(' · ')
+              + '. Cần sửa số khách ở POS rồi chạy lại cập nhật — dashboard không tự vá.',
+            module: 'M1 · Doanh thu (POS)',
+            level: 'bad' as const,
+          },
+        ]
+      : []),
     {
       id: 'ins-1',
       title: `Độ phủ giá vốn (COGS) mới đạt ${formatPercent(HUB_DATA.meta.cogs_coverage)}`,
@@ -174,8 +243,8 @@ export const InsightsView: React.FC = () => {
       ? [
           {
             id: 'ins-7',
-            title: `Zalo Ads được cấp ${formatVND(zaloBudget)} cho Q3 nhưng chưa ghi nhận thực chi`,
-            desc: `Đến hết Tháng 8 vẫn chưa phát sinh dòng tiền. Hoặc kênh chưa triển khai, hoặc đã chạy nhưng chưa tích hợp dữ liệu vào hub.`,
+            title: `Zalo Ads được cấp ${formatVND(zaloBudget)} cho ${zaloPeriod} nhưng chưa ghi nhận thực chi`,
+            desc: `Đến hết ${formatMonthLabel(lastFull)} vẫn chưa phát sinh dòng tiền. Hoặc kênh chưa triển khai, hoặc đã chạy nhưng chưa tích hợp dữ liệu vào hub.`,
             module: 'M4 · Ngân sách',
             level: 'bad' as const,
           },
@@ -186,9 +255,9 @@ export const InsightsView: React.FC = () => {
           {
             id: 'ins-8',
             title: `Chiến dịch Google Ads tạm dừng vẫn phát sinh ${formatNumber(GS.paused_spend)} đ với 0 chuyển đổi`,
-            desc: `Chiến dịch ${GS.unmapped?.join(', ') || 'tạm dừng'} chiếm ${formatPercent(
+            desc: `Chiến dịch ${pausedCamps.join(', ') || 'tạm dừng'} chiếm ${formatPercent(
               GS.paused_spend / (GS.spend || 1)
-            )} tổng chi phí Google mà không mang lại lượt chuyển đổi nào.`,
+            )} tổng chi phí Google${gadsPeriod ? ` ${gadsPeriod.split(' → ').map(formatMonthLabel).join('–')}` : ''} mà không mang lại lượt chuyển đổi nào.`,
             module: 'M5 · Ads',
             level: 'bad' as const,
           },
@@ -197,7 +266,7 @@ export const InsightsView: React.FC = () => {
     {
       id: 'ins-9',
       title: `Tỷ lệ khớp Voucher ↔ Hoá đơn đạt ${formatPercent(MKT_DATA.voucher_join?.rate || 0.998)}`,
-      desc: `Trong khi attribution ads bị chặn ở 8,6% nhận diện thì voucher lại khớp gần như tuyệt đối với hoá đơn POS. Mọi chương trình phát mã đều đo được doanh thu thật đáng tin cậy.`,
+      desc: `Trong khi chỉ ${formatPercent(idRate)} hoá đơn nhận diện được khách (attribution ads bị chặn) thì voucher lại khớp gần như tuyệt đối với hoá đơn POS. Mọi chương trình phát mã đều đo được doanh thu thật đáng tin cậy.`,
       module: 'M8 · Voucher',
       level: 'ok',
     },
@@ -310,9 +379,7 @@ export const InsightsView: React.FC = () => {
     {
       key: 'growth', header: 'MoM kỳ này', align: 'right', sortable: true,
       render: r => (
-        <span className={r.growth >= 0 ? 'text-status-ok' : 'text-status-bad'}>
-          {r.growth > 0 ? '+' : ''}{formatPercent(r.growth)}
-        </span>
+        <DeltaText change={r.growth} label={cmpLabel} className="justify-end" />
       ),
     },
     {
@@ -346,9 +413,11 @@ export const InsightsView: React.FC = () => {
     {
       key: 'delta', header: 'Biến động', align: 'right', sortable: true,
       render: r => (
-        <span className={`font-semibold ${r.delta >= 0 ? 'text-status-ok' : 'text-status-bad'}`}>
-          {r.delta > 0 ? '+' : ''}{formatVND(r.delta)}
-        </span>
+        <DeltaText
+          change={r.netPrev ? r.delta / r.netPrev : r.delta}
+          text={`${r.delta > 0 ? '+' : r.delta < 0 ? '-' : ''}${formatVND(Math.abs(r.delta))}`}
+          className="justify-end"
+        />
       ),
     },
     {
@@ -424,21 +493,27 @@ export const InsightsView: React.FC = () => {
           label="Kỳ Dữ Liệu Trọn Vẹn"
           subLabel={`${formatMonthLabel(fullMs[0])} → ${formatMonthLabel(lastFull)}`}
           value={`${fullMs.length} tháng`}
-          customDeltaText="Loại trừ tháng T8 chưa trọn kỳ"
+          customDeltaText={excludedMs.length
+            ? `Loại trừ ${excludedMs.map(formatMonthLabel).join(', ')} chưa trọn kỳ`
+            : 'Mọi tháng trong dữ liệu đều trọn kỳ'}
           variant="hero"
         />
         <MetricCard
           label={`Net Sales Kỳ Trọn Gần Nhất (${formatMonthLabel(lastFull)})`}
           subLabel={`So với kỳ ${formatMonthLabel(prevFull)}`}
           value={formatVND(lastAgg.net)}
-          customDeltaText={`${deltaNet.trend === 'up' ? '+' : ''}${deltaNet.text} vs kỳ trước`}
+          curRawValue={lastAgg.net}
+          prevValue={prevAgg.net || null}
+          deltaLabel={cmpLabel}
         />
         <MetricCard
           label="Net Sales TB / Ngày"
           subLabel={`${formatMonthLabel(lastFull)} (${lastAgg.days} ngày)`}
           value={formatVND(lastAgg.net / lastAgg.days)}
           unit="/ngày"
-          customDeltaText={`${deltaPerDay.trend === 'up' ? '+' : ''}${deltaPerDay.text} vs kỳ trước`}
+          curRawValue={lastAgg.net / lastAgg.days}
+          prevValue={prevAgg.net && prevAgg.days ? prevAgg.net / prevAgg.days : null}
+          deltaLabel={cmpLabel}
         />
       </div>
 
@@ -459,12 +534,28 @@ export const InsightsView: React.FC = () => {
         <p className="mb-3 text-xs leading-relaxed text-brand-text">
           {explainDecomposition(decomp)}
         </p>
+        {outlierInDecomp.length > 0 && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-status-bad/40 bg-status-badBg/20 p-2.5 text-xs text-brand-text">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-bad" />
+            <span>
+              <b className="text-status-bad">Chưa tin được phần bóc tách này.</b>{' '}
+              {outlierInDecomp
+                .map(o => `${HUB_DATA.stores[o.store]?.name || o.store} ngày ${dayLabel(o.date)} ghi ${formatNumber(o.guest)} khách trên ${formatNumber(o.tc)} hoá đơn`)
+                .join('; ')}.
+              {' '}Bỏ phần khách dư so với ngày thường thì Guest{' '}
+              {formatNumber(decomp.guestPrev - excessOf(prevFull))} → {formatNumber(decomp.guestCur - excessOf(lastFull))}
+              {' '}· TA {formatVND(decomp.netPrev / Math.max(decomp.guestPrev - excessOf(prevFull), 1), 0)}
+              {' '}→ {formatVND(decomp.netCur / Math.max(decomp.guestCur - excessOf(lastFull), 1), 0)}
+              {' '}(ước tính để đối chiếu). Sửa số khách ở POS rồi chạy lại cập nhật.
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           {[
             {
               lb: 'Tổng biến động Net', v: decomp.deltaNet,
-              sub: decomp.deltaPct != null ? formatPercent(decomp.deltaPct) + ' MoM' : '—',
+              sub: <DeltaText change={decomp.deltaPct} label={cmpLabel} />,
               icon: <Activity className="h-4 w-4" />, strong: true,
             },
             {
@@ -492,12 +583,12 @@ export const InsightsView: React.FC = () => {
                 {c.icon}
                 <span>{c.lb}</span>
               </div>
-              <div
-                className={`mt-1 font-display text-lg font-extrabold ${
-                  c.v > 0 ? 'text-status-ok' : c.v < 0 ? 'text-status-bad' : 'text-brand-muted'
-                }`}
-              >
-                {c.v > 0 ? '+' : ''}{formatVND(c.v)}
+              <div className="mt-1 font-display text-lg font-extrabold">
+                <DeltaText
+                  change={c.v}
+                  text={`${c.v > 0 ? '+' : c.v < 0 ? '-' : ''}${formatVND(Math.abs(c.v))}`}
+                  iconClassName="h-4 w-4"
+                />
               </div>
               <div className="mt-0.5 text-[10px] text-brand-faint">{c.sub}</div>
             </div>
