@@ -77,9 +77,9 @@ const CHANNEL_META: Record<string, {
   },
   NEC: {
     shortName: 'NEC Fanpage',
-    fullName: 'NOIRE Express · Creative Park',
+    fullName: 'NOIRE Events & Catering',
     brand: 'OTHER',
-    tagline: 'Mô hình express, tổ chức tiệc private & teabreak ngoài trời',
+    tagline: 'Tổ chức sự kiện, tiệc private & catering chuyên nghiệp',
     highlight: 'Tăng trưởng follower ngoạn mục nhất (+874 follower trong kỳ)',
     color: '#D97706',
     inquiries: 42,

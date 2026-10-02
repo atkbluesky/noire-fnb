@@ -425,8 +425,8 @@ FB_PAGES = {
     "NCB": ("NCB", "NOIRE Café & Bistro"),
     "NDC": ("NDC", "NOIRE Dining & Cafe"),
     "NJFB": ("NJFB", "NOIRE Japanese Fusion & Bar"),
-    # NOIRE Express · Creative Park là fanpage riêng, không thuộc ba brand chính.
-    "NEC": ("OTHER", "NOIRE Express · Creative Park"),
+    # NOIRE Events & Catering (NEC) là fanpage riêng, không thuộc ba brand chính.
+    "NEC": ("OTHER", "NOIRE Events & Catering"),
 }
 # Tên file CSV ↔ trường trong social_month. Facebook đặt tên theo tiếng Việt.
 FB_METRIC = {
