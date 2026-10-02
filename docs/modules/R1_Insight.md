@@ -76,6 +76,33 @@ nếu lấy tổng đại số, cửa hàng tăng và giảm triệt tiêu nhau 
 **Kết quả thật T7/2026:** NJFB The Crest +164,7tr (37,1% mức biến động, do lượng khách) ·
 NCB SKC +109,8tr (24,8%) · **NCB The Mett −85,6tr (−19,3%, do lượng khách)**.
 
+### ❺ Ngày có số khách vô lý trên POS — `guestOutliers` (trong `InsightsView.tsx`, thêm 02/10/2026)
+
+Bóc tách ❶ tin vào Guest. Một ngày gõ nhầm ô "số khách" đủ làm nó đọc sai nguyên nhân:
+**NCB Empress Tower 29/09/2026 ghi 5.133 khách / 76 hoá đơn** (ngày thường ~96) → T9 hiện
+"Guest 19.500 → 25.302, TA 270k → 219k, tăng do lượng khách", trong khi bỏ phần dư thì Guest
+19.500 → ~20.265 và TA 270k → ~273k — cả hai chỉ nhích nhẹ.
+
+| | |
+|---|---|
+| Luật | số khách ngày ≥ **5×** trung vị ngày của chính cửa hàng trong tháng **và** dư ≥ **500** khách |
+| Nguồn | `daily.json` — tải lười bằng `import('../data/daily')`, không gộp vào chunk R1 |
+| Hiện ở | thẻ cảnh báo **Nguy cấp** đầu danh sách + khung đỏ trong khối bóc tách (kèm Guest/TA ước tính sau khi bỏ phần dư) khi ngày lỗi rơi vào hai tháng đang so |
+| Không làm | không vá số trong view (NT1) — POS sửa nguồn rồi chạy lại cập nhật |
+
+Bắt được hiện nay: Empress Tower 29/09/2026 (phạm vi cửa hàng chính) · thêm NCB GW 12/05/2026
+(1.127 khách / 11 hoá đơn) khi chọn phạm vi "Tất cả".
+
+### Quy chuẩn tăng / giảm (QT2) — sửa 02/10/2026
+
+- Hai thẻ Net kỳ trọn và Net TB/ngày dùng `curRawValue` + `prevValue` + `deltaLabel` (`T9/26 vs T8/26`),
+  bỏ chữ trơn `customDeltaText` (từng hiện `++5.3%`).
+- Bốn ô bóc tách, cột "MoM kỳ này" (bất thường) và cột "Biến động" (đóng góp cửa hàng) dùng `DeltaText`.
+- Thẻ "Kỳ dữ liệu trọn vẹn" tự liệt kê tháng bị loại (trước ghi cứng "Loại trừ tháng T8").
+- Cảnh báo Zalo lấy kỳ từ cột tháng của ngân sách và tháng trọn gần nhất (trước ghi cứng "Q3", "hết Tháng 8").
+- Cảnh báo Google tạm dừng liệt kê chiến dịch có trạng thái tạm dừng, không lặp tên (trước lấy nhầm `unmapped`).
+- Cảnh báo Voucher dùng tỷ lệ nhận diện thật (trước ghi cứng 8,6%).
+
 ## 4. Insight Report theo thiết kế — ba phần
 
 Blueprint quy định R1 **không phải bảng số — là kết luận**. Mỗi kỳ sinh ra:
