@@ -243,7 +243,45 @@ def _rank(v):
     return m.group(1).strip() if m else s
 
 
+def _parse_voucher_csvlines(rows, month):
+    """Định dạng mới: mỗi dòng là chuỗi `Nhãn,Giá trị` / `STT,Cửa hàng,Dùng,DT trước,DT sau,Phí,Tỷ lệ`."""
+    lines = [",".join(_txt(c) for c in r if c is not None and _txt(c) != "") for r in rows]
+    lines = [l for l in lines if l]
+
+    def kv(label):
+        for l in lines:
+            p = l.split(",")
+            if len(p) == 2 and norm(p[0]) == norm(label):
+                return p[1]
+        return None
+    v = dict(issued=cnt(kv("Voucher phát hành")), used=cnt(kv("Voucher sử dụng")),
+             rev_before=_n(kv("Doanh thu trước giảm giá")), rev_after=_n(kv("Doanh thu sau giảm giá")),
+             disc=_n(kv("Chi phí giảm giá")), stores={})
+    mode = False
+    for l in lines:
+        n = norm(l)
+        if n.startswith("stt,cửa hàng"):
+            mode = True; continue
+        p = l.split(",")
+        if mode and re.match(r"^\d+$", p[0]) and len(p) >= 6:
+            code = _store(p[1])
+            if not code:
+                _w(f"cửa hàng lạ ở báo cáo voucher: {p[1]}")
+                continue
+            d = v["stores"].setdefault(code, dict(v_used=0, v_rev_before=0, v_disc=0, v_rev_after=0))
+            d["v_used"] += cnt(p[2]) or 0
+            d["v_rev_before"] += _n(p[3]) or 0
+            d["v_rev_after"] += _n(p[4]) or 0
+            d["v_disc"] += _n(p[5]) or 0
+    su = sum(d["v_used"] for d in v["stores"].values())
+    if v["used"] and su != v["used"]:
+        _w(f"{month}: voucher theo cửa hàng cộng {su} ≠ tổng {v['used']}")
+    return v if v["used"] is not None else None
+
+
 def parse_voucher_sheet(rows, month):
+    if any("voucher phát hành," in norm(_txt(r[0])) for r in rows if r and r[0] is not None):
+        return _parse_voucher_csvlines(rows, month)
     full = "\n".join(_txt(r[0]) for r in rows if r and r[0] is not None)
     v = dict(
         issued=cnt(_kv(full, "Tổng voucher phát hành")),
