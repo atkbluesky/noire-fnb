@@ -205,10 +205,10 @@ SOURCES = [
     dict(
         id="S12_zalo_oa", group="04_CRM", dir="04_CRM/02_Zalo_OA",
         name="Zalo OA export — Thống kê Tổng quan", cadence="monthly", since="2026-01", required=False,
-        pattern="OA Zalo T*.xls*", month_regex=MONTH_RX_T,
+        pattern="OA Zalo T*.xls* | */OA Zalo T*.xls*", month_regex=MONTH_RX_T,
         example="OA Zalo T8.2026.xls",
-        how="OA Manager › Thống kê › Tổng quan › Xuất, chọn đúng 1 tháng. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại. Là nguồn số của M8.1 khi OpenAPI/Webhook CHƯA kết nối, và là lịch sử trước ngày kết nối.",
-        produces=["oa", "oa_daily"], via="tools/build_month.py", modules=["M8.1"],
+        how="OA Manager › Thống kê › Tổng quan › Xuất, chọn đúng 1 tháng. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại. Là nguồn số của M8.1 khi OpenAPI/Webhook CHƯA kết nối, và là lịch sử trước ngày kết nối. Có thể gom mỗi tháng một thư mục `OA ZALO T9.2026/` kèm 2 file cùng tháng: `Thống kê người quan tâm T*.xls` (tổng follower + bỏ quan tâm theo ngày) và `Thống kê theo giới tính và độ tuổi T*.xls`.",
+        produces=["oa", "oa_daily", "oa_demo", "oa_follower"], via="tools/build_month.py", modules=["M8.1"],
     ),
     dict(
         id="S26_zalo_follower", group="04_CRM", dir="04_CRM/05_Zalo_OA_Follower",

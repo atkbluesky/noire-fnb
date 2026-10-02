@@ -211,6 +211,16 @@ export interface ZaloOAFollower {
   unfollows: number | null;
 }
 
+/** OA Manager › Thống kê › Người quan tâm › Giới tính & độ tuổi. TỶ LỆ (0–1) trên tổng
+ *  người quan tâm cuối tháng — cả các nhóm tuổi của một tháng cộng lại = 1. */
+export interface ZaloOADemo {
+  month: string;
+  /** Nhóm tuổi đúng nhãn export: `Dưới 12`, `Từ 18-24`, `65 trở lên`… */
+  age: string;
+  male: number;
+  female: number;
+}
+
 /** Member đăng ký mới theo tháng — lấy từ bảng theo dõi tay. */
 export interface MemberMonth {
   month: string;
@@ -441,6 +451,7 @@ export interface MktData {
   oa: ZaloOAItem[];
   oa_daily: ZaloOADaily[];
   oa_follower: ZaloOAFollower[];
+  oa_demo?: ZaloOADemo[];
   member_month: MemberMonth[];
   member_stat: { total: number; months_filled: number; months_template: number };
   crm_target: { month: string; kpi: string; target: number }[];

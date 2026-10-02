@@ -172,6 +172,7 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 | `oa` | _month_ · follows · msgs · views · menu · content · days | month | — |
 | `oa_daily` | **date** · follows · msgs · views · menu · content | date | — |
 | `oa_follower` | **date** · follower_total · unfollows | date | — |
+| `oa_demo` | **month** · **age** · male · female | month + age | — |
 | `member` | _month_ · member · oa · days | month | — |
 | `social_month` | **month** · **platform** · **brand** · _page_ · code · followers · follows · unfollows · reach · impr · views · profile_views · clicks · contacts · msgs · likes · comments · shares · saves · engage · posts · spend · days | month + platform + brand + page | net_follow · er · reach_rate · per_post · cpm · audience · unit |
 | `social_post` | _date_ · _platform_ · _brand_ · _page_ · format · _title_ · reach · views · impr · likes · comments · shares · saves · clicks · watch_avg · spend · link | date + platform + brand + page + title | engage · audience · er · unit |
@@ -209,7 +210,8 @@ Mỗi tháng một file. Cột tháng (`month` / `m`) được loader **tự đi
 - **`voucher_join`** — Tỷ lệ voucher khớp được với hoá đơn trong cùng tháng.
 - **`oa`** — Zalo OA. follows = Quan tâm · views = Xem trang thông tin OA · menu = Tương tác thanh menu · content = Xem nội dung.
 - **`oa_daily`** — Zalo OA theo NGÀY — export OA Manager › Thống kê › Tổng quan (S12). Cùng nghĩa cột với `oa`; M8.1 dùng khi OpenAPI/Webhook chưa kết nối. Số là LƯỢT hành động, không phải người duy nhất.
-- **`oa_follower`** — Zalo OA · Tổng người quan tâm (snapshot tại ngày) + Bỏ quan tâm — sổ nhập tay S26 chép từ OA Manager. Ô trống = chưa nhập; KHÔNG suy tổng từ luỹ kế `follows`.
+- **`oa_follower`** — Zalo OA · Tổng người quan tâm (snapshot tại ngày) + Bỏ quan tâm — export `Thống kê người quan tâm T*.xls` (S12, ưu tiên) hoặc sổ nhập tay S26. Ô trống = chưa nhập; KHÔNG suy tổng từ luỹ kế `follows`.
+- **`oa_demo`** — Zalo OA · người quan tâm theo giới tính × nhóm tuổi — export `Thống kê theo giới tính và độ tuổi T*.xls` (S12). Số là TỶ LỆ 0–1 trên tổng follower cuối tháng; mọi ô của một tháng cộng lại = 1.
 - **`member`** — Member đăng ký mới & OA follow mới theo tháng (số toàn chuỗi).
 - **`social_month`** — Fanpage & TikTok. Facebook điền reach · TikTok điền views — KHÔNG gộp hai cột. platform ∈ FACEBOOK|TIKTOK|INSTAGRAM|YOUTUBE|ZALO code = mã fanpage (NCB · NDC · NJFB · NEC). contacts = Tổng số người liên hệ, msgs = Lượt bắt đầu cuộc trò chuyện qua tin nhắn (Facebook, cả tự nhiên lẫn trả phí).
 - **`social_post`** — Bài đăng / video. watch_avg tính bằng GIÂY.

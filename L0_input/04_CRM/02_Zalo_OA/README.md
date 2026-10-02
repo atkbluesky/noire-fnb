@@ -4,9 +4,9 @@
 
 ## Thả file gì vào đây
 
-OA Manager › Thống kê › Tổng quan › Xuất, chọn đúng 1 tháng. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại. Là nguồn số của M8.1 khi OpenAPI/Webhook CHƯA kết nối, và là lịch sử trước ngày kết nối.
+OA Manager › Thống kê › Tổng quan › Xuất, chọn đúng 1 tháng. File .xls thật ra là HTML — giữ nguyên, đừng mở rồi lưu lại. Là nguồn số của M8.1 khi OpenAPI/Webhook CHƯA kết nối, và là lịch sử trước ngày kết nối. Có thể gom mỗi tháng một thư mục `OA ZALO T9.2026/` kèm 2 file cùng tháng: `Thống kê người quan tâm T*.xls` (tổng follower + bỏ quan tâm theo ngày) và `Thống kê theo giới tính và độ tuổi T*.xls`.
 
-- Mẫu tên file: `OA Zalo T*.xls*`
+- Mẫu tên file: `OA Zalo T*.xls* | */OA Zalo T*.xls*`
 - Ví dụ: `OA Zalo T8.2026.xls`
 - Có số từ tháng: `2026-01` — thiếu tháng nào sau mốc đó là hệ thống BÁO THIẾU.
 
@@ -17,7 +17,7 @@ Hệ thống tự nhận file mới/đã thay, dựng lại đúng những thán
 
 ## Dùng cho
 
-- Bảng dữ liệu: oa, oa_daily
+- Bảng dữ liệu: oa, oa_daily, oa_demo, oa_follower
 - Màn hình: M8.1
 - Xử lý bởi: tools/build_month.py
 

@@ -25,18 +25,19 @@ const PERIODS: { id: OaPeriod; label: string }[] = [
   { id: 'ytd', label: 'YTD' },
 ];
 
-const TYPE_LABELS: Record<string, string> = {
-  text: 'Văn bản', image: 'Hình ảnh', audio: 'Âm thanh', video: 'Video',
-  file: 'Tệp', sticker: 'Sticker', gif: 'GIF', location: 'Vị trí', link: 'Liên kết', other: 'Khác',
-};
+const MALE = '#60A5FA';
+const FEMALE = '#EC4899';
+/** `2026-09` → `T9.2026` — đúng cách OA Manager đặt tên file export. */
+const tMonth = (m: string) => `T${Number(m.slice(5, 7))}.${m.slice(0, 4)}`;
 
 /* Bảng luật gộp hiển thị cho người xem — trùng khớp với oaModel.ts. */
 const SOURCE_RULES: [string, string, string][] = [
   ['Quan tâm mới · Gửi tin nhắn đến OA', 'Export (ngày có file)', 'API webhook — ngày chưa có file'],
   ['Xem trang OA · Tương tác menu · Xem nội dung', 'Export', '— API không có'],
-  ['Tổng follower', 'API getoa (snapshot 00:05)', 'Sổ tay S26'],
-  ['Bỏ quan tâm', 'API webhook unfollow', 'Sổ tay S26'],
-  ['Tin OA gửi đi · Người chat · Hội thoại · Loại tin', 'API webhook', '— export không có'],
+  ['Tổng follower', 'API getoa (snapshot 00:05)', 'Export Người quan tâm · sổ tay S26'],
+  ['Bỏ quan tâm', 'API webhook unfollow', 'Export Người quan tâm · sổ tay S26'],
+  ['Giới tính · độ tuổi', 'Export Giới tính & độ tuổi (tháng)', '— API không có'],
+  ['Tin OA gửi đi · Người chat · Hội thoại', 'API webhook', '— export không có'],
 ];
 
 const shortDate = (value: string) => `${value.slice(8, 10)}/${value.slice(5, 7)}`;
@@ -84,6 +85,7 @@ const compare = (cur: OaSummary, prev: OaSummary | null, key: keyof OaSummary, n
 export const ZaloOAView: React.FC = () => {
   const exportDaily = MKT_DATA.oa_daily ?? [];
   const follower = MKT_DATA.oa_follower ?? [];
+  const demoAll = MKT_DATA.oa_demo ?? [];
   const lastExport = exportDaily.at(-1)?.date ?? null;
 
   const [period, setPeriod] = useState<OaPeriod>('month');
@@ -188,19 +190,44 @@ export const ZaloOAView: React.FC = () => {
     };
   }, [view, period]);
 
-  const mix = useMemo(() => Object.entries(cur?.messageTypes ?? {})
-    .map(([name, value]) => ({ name: TYPE_LABELS[name] ?? name, value }))
-    .sort((a, b) => b.value - a.value), [cur]);
+  /* ───── Giới tính × độ tuổi: tháng đang xem, chưa có thì tháng gần nhất trước đó ───── */
+  const demo = useMemo(() => {
+    const months = [...new Set(demoAll.map(r => r.month))].sort();
+    const m = [...months].reverse().find(x => x <= win.end.slice(0, 7)) ?? null;
+    if (!m) return null;
+    const rows = demoAll.filter(r => r.month === m);
+    const male = rows.reduce((a, r) => a + r.male, 0);
+    const female = rows.reduce((a, r) => a + r.female, 0);
+    // Tỷ lệ của export tính trên tổng follower CUỐI tháng đó → quy ra số người xấp xỉ.
+    const base = [...follower].reverse().find(r => r.date.startsWith(m) && r.follower_total != null)?.follower_total ?? null;
+    return { month: m, rows: rows.filter(r => r.male > 0 || r.female > 0), male, female, base };
+  }, [demoAll, follower, win]);
 
-  const mixOption = useMemo<EChartsOption>(() => ({
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle' },
-    series: [{
-      type: 'pie', radius: ['48%', '72%'], center: ['36%', '52%'], data: mix, label: { show: false },
-      itemStyle: { borderWidth: 2, borderColor: '#141417' },
-      color: ['#C5A059', '#82846C', '#22C55E', '#60A5FA', '#A78BFA', '#F97316', '#EC4899', '#94A3B8'],
-    }],
-  }), [mix]);
+  const demoOption = useMemo<EChartsOption>(() => {
+    if (!demo) return {};
+    const people = (share: number) => (demo.base ? ` · ≈${formatNumber(Math.round(share * demo.base))} người` : '');
+    const bar = (name: string, key: 'male' | 'female', color: string) => ({
+      name, type: 'bar' as const, barMaxWidth: 12, barGap: '20%', data: demo.rows.map(r => +(r[key] * 100).toFixed(1)),
+      itemStyle: { color, borderRadius: [0, 3, 3, 0] },
+      label: { show: true, position: 'right' as const, fontSize: 10, color: '#A1A1AA', formatter: '{c}%' },
+    });
+    return {
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: (ps: unknown) => {
+          const list = ps as { dataIndex: number; marker: string; seriesName: string; value: number }[];
+          const r = demo.rows[list[0]?.dataIndex ?? 0];
+          return [`<b>${r.age}</b>`, ...list.map(p => `${p.marker}${p.seriesName}: ${p.value}%${people(p.value / 100)}`)].join('<br/>');
+        },
+      },
+      legend: { top: 0 },
+      grid: { top: 32, right: 44, bottom: 24, left: 64 },
+      // Trục dọc = nhóm tuổi (trẻ ở trên) — thẻ hẹp 1/3 hàng, thanh ngang không phải lược nhãn.
+      yAxis: { type: 'category', inverse: true, data: demo.rows.map(r => r.age), axisLabel: { fontSize: 10 } },
+      xAxis: { type: 'value', axisLabel: { formatter: '{value}%', fontSize: 10 } },
+      series: [bar('Nam', 'male', MALE), bar('Nữ', 'female', FEMALE)],
+    };
+  }, [demo]);
 
   const { sum, prev, follower: fol } = view;
   const checking = api.state === 'checking';
@@ -270,7 +297,7 @@ export const ZaloOAView: React.FC = () => {
           <p className="text-xs leading-relaxed text-brand-muted">
             <span className="font-bold text-brand-text">API chưa đọc được</span>
             {api.code === 'NOT_CONFIGURED' ? ' — chưa khai ZALO_OA_ID / DATABASE_URL.' : ` — ${api.message}.`}
-            {' '}Đang hiện số export; tổng follower lấy sổ tay S26, các chỉ số chat 2 chiều tạm ẩn.
+            {' '}Đang hiện số export; tổng follower lấy export Người quan tâm / sổ tay S26, các chỉ số chat 2 chiều tạm ẩn.
           </p>
         </div>
       )}
@@ -318,13 +345,28 @@ export const ZaloOAView: React.FC = () => {
           title={period === 'ytd' ? 'Tương tác OA theo tháng' : 'Tương tác OA theo ngày'}
           description="Cột = Quan tâm mới, Gửi tin nhắn. Đường = hành vi trên trang OA (chỉ export có). Nền xanh = ngày lấy số API vì chưa có file export."
           chip="EXPORT + API"
-          className={mix.length ? 'lg:col-span-2' : 'lg:col-span-3'}
+          className={demo ? 'lg:col-span-2' : 'lg:col-span-3'}
         >
           <EChartWrapper option={trendOption} height={300} loading={checking} />
         </Card>
-        {mix.length > 0 && (
-          <Card title="Mix loại tin nhắn" description={`Phân loại theo event_name của Zalo${apiSince}.`} chip="API">
-            <EChartWrapper option={mixOption} height={300} />
+        {demo && (
+          <Card
+            title={`Thống kê theo giới tính và độ tuổi ${tMonth(demo.month)}`}
+            description={`Tỷ lệ trên tổng người quan tâm cuối tháng${demo.base ? ` (${formatNumber(demo.base)})` : ''}${
+              demo.month !== win.end.slice(0, 7) ? ` · tháng gần nhất có file` : ''}.`}
+            chip="EXPORT"
+          >
+            <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
+              {([['Nam', demo.male, MALE], ['Nữ', demo.female, FEMALE]] as const).map(([name, share, color]) => (
+                <span key={name} className="rounded-md border border-brand-border bg-brand-surface/60 px-2 py-1">
+                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: color }} />
+                  <span className="text-brand-muted">{name}</span>{' '}
+                  <span className="font-mono font-bold text-brand-text">{formatPercent(share)}</span>
+                  {demo.base != null && <span className="text-brand-faint"> · ≈{formatNumber(Math.round(share * demo.base))}</span>}
+                </span>
+              ))}
+            </div>
+            <EChartWrapper option={demoOption} height={264} />
           </Card>
         )}
       </div>
@@ -344,11 +386,11 @@ export const ZaloOAView: React.FC = () => {
             <div className="mt-0.5 text-[10px] text-brand-faint">{firstApi ? `Có số từ ${fullDate(firstApi)}` : 'Tự động — không cần thao tác'}</div>
           </div>
           <div className="rounded-lg border border-brand-border bg-brand-surface/60 p-3">
-            <div className="flex items-center gap-1.5 text-brand-muted"><Users className="h-3.5 w-3.5" /> Sổ tay tổng follower (S26)</div>
+            <div className="flex items-center gap-1.5 text-brand-muted"><Users className="h-3.5 w-3.5" /> Tổng follower (export Người quan tâm · S26)</div>
             <div className="mt-1 font-mono font-bold text-brand-text">
               {follower.length ? `${follower.length} mốc · đến ${fullDate(follower.at(-1)!.date)}` : 'Trống'}
             </div>
-            <div className="mt-0.5 text-[10px] text-brand-faint">Chỉ cần cho các tháng trước ngày nối API</div>
+            <div className="mt-0.5 text-[10px] text-brand-faint">Thả `Thống kê người quan tâm T*.xls` cùng thư mục tháng</div>
           </div>
         </div>
         <div className="mt-4 overflow-x-auto">
