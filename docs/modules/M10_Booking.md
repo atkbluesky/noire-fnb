@@ -93,6 +93,30 @@ Lọc brand thì tầng Ads chỉ còn chiến dịch gắn brand đó; fanpage 
 - Hotline: 99 lead, chốt 20%, **381 tr** — nguồn mang doanh thu nhiều nhất
 - Fanpage NEC T8: 43 hội thoại, **98%** đến từ quảng cáo
 
+## 6b. Cập nhật T9/2026 (02/10/2026)
+
+**Sổ Sales** `NOIRE Booking Tiec Sales 2026 (4).xlsx` (sửa lại 14:07) — tiệc & sự kiện nhận trong T9:
+
+- **45 lead** (T8: 43) · MKT 25 · Sales 15 + 2 (`Sale`) · Hotline 2 · Nội bộ 1
+- **17 chốt** · 18 đang theo · 10 mất · **DT chốt 140,9 tr** (trước khi sửa sổ = 0). Còn **6 lead Confirmed chưa nhập Closed Revenue** (toàn sổ: 12).
+- **MKT T9:** 25 lead · 3 chốt · DT chốt 28,0 tr (1 lead Confirmed chưa nhập tiền) · 14 đang theo → tỷ lệ chốt chưa chín.
+
+**Chi phí ads T9 — chưa có file Meta Ads, lấy từ API M5.1** (`scripts/build-booking-ads.mjs` → `data_input/booking_ads_api.json`,
+`booking_meta.ads_api_months`): chiến dịch `funnel = booking` trong Postgres, cột như file Meta (click = `link_clicks`, hội thoại = `messaging_conversations`).
+Chỉ dùng cho tháng mà sheet `ads_campaign_detail` không có dòng booking — file Meta Ads về sau luôn thắng.
+Chạy lại: `node scripts/build-booking-ads.mjs 2026-09` rồi `node scripts/build-data.mjs`.
+
+- `NEC | Messages | 2026`: **6.970.523 đ** · 52.632 hiển thị · 836 click liên kết · **74 hội thoại** → CPL MKT T9 ≈ 279 k
+- Không có chiến dịch booking nào khác chạy T9 (không có LikePage / Engagement như T7–T8).
+- Đọc đến 30/09/2026 (đủ tháng).
+
+**Fanpage NEC (M6)** T9 đã có sẵn trong `social_month`: 58.667 lượt xem · 23.922 người xem · 898 click · 34 theo dõi mới · **78 người liên hệ · 77 hội thoại**
+→ hội thoại từ ads NEC 74 ÷ 77 của trang = **96%** (gần như không có inbox tự nhiên).
+
+**Luỹ kế T1–T9** (màn hình, tất cả brand): ads booking 45,4 tr · 350 liên hệ · 131 lead MKT · 15 chốt (11,5%) · DT chốt MKT 180,3 tr (ROAS ≈ 4×) · DT chốt mọi nguồn 1,01 tỷ.
+
+Báo nguồn (Sales) sửa: `Source = Sale` ×2 (nên là `Sales`) · `LEAD-0464` ngày nhận 2027-09-25 · 5 ngày nhận gõ đảo ngày/tháng đã tự sửa.
+
 ## 7. Còn thiếu
 
 | Thiếu | Hệ quả | Cách lấp |

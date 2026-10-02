@@ -28,7 +28,10 @@ const CONTACT_KINDS = new Set(META.result_kinds.filter(k => k.contact).map(k => 
 const RKIND_LABEL = Object.fromEntries(META.result_kinds.map(k => [k.code, k.label]));
 const MKT_SRC = new Set(META.mkt_sources);
 /** Tháng có báo cáo Meta Ads — để phân biệt "không chạy ads booking" với "chưa nộp báo cáo". */
-const ADS_REPORT_MONTHS = new Set((MKT_DATA.ads_month || []).map(r => r.month));
+const ADS_REPORT_MONTHS = new Set([
+  ...(MKT_DATA.ads_month || []).map(r => r.month),
+  ...(META.ads_api_months || []),   // tháng chưa có file Meta Ads — chi phí lấy từ API M5.1
+]);
 
 const isMkt = (src: string | null) => MKT_SRC.has(String(src ?? '').trim().toLowerCase());
 const safeDiv = (a: number, b: number) => (b > 0 ? a / b : null);

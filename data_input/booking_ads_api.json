@@ -1,0 +1,21 @@
+{
+ "months": {
+  "2026-09": {
+   "through": "2026-09-30",
+   "campaigns": [
+    {
+     "campaign": "NEC | Messages | 2026",
+     "page": "NEC",
+     "brand": "Không xác định",
+     "rkind": "msg",
+     "spend": 6970523,
+     "impr": 52632,
+     "clicks": 836,
+     "result": 74
+    }
+   ]
+  }
+ },
+ "synced_through": "2026-09-30",
+ "pulled_at": "2026-10-02T07:14:20.352Z"
+}

@@ -304,6 +304,8 @@ export interface BookingMeta {
   result_kinds: { code: string; label: string; contact: boolean }[];
   lost_reasons: string[];
   pages: string[];
+  /** Tháng chưa có file Meta Ads — chi phí booking lấy từ API M5.1 */
+  ads_api_months?: string[];
 }
 
 export interface BookingStat {
