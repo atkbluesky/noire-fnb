@@ -22,7 +22,7 @@
 > Bảng gán brand + phễu đầy đủ: [`M5_1_Ads_Auto.md` §2b-bis](M5_1_Ads_Auto.md).
 >
 > 🖥 **Màn hình đã dựng lại thành BA TẦNG (28/09/2026)** — Tổng quan → Meta → Google, 4 mảng NCB · NDC · NJFB · Tiệc.
-> Thiết kế, định nghĩa chỉ số, giả định: [`M5_1_Ads_Auto.md` §9](M5_1_Ads_Auto.md). Màn hình mô tả trong file này nay là bản **dự phòng** (nút EXPORT).
+> Thiết kế, định nghĩa chỉ số, giả định: [`M5_1_Ads_Auto.md` §9](M5_1_Ads_Auto.md). Màn hình Excel mô tả trong file này (nút EXPORT · bản cũ) **đã gỡ khỏi M5 ngày 14/10/2026** — dữ liệu `MKT_DATA.ads_*` vẫn dựng và chỉ còn dùng để đối chiếu với API (M5_1 §3d).
 
 ---
 
