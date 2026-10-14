@@ -839,8 +839,13 @@ def main():
         out["pre_eval_scheme"] += sc_rows
         out["pre_eval_base"] += base
         out["pre_eval_fix"] += fx
+    # file đánh giá quý bản Final (S16 · đã trình CEO) → số NGUYÊN của file thay số bộ tính, đúng quý của file.
+    # Không có file Final thì không đổi gì.
+    import preeval_final
+    finals = preeval_final.apply(out, log)
     write_workbook(OUT, dict(out), title="M7.1 · PRE-ANALYTICS — sinh tự động bởi tools/preeval.py")
-    lock_plans(progs, out["pre_eval"])
+    lock_plans(preeval_final.lock_meta(progs, finals), out["pre_eval"])
+    preeval_final.lock(finals, LOCK, LOCK_NEW, write_workbook, read_workbook, log)
     base = [r for r in out["pre_eval"] if r["scenario"] == "CO_SO"]
     n_deck = sum(1 for p in progs if p["_source"].startswith("DECK"))
     n_match = sum(1 for p in progs if p["_source"].startswith("SO · khớp"))

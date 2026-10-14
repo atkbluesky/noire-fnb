@@ -2462,9 +2462,10 @@
         "cost_kol",
         "cost_posm",
         "cost_other",
-        "disc_cost"
+        "disc_cost",
+        "action"
       ],
-      "desc": "M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py."
+      "desc": "M7.1 · kết quả đánh giá trước khi chạy — 1 dòng / chương trình × kịch bản. Sinh bởi tools/preeval.py. Quý có file đánh giá bản Final đã trình CEO (S16 · NOIRE_Pre-Analytics_*.xlsx) thì mọi chương trình quý đó lấy NGUYÊN số của file (tools/preeval_final.py, input_source = FINAL: <file>); action = cột 'Việc cần làm' của file."
     },
     "pre_eval_scheme": {
       "tier": "snapshot",
@@ -2567,7 +2568,7 @@
         "status",
         "hint"
       ],
-      "desc": "M7.1 · dữ liệu đầu vào ĐÃ CHUẨN HOÁ của từng chương trình theo $preeval.input_fields — mỗi trường một dòng: giá trị · nguồn (SO = sổ Pre_Analysis · DECK = file deck quý S16) · mức bắt buộc · trạng thái (OK / THIEU). Sinh bởi tools/preeval.py."
+      "desc": "M7.1 · dữ liệu đầu vào ĐÃ CHUẨN HOÁ của từng chương trình theo $preeval.input_fields — mỗi trường một dòng: giá trị · nguồn (SO = sổ Pre_Analysis · DECK = file deck quý S16 · FINAL = file đánh giá quý bản Final S16) · mức bắt buộc · trạng thái (OK / THIEU). Sinh bởi tools/preeval.py."
     },
     "pre_eval_fix": {
       "tier": "snapshot",
@@ -2592,6 +2593,47 @@
         "text"
       ],
       "desc": "M7.1 · Cách sửa — với chương trình SỬA CƠ CHẾ / CHẠY THỬ: mức mỗi đòn bẩy ($preeval.fix_levers) cần đạt để hoà vốn và để DUYỆT, giữ nguyên các giả định khác; best = đòn bẩy phải đổi ít nhất. Giải bằng chính bộ tính của tools/preeval.py."
+    },
+    "pre_eval_tc": {
+      "tier": "snapshot",
+      "key": [
+        "program_id",
+        "month"
+      ],
+      "req": [
+        "program_id"
+      ],
+      "cols": [
+        "program_id",
+        "quarter",
+        "month",
+        "mkt_bills",
+        "bills_file",
+        "unit_per_bill",
+        "bills_used",
+        "incr_share",
+        "mkt_bills_total",
+        "tc_section",
+        "note"
+      ],
+      "desc": "M7.1 · HĐ MKT mang về theo chương trình × tháng (sheet KIEM_SOAT_TC của file đánh giá quý bản Final): HĐ dùng chương trình × (1 − %cannib), chia tháng theo số ngày chạy. tc_section = mục ghi ở file Đóng góp TC (Mục 1 = chương trình promotion · Mục 3 = chương trình đang chạy tiếp · — = branding). Sinh bởi tools/preeval_final.py."
+    },
+    "pre_eval_final": {
+      "tier": "snapshot",
+      "key": [
+        "quarter",
+        "key"
+      ],
+      "req": [
+        "key"
+      ],
+      "cols": [
+        "quarter",
+        "key",
+        "label",
+        "value"
+      ],
+      "desc": "M7.1 · thông tin file đánh giá quý bản Final đã trình CEO (tên file · ngày sửa · mô tả) + số tham chiếu file Đóng góp TC (Ads tin nhắn · chương trình đang chạy · tỷ lệ đạt · TC dự phóng · mục tiêu TC). Sinh bởi tools/preeval_final.py."
     },
     "pre_plan_lock": {
       "tier": "snapshot",
@@ -2640,7 +2682,7 @@
         "disc",
         "backfill"
       ],
-      "desc": "M7.1 · kế hoạch ĐÃ KHOÁ (data_input/05_plan_lock.xlsx) — dự báo Cơ sở/Thận trọng chụp khi chương trình DA_DUYET hoặc tới ngày bắt đầu. M7.2 chỉ so thực tế với bản này. lock_reason: DA_DUYET · BAT_DAU · KHOA_MUON (khoá sau ngày bắt đầu — kỳ nền có thể đã chứa kỳ chạy). Sinh bởi tools/preeval.py, giữ nguyên qua các lần cập nhật."
+      "desc": "M7.1 · kế hoạch ĐÃ KHOÁ (data_input/05_plan_lock.xlsx) — dự báo Cơ sở/Thận trọng chụp khi chương trình DA_DUYET hoặc tới ngày bắt đầu. M7.2 chỉ so thực tế với bản này. lock_reason: DA_DUYET · BAT_DAU · KHOA_MUON (khoá sau ngày bắt đầu — kỳ nền có thể đã chứa kỳ chạy) · CEO_FINAL (số của file đánh giá quý bản Final đã trình CEO — tools/preeval_final.py, thay bản khoá tự chụp). Sinh bởi tools/preeval.py, giữ nguyên qua các lần cập nhật."
     }
   },
   "$campaign": {

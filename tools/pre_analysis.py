@@ -240,10 +240,13 @@ def _sheet_like(wb, key):
 
 
 def file_format(path):
-    """'QUARTER' (file deck theo quý, từ Q4/2026) · 'LEGACY' (6 sheet loại của Q3) · None."""
+    """'QUARTER' (file deck theo quý, từ Q4/2026) · 'LEGACY' (6 sheet loại của Q3) ·
+    'FINAL' (file đánh giá quý bản Final đã trình CEO — tools/preeval_final.py) · None."""
     from openpyxl import load_workbook
     wb = load_workbook(path, read_only=True, data_only=True)
     try:
+        if {"TINH_TOAN", "XEP_HANG", "CHUONG_TRINH"} <= set(wb.sheetnames):
+            return "FINAL"
         if _sheet_like(wb, "master plan"):
             return "QUARTER"
         if any("tong hop" in _plain(n) for n in wb.sheetnames):
@@ -258,7 +261,7 @@ def files_by_format():
     Nơi DUY NHẤT chọn file kế hoạch: chọn theo định dạng, không theo ngày sửa — file quý mới
     nhất không được đè mất kế hoạch Q3 đang nối M7.2 (campaign.py) và pre_q3 (build_mkt.py)."""
     from monthly_lib import l0_files
-    out = {"LEGACY": [], "QUARTER": [], None: [], "ERROR": []}
+    out = {"LEGACY": [], "QUARTER": [], "FINAL": [], None: [], "ERROR": []}
     for f in l0_files("S16_pre_analytics"):
         try:
             out[file_format(f)].append(f)
