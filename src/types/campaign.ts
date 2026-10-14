@@ -257,14 +257,22 @@ export interface PreEvalBase {
   guests: number | null; aov: number | null; ta: number | null; tc_day: number | null; tax_factor: number | null;
   disc_share: number | null; note: string | null;
 }
-/** M7.1 · 1 trường đầu vào ĐÃ CHUẨN HOÁ ($preeval.input_fields) — nguồn SO = sổ · DECK = file deck quý */
+/** M7.1 · 1 trường đầu vào ĐÃ CHUẨN HOÁ ($preeval.input_fields) — nguồn SO = sổ · DECK = file deck quý ·
+ *  FINAL = file đánh giá quý bản Final đã trình CEO */
 export interface PreEvalInput {
-  field: string; value: string | number | null; source: 'SO' | 'DECK' | null;
+  field: string; value: string | number | null; source: 'SO' | 'DECK' | 'FINAL' | null;
   level: 'required' | 'required_promo' | 'recommended' | 'optional';
   /** OK · THIEU (bắt buộc còn trống) · TRONG (không bắt buộc, để trống) */
   status: 'OK' | 'THIEU' | 'TRONG';
   /** deck ghi gì ở ô còn trống */
   hint: string | null;
+}
+/** M7.1 · HĐ MKT mang về của 1 chương trình trong 1 tháng (file Final · KIEM_SOAT_TC) */
+export interface PreEvalTc {
+  program_id: string; quarter: string | null; month: string; mkt_bills: number | null; bills_used: number | null;
+  unit_per_bill: number | null; incr_share: number | null; mkt_bills_total: number | null;
+  /** mục ở file Đóng góp TC: 'Mục 1' (promotion) · 'Mục 3' (đang chạy tiếp) · '—' (branding) */
+  tc_section: string | null; note: string | null;
 }
 /** M7.1 · Cách sửa — mức 1 đòn bẩy cần đạt ($preeval.fix_levers) để hoà vốn / để DUYỆT */
 export interface PreEvalFix {
@@ -275,6 +283,8 @@ export interface PreEvalFix {
 export interface PreEvalProgram {
   id: string; name: string; brand: string; stores: string[]; date_from: string; date_to: string; days: number | null;
   objective: string | null; lever: string | null; status: string | null; decision: string; decision_note: string | null;
+  /** cột 'Việc cần làm' của file đánh giá quý bản Final — null khi bộ tính tự chấm */
+  action?: string | null;
   campaign_id: string | null;
   quarter: string | null; season_factor: number | null; scheme_mode: string | null; tc_base: number | null;
   participation_src: string | null; cannib_src: string | null; other_cogs_pct: number | null; opex_pct: number | null;
@@ -322,6 +332,10 @@ export interface CampaignData {
     calib_min_n: number;
     calib: CalibRow[];
     programs: PreEvalProgram[];
+    /** file Final: HĐ MKT mang về theo chương trình × tháng (sheet KIEM_SOAT_TC) */
+    tc?: PreEvalTc[];
+    /** file Final: tên file · ngày sửa · mô tả · số tham chiếu file Đóng góp TC */
+    final?: { quarter: string | null; key: string; label: string | null; value: string | number | null }[];
   };
   /** tên CTKM trên POS (chữ thường) → campaign_id */
   pos_map: Record<string, string>;

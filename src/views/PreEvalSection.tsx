@@ -14,7 +14,9 @@ import type { PreEvalInput, PreEvalProgram, TaxItem } from '../types/campaign';
      0 Cách đọc (4 câu hỏi)  →  1 Lọc (quý · quyết định · tìm)  →  2 Tổng quan danh mục
      →  3 Ma trận quyết định (EBITDA Cơ sở × Thận trọng)  →  4 Bảng xếp hạng (không giới hạn số chương trình)
      →  5 Phiếu chi tiết: KẾT LUẬN trước · vì sao · rủi ro · chi tiết tính · giả định & nền · thực tế
-   Mọi số tính ở tools/preeval.py từ sổ Pre_Analysis_2026.xlsx — màn hình chỉ trình bày. */
+   Mọi số tính ở tools/preeval.py từ sổ Pre_Analysis_2026.xlsx — màn hình chỉ trình bày.
+   Quý có file đánh giá bản Final đã trình CEO (S16 · NOIRE_Pre-Analytics_*.xlsx): số lấy NGUYÊN từ file
+   (tools/preeval_final.py), thêm khối Tổng hợp theo brand + HĐ MKT mang về theo tháng đúng trang TONG_HOP. */
 
 const byCode = (items: TaxItem[] = []) => Object.fromEntries(items.map(x => [x.code, x])) as Record<string, TaxItem>;
 const vnd = (x: number | null | undefined) => (x === null || x === undefined ? '—' : formatVND(x));
@@ -142,6 +144,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
             {r.status === 'MAU' && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]">MẪU</span>}
             {r.mode === 'NHANH' && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]">1 DÒNG</span>}
             {r.source?.startsWith('DECK') && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]" title={r.source}>DECK{r.source.includes('sổ') ? ' + SỔ' : ''}</span>}
+            {r.source?.startsWith('FINAL') && <span className="ml-1 rounded bg-brand-gold/20 px-1 text-[9px] text-brand-gold" title={r.source}>FINAL · CEO</span>}
           </div>
         </button>
       ),
@@ -192,8 +195,10 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
 
   const todo = rows.map(r => {
     const b = list.find(x => x.id === r.id)?.scn.CO_SO;
-    let act = list.find(x => x.id === r.id)?.decision_note ?? '';
-    if (pending(r.decision) && r.missing.length)
+    const pr = list.find(x => x.id === r.id);
+    let act = pr?.decision_note ?? '';
+    if (pr?.action) act = pr.action;                    // file Final: đúng chữ cột "Việc cần làm" đã trình CEO
+    else if (pending(r.decision) && r.missing.length)
       act = `Bổ sung ở sổ · dòng ${r.id}: ${r.missing.map(m => FIELD[m]?.label ?? m).join(' · ')}`;
     else if (r.decision === 'DUYET') act = 'Đủ điều kiện — in phiếu trình ký; khi chạy điền campaign_id để đối chiếu thực tế';
     else if (r.decision === 'SUA_CO_CHE' || r.decision === 'CHAY_THU') {
@@ -283,6 +288,9 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
           </div>
         ))}
       </div>
+
+      {/* 2b · FILE FINAL — tổng hợp theo brand + HĐ MKT mang về, đúng trang TONG_HOP trình CEO */}
+      <FinalSummary programs={inQ} />
 
       {/* 3 · MA TRẬN + VIỆC CẦN LÀM */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
@@ -385,7 +393,7 @@ const EvalCard: React.FC<{
   const safetyTone = B.safety_bills === null ? 'text-brand-muted' : B.safety_bills >= 1.5 ? 'text-status-ok' : B.safety_bills >= 1 ? 'text-status-warning' : 'text-status-bad';
 
   return (
-    <Card title={`Phiếu Đánh Giá · ${p.name}`} description={`${p.id} · ${p.brand} · ${p.stores.join(', ')} · ${p.date_from} → ${p.date_to} (${p.days} ngày) · ${p.quarter ?? ''}${p.lock ? ` · 🔒 kế hoạch đã khoá ${dmy(p.lock.locked_at)}${p.lock.reason === 'KHOA_MUON' ? ' (sau ngày chạy)' : ''} — M7.2 so với bản khoá` : ' · chưa khoá (khoá khi DA_DUYET hoặc tới ngày chạy)'}`}
+    <Card title={`Phiếu Đánh Giá · ${p.name}`} description={`${p.id} · ${p.brand} · ${p.stores.join(', ')} · ${p.date_from} → ${p.date_to} (${p.days} ngày) · ${p.quarter ?? ''}${p.lock ? ` · 🔒 kế hoạch đã khoá ${dmy(p.lock.locked_at)}${p.lock.reason === 'KHOA_MUON' ? ' (sau ngày chạy)' : p.lock.reason === 'CEO_FINAL' ? ' (số file Final đã trình CEO)' : ''} — M7.2 so với bản khoá` : ' · chưa khoá (khoá khi DA_DUYET hoặc tới ngày chạy)'}`}
       chip={dec?.label}
       headerAction={
         <button onClick={() => window.print()} className="flex items-center gap-1 rounded-lg border border-brand-border px-2 py-1 text-[11px] text-brand-muted hover:text-brand-text">
@@ -415,6 +423,7 @@ const EvalCard: React.FC<{
               <div className="text-[10px] font-bold uppercase text-brand-muted">→ Quyết định</div>
               <div className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: dec?.color }}>{dec?.label ?? p.decision}</div>
               <div className="mt-1 text-[11px] text-brand-text">{p.decision_note}</div>
+              {p.action && <div className="mt-1 border-t border-brand-border pt-1 text-[11px] text-brand-muted"><b className="text-brand-text">Việc cần làm:</b> {p.action}</div>}
             </div>
           </div>
           {B.gate_flags && <div className="mt-2 rounded-lg bg-status-warningBg p-2 text-[11px] text-status-warning">⚠ Bước 4 · cổng: {B.gate_flags}</div>}
@@ -688,7 +697,7 @@ const InputTable: React.FC<{ rows: PreEvalInput[] }> = ({ rows }) => {
                 {r.value !== null ? <span className="break-words text-brand-text">{show(r.value)}</span> : <span className="text-brand-faint">trống</span>}
                 {r.hint && r.status !== 'OK' && <div className="text-[10px] italic text-brand-muted">{r.hint}</div>}
               </td>
-              <td className="py-1 pr-2 text-brand-muted">{r.source === 'SO' ? 'Sổ' : r.source === 'DECK' ? 'File deck' : '—'}</td>
+              <td className="py-1 pr-2 text-brand-muted">{r.source === 'SO' ? 'Sổ' : r.source === 'DECK' ? 'File deck' : r.source === 'FINAL' ? 'File Final' : '—'}</td>
               <td className={`py-1 font-bold ${r.status === 'THIEU' ? 'text-status-bad' : r.status === 'OK' ? 'text-status-ok' : 'text-brand-muted'}`}>
                 {r.status === 'THIEU' ? 'THIẾU — cần bổ sung' : r.status === 'OK' ? 'Có' : r.level === 'recommended' ? 'Trống — dùng mặc định' : 'Trống'}
               </td>
@@ -722,6 +731,16 @@ const PendingCard: React.FC<{ p: PreEvalProgram; dec?: TaxItem }> = ({ p, dec })
               <div className="mt-0.5 text-base font-extrabold leading-tight" style={{ color: dec?.color }}>{dec?.label ?? p.decision}</div>
               <div className="mt-1 text-[11px] text-brand-text">{p.decision_note}</div>
             </div>
+            {p.input_source?.startsWith('FINAL') ? (
+              <div className="rounded-xl border border-brand-border p-3 lg:col-span-2">
+                <div className="text-[10px] font-bold uppercase text-brand-muted">Hạng mục có trong plan nhưng chưa chấm</div>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11px] text-brand-text">
+                  <li>File Final (<span className="break-all">{p.input_source.replace('FINAL: ', '')}</span>, trang TONG_HOP mục 4) để hạng mục này ở trạng thái CHỜ — chưa chạy khi chưa có phiếu đánh giá.</li>
+                  <li>Đầu mối bổ sung phần còn thiếu ghi ở ô Quyết định bên trái.</li>
+                  <li>Khi đủ dữ kiện: thêm chương trình vào file Final (sheet CHUONG_TRINH · CO_CHE) hoặc sổ Pre_Analysis → chạy <b>CAP_NHAT.bat</b>.</li>
+                </ol>
+              </div>
+            ) : (
             <div className="rounded-xl border border-brand-border p-3 lg:col-span-2">
               <div className="text-[10px] font-bold uppercase text-brand-muted">Cách bổ sung</div>
               <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11px] text-brand-text">
@@ -732,12 +751,130 @@ const PendingCard: React.FC<{ p: PreEvalProgram; dec?: TaxItem }> = ({ p, dec })
                 <li>Lưu sổ → chạy <b>CAP_NHAT.bat</b>. Chương trình tự được tính và xếp vào Duyệt / Chạy thử / Sửa cơ chế.</li>
               </ol>
             </div>
+            )}
           </div>
         </section>
         <section>
           <H n="E" t="Dữ liệu đầu vào chuẩn" sub={`${p.inputs.filter(i => i.status === 'THIEU').length} trường bắt buộc còn thiếu · ô trống có gợi ý "deck ghi gì"`} />
           <InputTable rows={p.inputs} />
         </section>
+      </div>
+    </Card>
+  );
+};
+
+/* ───────── 2b · FILE FINAL ĐÃ TRÌNH CEO — tổng hợp theo brand + HĐ MKT mang về (trang TONG_HOP · KIEM_SOAT_TC) ───────── */
+const monthLabel = (m: string) => (/^\d{4}-\d{2}$/.test(m) ? `T${+m.slice(5, 7)}/${m.slice(2, 4)}` : m);
+
+const FinalSummary: React.FC<{ programs: PreEvalProgram[] }> = ({ programs }) => {
+  const PE = CAMPAIGN.preeval;
+  const fp = programs.filter(p => p.input_source?.startsWith('FINAL'));
+  if (!fp.length) return null;
+  const scored = fp.filter(p => !pending(p.decision));
+  const quarters = Array.from(new Set(fp.map(p => p.quarter).filter(Boolean) as string[])).sort();
+  const meta = (k: string) => (PE.final || []).filter(m => quarters.includes(m.quarter ?? '') && m.key === k).map(m => m.value);
+  const run = (p: PreEvalProgram) => p.decision === 'DUYET' || p.decision === 'CHAY_THU';
+  const sum = (ps: PreEvalProgram[], f: (p: PreEvalProgram) => number | null | undefined) => ps.reduce((a, p) => a + (f(p) ?? 0), 0);
+  const agg = (ps: PreEvalProgram[]) => {
+    const r = ps.filter(run);
+    const eb = sum(r, p => p.scn.CO_SO?.ebitda), spend = sum(r, p => p.scn.CO_SO?.promo_cost);
+    return {
+      n: ps.length, d: ps.filter(p => p.decision === 'DUYET').length, t: ps.filter(p => p.decision === 'CHAY_THU').length,
+      s: ps.filter(p => p.decision === 'SUA_CO_CHE').length, b: ps.filter(p => p.decision === 'BRANDING').length,
+      net: sum(r, p => p.scn.CO_SO?.net_incr), spend, low: sum(r, p => p.scn.THAN_TRONG?.ebitda), base: eb,
+      high: sum(r, p => p.scn.LAC_QUAN?.ebitda), roi: spend ? eb / spend : null,
+      brandCost: sum(ps.filter(p => p.decision === 'BRANDING'), p => p.scn.CO_SO?.promo_cost),
+      all: sum(ps, p => p.scn.CO_SO?.ebitda),
+    };
+  };
+  const brands = Array.from(new Set(scored.map(p => p.brand))).sort();
+  const rows = [...brands.map(b => ({ key: b, ...agg(scored.filter(p => p.brand === b)) })),
+    { key: `TỔNG ${quarters.map(q => q.replace('-', ' ')).join(' · ')}`, ...agg(scored) }];
+
+  // HĐ MKT mang về — chỉ dòng "Mục 1" (chương trình promotion), đúng cách file Final cộng sang file Đóng góp TC
+  const ids = new Set(scored.map(p => p.id));
+  const brandOf = Object.fromEntries(scored.map(p => [p.id, p.brand]));
+  const tc = (PE.tc || []).filter(r => ids.has(r.program_id) && r.tc_section === 'Mục 1');
+  const months = Array.from(new Set(tc.map(r => r.month))).sort();
+  const tcRow = (b: string | null) => {
+    const rs = tc.filter(r => b === null || brandOf[r.program_id] === b);
+    const by = months.map(m => rs.filter(r => r.month === m).reduce((a, r) => a + (r.mkt_bills ?? 0), 0));
+    return { by, total: by.reduce((a, x) => a + x, 0) };
+  };
+  const refNum = (k: string) => { const v = meta(k)[0]; return typeof v === 'number' ? v : null; };
+  const refTxt = (k: string) => { const v = refNum(k); return v === null ? '—' : formatNumber(v); };
+  const file = meta('file').join(' · ');
+
+  return (
+    <Card title="Tổng Hợp File Final — Đã Trình CEO"
+      description={`Số lấy NGUYÊN từ ${file || 'file Final'} (sửa ${meta('file_date').map(d => dmyFull(String(d))).join(', ')}) — đúng trang TONG_HOP. D+CT = Duyệt + Chạy thử · Branding duyệt theo ngân sách, không chấm EBITDA${fp.length > scored.length ? ` · ${fp.length - scored.length} hạng mục trong plan chưa chấm (THIẾU DỮ LIỆU)` : ''}`}
+      chip="FINAL · CEO">
+      <div className="space-y-4">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1080px] text-[11px]">
+            <thead>
+              <tr className="text-[10px] text-brand-muted">
+                <th className="text-left">Brand</th><th className="text-right">Số CT</th><th className="text-right">Duyệt</th>
+                <th className="text-right">Chạy thử</th><th className="text-right">Sửa cơ chế</th><th className="text-right">Branding</th>
+                <th className="text-right">DT thuần tăng thêm (D+CT)</th><th className="text-right">Chi ưu đãi (D+CT)</th>
+                <th className="text-right">EBITDA Thận trọng</th><th className="text-right">EBITDA Cơ sở</th><th className="text-right">EBITDA Lạc quan</th>
+                <th className="text-right">ROI gộp</th><th className="text-right">Chi phí Branding</th><th className="text-right">EBITDA Cơ sở toàn bộ CT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.key} className={`border-t border-brand-border font-mono ${i === rows.length - 1 ? 'font-bold' : ''}`}>
+                  <td className="py-1.5 pr-2 font-sans font-bold text-brand-text">{r.key}</td>
+                  <td className="text-right">{r.n}</td><td className="text-right text-status-ok">{r.d}</td>
+                  <td className="text-right text-status-warning">{r.t}</td><td className="text-right text-status-bad">{r.s}</td>
+                  <td className="text-right text-brand-muted">{r.b}</td>
+                  <td className={`text-right ${tone(r.net)}`}>{vnd(r.net)}</td><td className="text-right">{vnd(r.spend)}</td>
+                  <td className={`text-right ${tone(r.low)}`}>{signed(r.low)}</td><td className={`text-right ${tone(r.base)}`}>{signed(r.base)}</td>
+                  <td className={`text-right ${tone(r.high)}`}>{signed(r.high)}</td>
+                  <td className="text-right">{r.roi === null ? '—' : `${formatNumber(r.roi, 2)}×`}</td>
+                  <td className="text-right text-brand-muted">{vnd(r.brandCost)}</td><td className={`text-right ${tone(r.all)}`}>{signed(r.all)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-1 text-[10px] text-brand-faint">
+            ROI gộp = EBITDA Cơ sở ÷ chi ưu đãi của CT Duyệt + Chạy thử · Chi phí Branding = POSM &amp; Merchandise chưa gán + sự kiện branding ·
+            EBITDA toàn bộ gồm cả Branding và Sửa cơ chế. Opex ~8,7–9,2% DT thuần là số tạm, chờ Finance khoá.
+          </div>
+        </div>
+
+        {months.length > 0 && (
+          <div className="overflow-x-auto">
+            <div className="mb-1 text-[11px] font-bold text-brand-text">HĐ MKT mang về từ chương trình promotion (Mục 1 file Đóng góp TC) — ước tính 100%, chưa nhân tỷ lệ đạt</div>
+            <table className="w-full min-w-[520px] font-mono text-[11px]">
+              <thead>
+                <tr className="text-[10px] text-brand-muted">
+                  <th className="text-left font-sans">Brand</th>
+                  {months.map(m => <th key={m} className="text-right">{monthLabel(m)}</th>)}
+                  <th className="text-right">Cả kỳ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...brands, null].map(b => {
+                  const r = tcRow(b);
+                  return (
+                    <tr key={b ?? 'ALL'} className={`border-t border-brand-border ${b === null ? 'font-bold' : ''}`}>
+                      <td className="py-1 font-sans font-bold text-brand-text">{b ?? 'Tổng'}</td>
+                      {r.by.map((x, i) => <td key={months[i]} className="text-right">{formatNumber(x)}</td>)}
+                      <td className="text-right font-bold">{formatNumber(r.total)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="mt-1 text-[10px] text-brand-faint">
+              HĐ MKT mang về = HĐ dùng chương trình × (1 − %cannib), chia tháng theo số ngày chạy. Chương trình đang chạy tiếp (Extra Value) tính ở Mục 3, branding không cộng.
+              {refNum('tc_forecast') !== null && <> Tham chiếu file Đóng góp TC (cả hệ thống): Ads tin nhắn → đặt bàn {refTxt('tc_ads')} HĐ ·
+                chương trình đang chạy tiếp {refTxt('tc_running')} HĐ · tỷ lệ đạt {pct(refNum('tc_hit_rate'))} ·
+                HĐ MKT đóng góp sau tỷ lệ đạt {refTxt('tc_mkt_after')} · TC dự phóng {refTxt('tc_forecast')} / mục tiêu {refTxt('tc_target')}.</>}
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   );

@@ -5,9 +5,9 @@
 | **Câu hỏi** | Nếu chạy chương trình này thì sẽ ra sao? |
 | **`activeView`** | `m71` *(mục con của M7)* |
 | **View** | `src/views/PreAnalyticsView.tsx` + `src/views/PreEvalSection.tsx` (phiếu đánh giá) |
-| **ETL** | `tools/pre_analysis.py` (bộ đọc DUY NHẤT file S16) → `tools/campaign.py` → sheet `pre_plan` → `CAMPAIGN.plan` · file deck quý (Q4/2026+) → mẫu chuẩn → `tools/preeval.py` → `pre_eval` · `pre_eval_input` (§0.8) |
+| **ETL** | `tools/pre_analysis.py` (bộ đọc DUY NHẤT file S16) → `tools/campaign.py` → sheet `pre_plan` → `CAMPAIGN.plan` · file deck quý (Q4/2026+) → mẫu chuẩn → `tools/preeval.py` → `pre_eval` · `pre_eval_input` (§0.8) · **file đánh giá quý bản Final đã trình CEO → `tools/preeval_final.py` → số NGUYÊN của file (§0.12)** |
 | **Giai đoạn** | P5.5 |
-| **Trạng thái** | ✅ **25 chương trình kế hoạch · nối 5 chương trình đã chạy trên POS, hiện thực tế cạnh kế hoạch** · ⚠️ `Growth%` vẫn là giả định gõ tay |
+| **Trạng thái** | ✅ **Q4/2026 theo file Final đã trình CEO (14/10/2026): 31 chương trình chấm (20 Duyệt · 4 Chạy thử · 7 Branding) + 5 hạng mục chưa chấm** · Q3 lập tay (S16) thu gọn cuối trang · ⚠️ opex ~8,7–9,2% DT thuần là số tạm chờ Finance |
 | **Sổ đánh giá chuẩn** | ✅ `L0_input/03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia/Pre_Analysis_2026.xlsx` (S24) → `tools/preeval.py` → `data_input/04_preeval.xlsx` → phiếu đánh giá trên M7.1 · 3 chương trình mẫu |
 
 ---
@@ -213,6 +213,48 @@ Dòng **dùng được** = đã chốt · đo được lift · khoá TRƯỚC ng
 (`$preeval.calib_min_n`) thì tools/preeval.py thay %cannib và %tham gia **mặc định** (ô sổ để trống) bằng trung vị
 thực tế — nguồn ghi ở mục E của phiếu. `CAP_NHAT.bat` chạy M7.1 → M7.2 → M7.1 để vòng này khép trong một lần.
 Hiện (23/09): 3 dòng, 0 dùng được (2 khoá muộn · 1 chưa khoá) — giả định vẫn theo hợp đồng.
+
+### 0.12 File đánh giá quý bản Final đã trình CEO *(14/10/2026)*
+
+Team dựng file đánh giá quý **trên bản xuất M7.1** rồi chỉnh theo MKT Plan bản Final và trình CEO:
+`L0_input/03_MARKETING/05_Promotion_Ke_Hoach/NOIRE_Pre-Analytics_Q4.2026_Final.xlsx` (nguồn S16, định dạng `FINAL` —
+nhận ra khi có đủ sheet `TINH_TOAN` · `XEP_HANG` · `CHUONG_TRINH`; mẫu tên `NOIRE_Pre-Analytics_*.xlsx`).
+
+**Vì sao không tính lại.** Số trên file đã trình CEO: nền POS 01/01–30/09, số HĐ neo theo số đo Q3/T9 (sheet
+`GIA_DINH`), chi phí theo plan Final. Bộ tính chạy lại mỗi lần cập nhật với nền POS mới nhất nên sẽ trôi khỏi số đã
+trình. Vì vậy file Final là **nguồn thắng cho đúng quý của nó**: `tools/preeval.py` tính như cũ rồi gọi
+`tools/preeval_final.py · apply()` — mọi chương trình cùng quý được thay bằng số NGUYÊN của file (tiền làm tròn tới
+đồng như bộ tính, số HĐ 2 chữ số lẻ). Chương trình ở sổ cùng quý mà file Final không chấm thì bỏ (Q4/2026:
+`ALL-2026-10-LOYALTY` — file chuyển sang "chưa chấm"). Quý khác (mẫu Q2/Q3) giữ nguyên.
+
+| Bảng M7.1 | Lấy từ sheet file Final | Ghi chú |
+|---|---|---|
+| `pre_eval` (3 kịch bản) | `TINH_TOAN` + `XEP_HANG` (quyết định · lý do · **Việc cần làm** → cột `action`) + `CHUONG_TRINH` | `input_source = FINAL: <file>` · giữ `campaign_id` của sổ |
+| `pre_eval_fin` (PP672) | `TINH_TOAN`: NỀN · KHÁCH VỐN SẼ ĐẾN · CÓ KM | cùng dòng / cùng nghĩa bộ tính |
+| `pre_eval_scheme` | `CO_CHE` | V · d · giá vốn · quà theo scheme |
+| `pre_eval_base` | `NEN_POS` | kỳ nền 56 ngày theo cửa hàng |
+| `pre_eval_input` | `CHUONG_TRINH` + `CO_CHE` + `MON` | nguồn `FINAL` — nội dung · cơ chế · timeline · ghi chú [14/10 · CHỐT] |
+| `pre_eval_tc` *(mới)* | `KIEM_SOAT_TC` | HĐ MKT mang về theo tháng · mục ở file Đóng góp TC |
+| `pre_eval_final` *(mới)* | `TONG_HOP` dòng 2 + khối tham chiếu `KIEM_SOAT_TC` | tên file · ngày sửa · Ads mục 2 · mục 3 · tỷ lệ đạt · TC dự phóng / mục tiêu |
+| `THIEU_SO` (5 dòng) | `TONG_HOP` mục 4 — hạng mục có trong plan nhưng chưa chấm | mã `<BRAND>-2026Q4-<TÊN>` · ghi còn thiếu gì + đầu mối |
+| `pre_eval_fix` | — | file Final không có bộ giải "Cách sửa"; Việc cần làm lấy đúng chữ của file |
+
+**Khoá kế hoạch.** Mọi chương trình đã chấm của file Final khoá bằng chính số file — `lock_reason = CEO_FINAL`,
+`locked_at` = ngày sửa file — thay bản khoá cũ tự chụp từ bộ tính (bản 01/10 của các chương trình tháng 10). M7.2 so thực
+tế với số đã trình CEO. Bản khoá cũ còn trong lịch sử git của `data_input/05_plan_lock.xlsx`.
+
+**Màn hình.** Bảng xếp hạng gắn nhãn `FINAL · CEO`; *Việc Cần Làm* và mục A của phiếu hiện đúng chữ cột "Việc cần làm"
+của file; thêm khối **Tổng Hợp File Final — Đã Trình CEO** (dưới Tổng quan): theo brand đúng trang `TONG_HOP` (số CT ·
+quyết định · DT thuần tăng thêm · chi ưu đãi · EBITDA 3 kịch bản của D+CT · ROI gộp · chi phí Branding · EBITDA toàn bộ)
+và HĐ MKT mang về theo tháng (chỉ "Mục 1", đúng cách file cộng sang file Đóng góp TC). Các ô này là tỷ trọng / số kế hoạch,
+không phải so sánh kỳ — không gắn icon tăng / giảm (QT2.6).
+
+**Đối chiếu khi nạp (14/10/2026).** Từng chương trình khớp `XEP_HANG` tới đồng. Tổng Q4: 31 CT · 20 Duyệt · 4 Chạy thử ·
+7 Branding · DT thuần tăng thêm (D+CT) 929,0 tr · chi ưu đãi 211,9 tr · EBITDA Thận trọng / Cơ sở / Lạc quan 205,7 /
+384,2 / 562,6 tr · ROI gộp 1,81× · chi phí Branding 170,9 tr · EBITDA toàn danh mục 442,3 tr · HĐ MKT mang về 1.092
+(NCB 311 · NDC 536 · NJFB 245). Dòng tổng lệch file ≤ 4 đ do làm tròn từng chương trình về đồng.
+
+**Đổi file.** Thả bản mới cùng quý (cùng mẫu tên) → `CAP_NHAT.bat`; hệ thống lấy file Final sửa gần nhất của mỗi quý.
 
 ---
 ## 1. Vị trí kiến trúc — vì sao không phải tầng L5

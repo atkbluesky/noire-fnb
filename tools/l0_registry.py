@@ -146,16 +146,20 @@ SOURCES = [
     dict(
         id="S16_pre_analytics", group="03_MARKETING", dir="03_MARKETING/05_Promotion_Ke_Hoach",
         name="Pre-Analysis chương trình khuyến mãi", cadence="quarterly", since="2026-07", required=False,
-        pattern="NOIRE_Promotion_Pre-Analysis*.xlsx | NOIRE_Promotion_Pre-Analysis*.xlsm",
+        pattern="NOIRE_Promotion_Pre-Analysis*.xlsx | NOIRE_Promotion_Pre-Analysis*.xlsm | NOIRE_Pre-Analytics_*.xlsx",
         example="NOIRE_Promotion_Pre-Analysis_Q4_2026.xlsm",
         how="Kế hoạch chương trình khuyến mãi, một file mỗi quý (.xlsx hoặc .xlsm). Hai định dạng: "
             "(1) file deck theo quý — sheet `Master Plan` (+ Pre-Analysis · Budget · Calendar), Q4/2026 trở đi: hệ thống "
             "TỰ CHUYỂN từng chương trình sang mẫu chuẩn M7.1 (cột sheet `chuong_trinh` của sổ Pre_Analysis_2026.xlsx); "
             "ô deck không ghi rõ (ngày, cửa hàng, cơ chế ưu đãi) để trống và M7.1 yêu cầu bổ sung ở sổ, dòng cùng program_id; "
             "(2) 6 sheet loại Combo · Discount · Gift · LTO · Voucher · Activation (Q3/2026) — nguồn target + chi phí kế hoạch "
-            "cho M7.2, chương trình đã chạy nối qua cột `pre_id` ở Campaign_Tracking.",
-        produces=["pre_plan", "pre_q3", "pre_eval", "pre_eval_input"],
-        via="tools/pre_analysis.py → tools/campaign.py (Q3) · tools/preeval.py (deck quý)", modules=["M7.1", "M7.2"],
+            "cho M7.2, chương trình đã chạy nối qua cột `pre_id` ở Campaign_Tracking; "
+            "(3) file đánh giá quý BẢN FINAL đã trình CEO `NOIRE_Pre-Analytics_Q<quý>.<năm>_Final.xlsx` (sheet "
+            "TINH_TOAN · XEP_HANG · CHUONG_TRINH · CO_CHE · NEN_POS · KIEM_SOAT_TC · TONG_HOP): M7.1 lấy NGUYÊN số của file "
+            "cho đúng quý đó (không tính lại), khoá kế hoạch M7.2 bằng số này.",
+        produces=["pre_plan", "pre_q3", "pre_eval", "pre_eval_input", "pre_eval_tc", "pre_eval_final"],
+        via="tools/pre_analysis.py → tools/campaign.py (Q3) · tools/preeval.py (deck quý) · tools/preeval_final.py (file Final)",
+        modules=["M7.1", "M7.2"],
     ),
     dict(
         id="S24_preeval", group="03_MARKETING", dir="03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia",
@@ -364,7 +368,7 @@ SCHEMA = {
                        ("Lượt xem bài đăng", "Lượt xem video", "Video Views")]),
     "S10_budget": dict(sheets=[["Summary"], ["Budget Brand"], ["Budget Store Ads"]]),
     # định dạng quý đặt mã quý trong tên sheet (`03_Q4 Master Plan`) → so theo mẫu `*`
-    "S16_pre_analytics": dict(sheets=[["1. Tổng hợp (Master)", "*Master Plan"]]),
+    "S16_pre_analytics": dict(sheets=[["1. Tổng hợp (Master)", "*Master Plan", "TINH_TOAN"]]),
     "S19_aggregator": dict(sheets=[["AGG_THANG"]]),
     "S25_mkt_report": dict(sheets=[["Budget"]]),
     "S11_voucher": dict(sheets=[None], cols=["Mã khuyến mãi", "Chương trình", "Trạng thái",

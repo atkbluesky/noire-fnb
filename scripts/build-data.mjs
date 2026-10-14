@@ -1658,6 +1658,8 @@ function buildCampaign(tables) {
           id: r.program_id, name: r.name, brand: r.brand, stores: String(r.stores ?? '').split('|').filter(Boolean),
           date_from: r.date_from, date_to: r.date_to, days: num(r.days), objective: r.objective ?? null,
           lever: r.lever ?? null, status: r.status ?? null, decision: r.decision, decision_note: r.decision_note ?? null,
+          // file đánh giá quý bản Final (S16): cột 'Việc cần làm' của file — null với chương trình bộ tính tự chấm
+          action: r.action ?? null,
           campaign_id: r.campaign_id ?? null, quarter: r.quarter ?? null, season_factor: num(r.season_factor),
           scheme_mode: r.scheme_mode ?? null, tc_base: num(r.tc_base), participation_src: r.participation_src ?? null,
           cannib_src: r.cannib_src ?? null, other_cogs_pct: num(r.other_cogs_pct), opex_pct: num(r.opex_pct),
@@ -1705,6 +1707,15 @@ function buildCampaign(tables) {
         }));
         return p;
       }),
+      // file đánh giá quý bản Final đã trình CEO (tools/preeval_final.py): HĐ MKT mang về theo tháng + thông tin file
+      tc: T(tables, 'pre_eval_tc').map((r) => ({
+        program_id: r.program_id, quarter: r.quarter ?? null, month: r.month, mkt_bills: num(r.mkt_bills),
+        bills_used: num(r.bills_used), unit_per_bill: num(r.unit_per_bill), incr_share: num(r.incr_share),
+        mkt_bills_total: num(r.mkt_bills_total), tc_section: r.tc_section ?? null, note: r.note ?? null,
+      })),
+      final: T(tables, 'pre_eval_final').map((r) => ({
+        quarter: r.quarter ?? null, key: r.key, label: r.label ?? null, value: r.value ?? null,
+      })),
     },
     plan: T(tables, 'pre_plan').map((r) => ({
       pre_id: r.pre_id, campaign_id: r.campaign_id ?? null, name: r.name, brand: r.brand, kind: r.kind,
