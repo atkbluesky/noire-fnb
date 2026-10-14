@@ -16,7 +16,7 @@ import type { PreEvalInput, PreEvalProgram, TaxItem } from '../types/campaign';
      →  5 Phiếu chi tiết: KẾT LUẬN trước · vì sao · rủi ro · chi tiết tính · giả định & nền · thực tế
    Mọi số tính ở tools/preeval.py từ sổ Pre_Analysis_2026.xlsx — màn hình chỉ trình bày.
    Quý có file đánh giá bản Final đã trình CEO (S16 · NOIRE_Pre-Analytics_*.xlsx): số lấy NGUYÊN từ file
-   (tools/preeval_final.py), thêm khối Tổng hợp theo brand + HĐ MKT mang về theo tháng đúng trang TONG_HOP. */
+   (tools/preeval_final.py). */
 
 const byCode = (items: TaxItem[] = []) => Object.fromEntries(items.map(x => [x.code, x])) as Record<string, TaxItem>;
 const vnd = (x: number | null | undefined) => (x === null || x === undefined ? '—' : formatVND(x));
@@ -144,7 +144,6 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
             {r.status === 'MAU' && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]">MẪU</span>}
             {r.mode === 'NHANH' && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]">1 DÒNG</span>}
             {r.source?.startsWith('DECK') && <span className="ml-1 rounded bg-brand-border px-1 text-[9px]" title={r.source}>DECK{r.source.includes('sổ') ? ' + SỔ' : ''}</span>}
-            {r.source?.startsWith('FINAL') && <span className="ml-1 rounded bg-brand-gold/20 px-1 text-[9px] text-brand-gold" title={r.source}>FINAL · CEO</span>}
           </div>
         </button>
       ),
@@ -289,16 +288,13 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
         ))}
       </div>
 
-      {/* 2b · FILE FINAL — tổng hợp theo brand + HĐ MKT mang về, đúng trang TONG_HOP trình CEO */}
-      <FinalSummary programs={inQ} />
-
       {/* 3 · MA TRẬN + VIỆC CẦN LÀM */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <Card title="Ma Trận Quyết Định" description="Mỗi chấm = 1 chương trình · phải = có lãi (bước 1) · trên = chịu được rủi ro (bước 2) · cỡ chấm = chi ưu đãi · bấm chấm để mở phiếu" chip="MATRIX" className="xl:col-span-3">
+        <Card title="Ma Trận Quyết Định" description="Ngang = EBITDA Cơ sở · dọc = EBITDA Thận trọng · cỡ chấm = chi ưu đãi" chip="MATRIX" className="xl:col-span-3">
           {mrows.length ? <EChartWrapper option={matrix} height={340} onEvents={{ click: (p: any) => setSelId(mrows[p.dataIndex]?.id ?? null) }} />
             : <div className="p-6 text-xs text-brand-muted">Không có chương trình trong bộ lọc.</div>}
         </Card>
-        <Card title="Việc Cần Làm" description="Mỗi chương trình một hành động — con số từ bộ giải Cách sửa (mục C2 của phiếu): đòn bẩy phải đổi ít nhất, ưu tiên giảm chi ưu đãi / chi phí" chip={`${todo.filter(t => t.decision !== 'DUYET').length} CẦN XỬ LÝ`} className="xl:col-span-2">
+        <Card title="Việc Cần Làm" description="Mỗi chương trình một hành động" chip={`${todo.filter(t => t.decision !== 'DUYET').length} CẦN XỬ LÝ`} className="xl:col-span-2">
           <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
             {todo.map(t => (
               <button key={t.id} onClick={() => setSelId(t.id)}
@@ -317,7 +313,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
       </div>
 
       {/* 4 · BẢNG XẾP HẠNG — không giới hạn số chương trình */}
-      <Card title="Bảng Xếp Hạng Chương Trình" description="Đọc cột ① → ④ từ trái sang phải · mặc định: quyết định rồi EBITDA cơ sở · bấm tiêu đề cột để sắp lại · bấm tên để mở phiếu · 10 dòng/trang" chip={`${rows.length} CT`}>
+      <Card title="Bảng Xếp Hạng Chương Trình" description="Sắp theo quyết định rồi EBITDA Cơ sở · bấm tên để xem phiếu" chip={`${rows.length} CT`}>
         <DataTable columns={columns} data={rows} searchable={false} pageSize={10} exportFilename="m7_1_xep_hang" emptyMessage="Không có chương trình trong bộ lọc" />
       </Card>
 
@@ -393,7 +389,7 @@ const EvalCard: React.FC<{
   const safetyTone = B.safety_bills === null ? 'text-brand-muted' : B.safety_bills >= 1.5 ? 'text-status-ok' : B.safety_bills >= 1 ? 'text-status-warning' : 'text-status-bad';
 
   return (
-    <Card title={`Phiếu Đánh Giá · ${p.name}`} description={`${p.id} · ${p.brand} · ${p.stores.join(', ')} · ${p.date_from} → ${p.date_to} (${p.days} ngày) · ${p.quarter ?? ''}${p.lock ? ` · 🔒 kế hoạch đã khoá ${dmy(p.lock.locked_at)}${p.lock.reason === 'KHOA_MUON' ? ' (sau ngày chạy)' : p.lock.reason === 'CEO_FINAL' ? ' (số file Final đã trình CEO)' : ''} — M7.2 so với bản khoá` : ' · chưa khoá (khoá khi DA_DUYET hoặc tới ngày chạy)'}`}
+    <Card title={`Phiếu Đánh Giá · ${p.name}`} description={`${p.brand} · ${p.stores.join(', ')} · ${dmyFull(p.date_from)} → ${dmyFull(p.date_to)} · ${p.days} ngày`}
       chip={dec?.label}
       headerAction={
         <button onClick={() => window.print()} className="flex items-center gap-1 rounded-lg border border-brand-border px-2 py-1 text-[11px] text-brand-muted hover:text-brand-text">
@@ -403,7 +399,7 @@ const EvalCard: React.FC<{
       <div className="space-y-6 text-xs">
         {/* A · KẾT LUẬN */}
         <section>
-          <H n="A" t="Kết luận" sub="đọc 4 ô từ trái sang phải → quyết định" />
+          <H n="A" t="Kết luận" />
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
             {[
               ['1 · Có lãi không?', signed(B.ebitda), 'EBITDA tăng thêm · Cơ sở', tone(B.ebitda)],
@@ -550,59 +546,16 @@ const EvalCard: React.FC<{
           </div>
         </section>
 
-        {/* E · GIẢ ĐỊNH & NỀN */}
-        <section>
-          <H n="E" t="Giả định & dữ liệu nền" sub="đổi giả định ở sổ Pre_Analysis_2026.xlsx → CAP_NHAT.bat" />
-          <div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2 xl:grid-cols-3">
-            <div><span className="text-brand-muted">Nhập liệu:</span> {p.scheme_mode === 'NHANH' ? '1 dòng — cơ chế nhanh' : `chi tiết — ${p.schemes.length} scheme`}</div>
-            <div><span className="text-brand-muted">Khách tham gia:</span> {p.participation_src}</div>
-            <div><span className="text-brand-muted">%Cannib:</span> {pct(B.cannib)} — {p.cannib_src}</div>
-            <div><span className="text-brand-muted">COGS món khác:</span> {pct(p.other_cogs_pct)} (mặc định brand, Kế toán khoá)</div>
-            <div><span className="text-brand-muted">Chi phí vận hành biến đổi:</span> {pct(p.opex_pct, 1)} DT thuần tăng thêm</div>
-            <div><span className="text-brand-muted">Hệ số mùa vụ:</span> ×{formatNumber(p.season_factor ?? 1, 2)} · <span className="text-brand-muted">Kỳ nền:</span> {p.base_note}</div>
-            <div><span className="text-brand-muted">Nguồn nhập:</span> {p.input_source === 'SO' || !p.input_source ? 'sổ Pre_Analysis_2026.xlsx' : p.input_source}</div>
-          </div>
-          {p.inputs.length > 0 && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-[11px] text-brand-muted">Dữ liệu đầu vào chuẩn — {p.inputs.filter(i => i.status === 'OK').length}/{p.inputs.length} trường có số · bấm để xem</summary>
-              <InputTable rows={p.inputs} />
-            </details>
-          )}
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[720px] font-mono text-[11px]">
-              <thead>
-                <tr className="text-[10px] text-brand-muted">
-                  <th className="text-left font-sans">Cửa hàng</th><th className="text-left font-sans">Kỳ nền</th><th className="text-right">Ngày</th>
-                  <th className="text-right">TC / ngày</th><th className="text-right">AOV</th><th className="text-right">TA</th>
-                  <th className="text-right">Doanh thu / ngày</th><th className="text-right">% giảm giá</th><th className="text-right">Hệ số thuế/phí</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.base.map(b => (
-                  <tr key={b.store} className="border-t border-brand-border">
-                    <td className="py-1 font-sans font-bold">{b.store}</td>
-                    <td className="font-sans text-[10px] text-brand-muted">{b.from ? `${b.from} → ${b.to}` : b.note}</td>
-                    <td className="text-right">{b.days ?? '—'}</td><td className="text-right">{b.tc_day === null ? '—' : formatNumber(b.tc_day, 1)}</td>
-                    <td className="text-right">{vnd(b.aov)}</td><td className="text-right">{vnd(b.ta)}</td>
-                    <td className="text-right">{b.net !== null && b.days ? formatVND(b.net / b.days) : '—'}</td>
-                    <td className="text-right">{pct(b.disc_share, 1)}</td><td className="text-right">{b.tax_factor === null ? '—' : formatNumber(b.tax_factor, 3)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* F · THỰC TẾ — kế hoạch đã khoá cạnh thực tế cùng công thức (M7.2) */}
+        {/* E · THỰC TẾ — kế hoạch cạnh thực tế cùng công thức (M7.2) */}
         {actual?.m71 && (
           <section>
-            <H n="F" t="Đã chạy — kế hoạch đã khoá ↔ thực tế (M7.2)" />
+            <H n="E" t="Thực tế so với kế hoạch" />
             <PromoScoreTable c={actual} />
           </section>
         )}
         {actual && !actual.m71 && (
           <section>
-            <H n="F" t="Đã chạy — thực tế (M7.2) cạnh dự báo" />
+            <H n="E" t="Thực tế so với dự báo" />
             <table className="w-full max-w-xl font-mono text-[11px]">
               <thead><tr className="text-[10px] text-brand-muted"><th className="text-left font-sans">Chỉ số</th><th className="text-right">Dự báo (cơ sở)</th><th className="text-right">Thực tế</th></tr></thead>
               <tbody>
@@ -720,7 +673,7 @@ const PendingCard: React.FC<{ p: PreEvalProgram; dec?: TaxItem }> = ({ p, dec })
   );
   return (
     <Card title={`Phiếu Đánh Giá · ${p.name}`}
-      description={`${p.id} · ${p.brand} · ${p.stores.join(', ') || 'chưa có cửa hàng'} · ${p.date_from ?? '?'} → ${p.date_to ?? '?'} · ${p.quarter ?? ''} · nguồn: ${p.input_source ?? 'sổ'}`}
+      description={`${p.brand}${p.stores.length ? ` · ${p.stores.join(', ')}` : ''}${p.date_from ? ` · ${dmyFull(p.date_from)} → ${dmyFull(p.date_to)}` : ''}`}
       chip={dec?.label}>
       <div className="space-y-6 text-xs">
         <section>
@@ -733,13 +686,8 @@ const PendingCard: React.FC<{ p: PreEvalProgram; dec?: TaxItem }> = ({ p, dec })
             </div>
             {p.input_source?.startsWith('FINAL') ? (
               <div className="rounded-xl border border-brand-border p-3 lg:col-span-2">
-                <div className="text-[10px] font-bold uppercase text-brand-muted">Hạng mục có trong plan nhưng chưa chấm</div>
-                <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11px] text-brand-text">
-                  <li>File Final (<span className="break-all">{p.input_source.replace('FINAL: ', '')}</span>, trang TONG_HOP mục 4) để hạng mục này ở trạng thái CHỜ — chưa chạy khi chưa có phiếu đánh giá.</li>
-                  <li>Đầu mối bổ sung phần còn thiếu ghi ở ô Quyết định bên trái.</li>
-                  <li>Khi đủ dữ kiện: thêm chương trình vào file Final (sheet CHUONG_TRINH · CO_CHE) hoặc sổ Pre_Analysis → chạy <b>CAP_NHAT.bat</b>.</li>
-                </ol>
-              </div>
+                <div className="text-[10px] font-bold uppercase text-brand-muted">Nội dung trong plan</div>
+                <div className="mt-1 text-[11px] text-brand-text">{p.inputs.find(i => i.field === 'content')?.value ?? '—'}</div>              </div>
             ) : (
             <div className="rounded-xl border border-brand-border p-3 lg:col-span-2">
               <div className="text-[10px] font-bold uppercase text-brand-muted">Cách bổ sung</div>
@@ -754,127 +702,10 @@ const PendingCard: React.FC<{ p: PreEvalProgram; dec?: TaxItem }> = ({ p, dec })
             )}
           </div>
         </section>
-        <section>
+        {!p.input_source?.startsWith('FINAL') && <section>
           <H n="E" t="Dữ liệu đầu vào chuẩn" sub={`${p.inputs.filter(i => i.status === 'THIEU').length} trường bắt buộc còn thiếu · ô trống có gợi ý "deck ghi gì"`} />
           <InputTable rows={p.inputs} />
-        </section>
-      </div>
-    </Card>
-  );
-};
-
-/* ───────── 2b · FILE FINAL ĐÃ TRÌNH CEO — tổng hợp theo brand + HĐ MKT mang về (trang TONG_HOP · KIEM_SOAT_TC) ───────── */
-const monthLabel = (m: string) => (/^\d{4}-\d{2}$/.test(m) ? `T${+m.slice(5, 7)}/${m.slice(2, 4)}` : m);
-
-const FinalSummary: React.FC<{ programs: PreEvalProgram[] }> = ({ programs }) => {
-  const PE = CAMPAIGN.preeval;
-  const fp = programs.filter(p => p.input_source?.startsWith('FINAL'));
-  if (!fp.length) return null;
-  const scored = fp.filter(p => !pending(p.decision));
-  const quarters = Array.from(new Set(fp.map(p => p.quarter).filter(Boolean) as string[])).sort();
-  const meta = (k: string) => (PE.final || []).filter(m => quarters.includes(m.quarter ?? '') && m.key === k).map(m => m.value);
-  const run = (p: PreEvalProgram) => p.decision === 'DUYET' || p.decision === 'CHAY_THU';
-  const sum = (ps: PreEvalProgram[], f: (p: PreEvalProgram) => number | null | undefined) => ps.reduce((a, p) => a + (f(p) ?? 0), 0);
-  const agg = (ps: PreEvalProgram[]) => {
-    const r = ps.filter(run);
-    const eb = sum(r, p => p.scn.CO_SO?.ebitda), spend = sum(r, p => p.scn.CO_SO?.promo_cost);
-    return {
-      n: ps.length, d: ps.filter(p => p.decision === 'DUYET').length, t: ps.filter(p => p.decision === 'CHAY_THU').length,
-      s: ps.filter(p => p.decision === 'SUA_CO_CHE').length, b: ps.filter(p => p.decision === 'BRANDING').length,
-      net: sum(r, p => p.scn.CO_SO?.net_incr), spend, low: sum(r, p => p.scn.THAN_TRONG?.ebitda), base: eb,
-      high: sum(r, p => p.scn.LAC_QUAN?.ebitda), roi: spend ? eb / spend : null,
-      brandCost: sum(ps.filter(p => p.decision === 'BRANDING'), p => p.scn.CO_SO?.promo_cost),
-      all: sum(ps, p => p.scn.CO_SO?.ebitda),
-    };
-  };
-  const brands = Array.from(new Set(scored.map(p => p.brand))).sort();
-  const rows = [...brands.map(b => ({ key: b, ...agg(scored.filter(p => p.brand === b)) })),
-    { key: `TỔNG ${quarters.map(q => q.replace('-', ' ')).join(' · ')}`, ...agg(scored) }];
-
-  // HĐ MKT mang về — chỉ dòng "Mục 1" (chương trình promotion), đúng cách file Final cộng sang file Đóng góp TC
-  const ids = new Set(scored.map(p => p.id));
-  const brandOf = Object.fromEntries(scored.map(p => [p.id, p.brand]));
-  const tc = (PE.tc || []).filter(r => ids.has(r.program_id) && r.tc_section === 'Mục 1');
-  const months = Array.from(new Set(tc.map(r => r.month))).sort();
-  const tcRow = (b: string | null) => {
-    const rs = tc.filter(r => b === null || brandOf[r.program_id] === b);
-    const by = months.map(m => rs.filter(r => r.month === m).reduce((a, r) => a + (r.mkt_bills ?? 0), 0));
-    return { by, total: by.reduce((a, x) => a + x, 0) };
-  };
-  const refNum = (k: string) => { const v = meta(k)[0]; return typeof v === 'number' ? v : null; };
-  const refTxt = (k: string) => { const v = refNum(k); return v === null ? '—' : formatNumber(v); };
-  const file = meta('file').join(' · ');
-
-  return (
-    <Card title="Tổng Hợp File Final — Đã Trình CEO"
-      description={`Số lấy NGUYÊN từ ${file || 'file Final'} (sửa ${meta('file_date').map(d => dmyFull(String(d))).join(', ')}) — đúng trang TONG_HOP. D+CT = Duyệt + Chạy thử · Branding duyệt theo ngân sách, không chấm EBITDA${fp.length > scored.length ? ` · ${fp.length - scored.length} hạng mục trong plan chưa chấm (THIẾU DỮ LIỆU)` : ''}`}
-      chip="FINAL · CEO">
-      <div className="space-y-4">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] text-[11px]">
-            <thead>
-              <tr className="text-[10px] text-brand-muted">
-                <th className="text-left">Brand</th><th className="text-right">Số CT</th><th className="text-right">Duyệt</th>
-                <th className="text-right">Chạy thử</th><th className="text-right">Sửa cơ chế</th><th className="text-right">Branding</th>
-                <th className="text-right">DT thuần tăng thêm (D+CT)</th><th className="text-right">Chi ưu đãi (D+CT)</th>
-                <th className="text-right">EBITDA Thận trọng</th><th className="text-right">EBITDA Cơ sở</th><th className="text-right">EBITDA Lạc quan</th>
-                <th className="text-right">ROI gộp</th><th className="text-right">Chi phí Branding</th><th className="text-right">EBITDA Cơ sở toàn bộ CT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.key} className={`border-t border-brand-border font-mono ${i === rows.length - 1 ? 'font-bold' : ''}`}>
-                  <td className="py-1.5 pr-2 font-sans font-bold text-brand-text">{r.key}</td>
-                  <td className="text-right">{r.n}</td><td className="text-right text-status-ok">{r.d}</td>
-                  <td className="text-right text-status-warning">{r.t}</td><td className="text-right text-status-bad">{r.s}</td>
-                  <td className="text-right text-brand-muted">{r.b}</td>
-                  <td className={`text-right ${tone(r.net)}`}>{vnd(r.net)}</td><td className="text-right">{vnd(r.spend)}</td>
-                  <td className={`text-right ${tone(r.low)}`}>{signed(r.low)}</td><td className={`text-right ${tone(r.base)}`}>{signed(r.base)}</td>
-                  <td className={`text-right ${tone(r.high)}`}>{signed(r.high)}</td>
-                  <td className="text-right">{r.roi === null ? '—' : `${formatNumber(r.roi, 2)}×`}</td>
-                  <td className="text-right text-brand-muted">{vnd(r.brandCost)}</td><td className={`text-right ${tone(r.all)}`}>{signed(r.all)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-1 text-[10px] text-brand-faint">
-            ROI gộp = EBITDA Cơ sở ÷ chi ưu đãi của CT Duyệt + Chạy thử · Chi phí Branding = POSM &amp; Merchandise chưa gán + sự kiện branding ·
-            EBITDA toàn bộ gồm cả Branding và Sửa cơ chế. Opex ~8,7–9,2% DT thuần là số tạm, chờ Finance khoá.
-          </div>
-        </div>
-
-        {months.length > 0 && (
-          <div className="overflow-x-auto">
-            <div className="mb-1 text-[11px] font-bold text-brand-text">HĐ MKT mang về từ chương trình promotion (Mục 1 file Đóng góp TC) — ước tính 100%, chưa nhân tỷ lệ đạt</div>
-            <table className="w-full min-w-[520px] font-mono text-[11px]">
-              <thead>
-                <tr className="text-[10px] text-brand-muted">
-                  <th className="text-left font-sans">Brand</th>
-                  {months.map(m => <th key={m} className="text-right">{monthLabel(m)}</th>)}
-                  <th className="text-right">Cả kỳ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...brands, null].map(b => {
-                  const r = tcRow(b);
-                  return (
-                    <tr key={b ?? 'ALL'} className={`border-t border-brand-border ${b === null ? 'font-bold' : ''}`}>
-                      <td className="py-1 font-sans font-bold text-brand-text">{b ?? 'Tổng'}</td>
-                      {r.by.map((x, i) => <td key={months[i]} className="text-right">{formatNumber(x)}</td>)}
-                      <td className="text-right font-bold">{formatNumber(r.total)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="mt-1 text-[10px] text-brand-faint">
-              HĐ MKT mang về = HĐ dùng chương trình × (1 − %cannib), chia tháng theo số ngày chạy. Chương trình đang chạy tiếp (Extra Value) tính ở Mục 3, branding không cộng.
-              {refNum('tc_forecast') !== null && <> Tham chiếu file Đóng góp TC (cả hệ thống): Ads tin nhắn → đặt bàn {refTxt('tc_ads')} HĐ ·
-                chương trình đang chạy tiếp {refTxt('tc_running')} HĐ · tỷ lệ đạt {pct(refNum('tc_hit_rate'))} ·
-                HĐ MKT đóng góp sau tỷ lệ đạt {refTxt('tc_mkt_after')} · TC dự phóng {refTxt('tc_forecast')} / mục tiêu {refTxt('tc_target')}.</>}
-            </div>
-          </div>
-        )}
+        </section>}
       </div>
     </Card>
   );
@@ -936,7 +767,7 @@ const CalibTable: React.FC = () => {
   rows.filter(r => r.usable && r.lever).forEach(r => { byLever[r.lever!] = (byLever[r.lever!] ?? 0) + 1; });
   return (
     <Card title="Bảng Hiệu Chỉnh — Dự Báo vs Thực Tế"
-      description={`Mỗi chương trình M7.1 đã nối campaign_id (M7.2): kế hoạch đã khoá cạnh thực tế cùng công thức. Dòng "dùng được" (đã chốt · đo được · khoá TRƯỚC ngày chạy) cộng dồn theo phương án; đủ ${PE.calib_min_n} chương trình thì M7.1 thay %cannib · %tham gia mặc định bằng trung vị thực tế`}
+      description={`Chương trình đã chạy: kế hoạch cạnh thực tế, cùng công thức. Đủ ${PE.calib_min_n} chương trình cùng phương án thì %cannib · %tham gia dự báo lấy theo trung vị thực tế`}
       chip={`${rows.filter(r => r.usable).length}/${rows.length} DÙNG ĐƯỢC`}>
       {rows.length === 0 ? (
         <p className="text-xs text-brand-muted">Chưa có chương trình nào nối kế hoạch ↔ thực tế — điền campaign_id ở sổ Pre_Analysis cho chương trình đã lên POS.</p>
