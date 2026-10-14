@@ -344,7 +344,7 @@ def _scheme(pid, s, tf):
                 bill_value=V * tf, discount=d * tf, rev_after_disc=(V - d) * tf, ta=(V - d) * tf, cogs=cogs,
                 cogs_pct=_div(cogs, net_after), margin_pct=(1 - cogs / net_after) if net_after else None,
                 merch_cost=merch + gift, promo_cost=d * tf / VAT + merch + gift,
-                basis_note=f"file Final · giá trị hoá đơn = {how} {V:,.0f}".replace(",", ".") + f" · u khách sẵn có = {u:+.0%}")
+                basis_note=f"giá trị hoá đơn = {how} {V:,.0f}".replace(",", ".") + f" · u khách sẵn có = {u:+.0%}")
 
 
 def _base(b):

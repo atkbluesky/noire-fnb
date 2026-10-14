@@ -7,7 +7,7 @@
 | **View** | `src/views/PreAnalyticsView.tsx` + `src/views/PreEvalSection.tsx` (phiếu đánh giá) |
 | **ETL** | `tools/pre_analysis.py` (bộ đọc DUY NHẤT file S16) → `tools/campaign.py` → sheet `pre_plan` → `CAMPAIGN.plan` · file deck quý (Q4/2026+) → mẫu chuẩn → `tools/preeval.py` → `pre_eval` · `pre_eval_input` (§0.8) · **file đánh giá quý bản Final đã trình CEO → `tools/preeval_final.py` → số NGUYÊN của file (§0.12)** |
 | **Giai đoạn** | P5.5 |
-| **Trạng thái** | ✅ **Q4/2026 theo file Final đã trình CEO (14/10/2026): 31 chương trình chấm (20 Duyệt · 4 Chạy thử · 7 Branding) + 5 hạng mục chưa chấm** · Q3 lập tay (S16) thu gọn cuối trang · ⚠️ opex ~8,7–9,2% DT thuần là số tạm chờ Finance |
+| **Trạng thái** | ✅ **Q4/2026 theo file Final đã trình CEO (14/10/2026): 31 chương trình chấm (20 Duyệt · 4 Chạy thử · 7 Branding) + 5 hạng mục chưa chấm** · ⚠️ opex ~8,7–9,2% DT thuần là số tạm chờ Finance |
 | **Sổ đánh giá chuẩn** | ✅ `L0_input/03_MARKETING/05_Promotion_Ke_Hoach/01_So_Danh_Gia/Pre_Analysis_2026.xlsx` (S24) → `tools/preeval.py` → `data_input/04_preeval.xlsx` → phiếu đánh giá trên M7.1 · 3 chương trình mẫu |
 
 ---
@@ -135,9 +135,12 @@ Trình bày theo thứ tự ra quyết định, không giới hạn số chươn
 | 2 | **Tổng quan danh mục** | số CT · Duyệt / Chạy thử / Sửa · Σ EBITDA và Σ chi ưu đãi của CT duyệt + chạy thử |
 | 3 | **Ma trận quyết định** + **Việc cần làm** | x = EBITDA Cơ sở, y = Thận trọng, cỡ chấm = chi ưu đãi, 3 vùng màu · mỗi CT 1 hành động đọc từ hoà vốn và %cannib tối đa |
 | 4 | **Bảng xếp hạng** | cột ① → ④ đúng thứ tự đọc · sắp theo mọi cột · 10 dòng/trang · xuất CSV |
-| 5 | **Phiếu đánh giá** (bấm tên / chấm) | A Kết luận → B Vì sao (cầu EBITDA: khách vốn sẽ đến vs khách mới) → C Rủi ro 3 kịch bản & hoà vốn → D Chi tiết tính PP672 (Program's details · Financial evaluation) → E Giả định & dữ liệu nền → F Thực tế (nếu đã chạy) · In phiếu |
+| 5 | **Phiếu đánh giá** (bấm tên / chấm) | A Kết luận → B Vì sao (cầu EBITDA: khách vốn sẽ đến vs khách mới) → C Rủi ro 3 kịch bản & hoà vốn → D Chi tiết tính PP672 (Program's details · Financial evaluation) → E Thực tế so với kế hoạch (nếu đã chạy) · In phiếu |
 
-Kế hoạch Q3 lập tay (S16) thu gọn cuối trang — chỉ để tham khảo.
+*(14/10/2026)* Bỏ khỏi màn hình: khung tham khảo kế hoạch Q3 lập tay (S16 — vẫn là target của M7.2), mục E cũ
+"Giả định & dữ liệu nền" của phiếu, khối Tổng hợp file Final, nhãn nguồn `FINAL · CEO` và dòng trạng thái khoá kế hoạch ở
+tiêu đề phiếu. Tiêu đề phiếu chỉ còn brand · cửa hàng · ngày chạy · số ngày; mô tả các thẻ chỉ giữ cách đọc số.
+Dữ liệu các khối đã bỏ vẫn sinh đủ (`pre_eval_base` · `pre_eval_input` · `pre_eval_tc` · `pre_eval_final` · `pre_plan_lock`).
 
 ### 0.8 File deck theo quý (Q4/2026+) → mẫu chuẩn *(23/09/2026)*
 
@@ -243,11 +246,9 @@ trình. Vì vậy file Final là **nguồn thắng cho đúng quý của nó**: 
 `locked_at` = ngày sửa file — thay bản khoá cũ tự chụp từ bộ tính (bản 01/10 của các chương trình tháng 10). M7.2 so thực
 tế với số đã trình CEO. Bản khoá cũ còn trong lịch sử git của `data_input/05_plan_lock.xlsx`.
 
-**Màn hình.** Bảng xếp hạng gắn nhãn `FINAL · CEO`; *Việc Cần Làm* và mục A của phiếu hiện đúng chữ cột "Việc cần làm"
-của file; thêm khối **Tổng Hợp File Final — Đã Trình CEO** (dưới Tổng quan): theo brand đúng trang `TONG_HOP` (số CT ·
-quyết định · DT thuần tăng thêm · chi ưu đãi · EBITDA 3 kịch bản của D+CT · ROI gộp · chi phí Branding · EBITDA toàn bộ)
-và HĐ MKT mang về theo tháng (chỉ "Mục 1", đúng cách file cộng sang file Đóng góp TC). Các ô này là tỷ trọng / số kế hoạch,
-không phải so sánh kỳ — không gắn icon tăng / giảm (QT2.6).
+**Màn hình.** *Việc Cần Làm* và mục A của phiếu hiện đúng chữ cột "Việc cần làm" của file. Hạng mục chưa chấm hiện
+nội dung trong plan + còn thiếu gì + đầu mối. *(Khối Tổng hợp theo brand và nhãn `FINAL · CEO` đã bỏ ngày 14/10 —
+xem §0.7; số tổng theo brand đọc ở mục "Đối chiếu khi nạp" dưới đây.)*
 
 **Đối chiếu khi nạp (14/10/2026).** Từng chương trình khớp `XEP_HANG` tới đồng. Tổng Q4: 31 CT · 20 Duyệt · 4 Chạy thử ·
 7 Branding · DT thuần tăng thêm (D+CT) 929,0 tr · chi ưu đãi 211,9 tr · EBITDA Thận trọng / Cơ sở / Lạc quan 205,7 /
@@ -300,7 +301,7 @@ Quyết định đang chọn, **không tính BRANDING và THIẾU DỮ LIỆU** 
 Bước 1 EBITDA Cơ sở ≥ 0 · Bước 2 EBITDA Thận trọng ≥ 0 · Bước 3 hoá đơn dự kiến ≥ 1,5× hoà vốn (không có phí cố định mà đã lãi thì tính đạt) ·
 Bước 4 không dính cổng %COGS / chi ưu đãi. Trước đó 4 khung chỉ là chú giải, không có số. Số trong phiếu từng chương trình (khung A–C) không đổi.
 
-> **Bố cục hiện hành: xem §0.7.** Bảng dưới là màn hình kế hoạch Q3 lập tay (nay thu gọn cuối trang M7.1).
+> **Bố cục hiện hành: xem §0.7.** Bảng dưới là màn hình kế hoạch Q3 lập tay (đã bỏ khỏi M7.1 ngày 14/10/2026).
 
 | Khối | Nội dung |
 |---|---|
