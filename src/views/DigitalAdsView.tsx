@@ -1,33 +1,47 @@
 /**
- * M5 · Digital Ads — VỎ của tab (28/09/2026).
+ * M5 · Digital Ads — VỎ của tab (28/09/2026 · sửa 14/10/2026).
  *
- * Việc duy nhất của file này: gọi `/api/ads/performance`, rồi chọn MỘT trong hai màn hình
- *   · API    → `ads/AdsDashboard.tsx`       — ba tầng Blended → Meta → Google (M5_1 §9)
- *   · EXPORT → `ads/DigitalAdsExcelView.tsx` — màn hình gốc trước M5.1, giữ làm dự phòng
+ * Việc duy nhất của file này: gọi `/api/ads/performance` rồi đưa vào `ads/AdsDashboard.tsx`
+ * (ba tầng Blended → Meta → Google, M5_1 §9).
  *
- * API chưa sẵn sàng (503 NOT_CONFIGURED / NO_DATA, mất mạng) thì TỰ RƠI về EXPORT,
- * không để trống tab (QĐ-1). Công tắc luôn nhìn thấy được, và băng đối chiếu API vs
- * Excel luôn hiện — lệch > 2% là sai cấu trúc chứ không phải làm tròn (M5_1 §3d).
+ * 14/10/2026: BỎ màn hình EXPORT · bản cũ (Excel tay, grain tháng) — người dùng đọc nhầm
+ * hai bộ số. API chưa sẵn sàng thì báo thẳng, không lặng lẽ rơi về Excel.
+ * Băng đối chiếu API vs Excel chỉ hiện khi LỆCH (> 0,5%) — lệch > 2% là sai cấu trúc (M5_1 §3d).
+ *
+ * Tháng: M5 chọn được cả tháng Ads đang chạy (vd. T10/2026) dù POS mới tới T9 — xem `adsMonths()`.
+ * Bộ lọc chung chỉ tính tháng có POS, nên kỳ của tab tự dựng từ `filters.from → filters.to`.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useFilters } from '../context/FilterContext';
-import { MKT_DATA } from '../data';
+import { MKT_DATA, LATEST_MONTH } from '../data';
 import { formatVND, formatMonthLabel } from '../utils/formatters';
 import type { AdsDashboardResponse } from '../types/ads';
 import { AdsDashboard } from './ads/AdsDashboard';
-import { DigitalAdsExcelView } from './ads/DigitalAdsExcelView';
-import { monthEnd } from './ads/adsModel';
+import { adsMonths, isAdsOnlyMonth, monthEnd, yesterdayIct } from './ads/adsModel';
 
-/** Hôm qua theo giờ ICT — dữ liệu Meta chốt tới hôm qua (cron 00:35 ICT). */
-function yesterdayIct(): string {
-  const now = new Date(Date.now() + 7 * 3600_000);
-  now.setUTCDate(now.getUTCDate() - 1);
-  return now.toISOString().slice(0, 10);
-}
+const dmy = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 
 export const DigitalAdsView: React.FC = () => {
-  const { selectedMonths, prevPeriodMonths } = useFilters();
-  const months = selectedMonths;
+  const { filters, setTo } = useFilters();
+
+  /* Kỳ của tab trên danh sách tháng M5 (gồm tháng Ads đang chạy) + kỳ liền trước cùng số tháng. */
+  const allMonths = useMemo(() => adsMonths(), []);
+  const months = useMemo(
+    () => allMonths.filter(m => m >= filters.from && m <= filters.to),
+    [allMonths, filters.from, filters.to]);
+  const prevMonths = useMemo(() => {
+    const start = allMonths.indexOf(months[0]);
+    const n = months.length;
+    return start < 0 || n === 0 || start - n < 0 ? [] : allMonths.slice(start - n, start);
+  }, [allMonths, months]);
+
+  /* Rời M5 khi đang chọn tháng chỉ có Ads → kéo "Đến" về tháng POS cuối, để các cổng khác
+     không cầm một giá trị không có trong ô chọn của chúng. */
+  const filtersRef = React.useRef(filters);
+  filtersRef.current = filters;
+  useEffect(() => () => {
+    if (isAdsOnlyMonth(filtersRef.current.to)) setTo(LATEST_MONTH);
+  }, []);
 
   /* Kỳ Meta = các tháng đang lọc, cắt ở hôm qua (tháng đang chạy chưa có số hôm nay). */
   const windowStart = months.length ? `${months[0]}-01` : '';
@@ -40,7 +54,6 @@ export const DigitalAdsView: React.FC = () => {
 
   const [api, setApi] = useState<AdsDashboardResponse | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
-  const [preferApi, setPreferApi] = useState(true);
 
   useEffect(() => {
     if (!windowStart || !windowEnd || windowStart > windowEnd) { setState('unavailable'); return; }
@@ -60,7 +73,7 @@ export const DigitalAdsView: React.FC = () => {
   /* Kỳ chọn bắt đầu từ tháng dữ liệu đầu tiên (mặc định T1 → tháng trọn gần nhất) thì kỳ trước cùng
      số ngày của API rỗng → mọi mũi tên so sánh thành "—". Khi ấy gọi thêm một kỳ = tháng cuối kỳ;
      API trả kèm kỳ trước cùng số ngày của nó, dùng riêng cho mũi tên tăng/giảm (AGENTS.md QT2.3). */
-  const cmpStart = !prevPeriodMonths.length && months.length >= 2 ? `${months[months.length - 1]}-01` : null;
+  const cmpStart = !prevMonths.length && months.length >= 2 ? `${months[months.length - 1]}-01` : null;
   const [cmpApi, setCmpApi] = useState<AdsDashboardResponse | null>(null);
   useEffect(() => {
     setCmpApi(null);
@@ -75,8 +88,6 @@ export const DigitalAdsView: React.FC = () => {
     return () => { alive = false; };
   }, [cmpStart, windowEnd]);
 
-  const useApi = preferApi && state === 'ready' && api != null;
-
   /* Đối chiếu Meta API vs Excel — chỉ trên tháng CẢ HAI nguồn cùng có, ĐỦ tháng. */
   const reconcile = useMemo(() => {
     if (!api) return null;
@@ -90,6 +101,8 @@ export const DigitalAdsView: React.FC = () => {
     return { shared, apiSum, xlSum, diff, level: diff < 0.005 ? 'ok' : diff <= 0.02 ? 'warn' : 'bad' as 'ok' | 'warn' | 'bad' };
   }, [api, months.join(',')]);
 
+  const running = months.filter(isAdsOnlyMonth);
+
   return (
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       <div>
@@ -101,32 +114,27 @@ export const DigitalAdsView: React.FC = () => {
         </p>
       </div>
 
-      {/* Công tắc nguồn — QĐ-1: phải NHÌN THẤY ĐƯỢC */}
+      {/* Dòng nguồn — chỉ còn API (Meta Marketing API + Google Ads API), không còn công tắc Excel. */}
       <div className="rounded-xl border border-brand-border bg-brand-surface p-3 text-xs space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-muted">Nguồn số liệu</span>
-          <div className="flex overflow-hidden rounded-md border border-brand-border">
-            <button onClick={() => setPreferApi(true)} disabled={state !== 'ready'}
-              title={state !== 'ready' ? 'API chưa sẵn sàng' : 'Meta Marketing API — theo ngày'}
-              className={`px-2.5 py-1 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${useApi ? 'bg-brand-gold text-brand-dark' : 'text-brand-muted hover:text-brand-text'}`}>
-              API · 3 tầng
-            </button>
-            <button onClick={() => setPreferApi(false)}
-              className={`px-2.5 py-1 text-[11px] font-bold transition-colors ${!useApi ? 'bg-brand-gold text-brand-dark' : 'text-brand-muted hover:text-brand-text'}`}>
-              EXPORT · bản cũ
-            </button>
-          </div>
-          <span className="text-[11px] text-brand-faint">
+          <span className="text-[11px] text-brand-text">
             {state === 'loading' ? 'đang gọi API…'
-              : useApi ? (api?.google?.ready ? 'Meta + Google Ads API · theo ngày × chiến dịch' : 'Meta Marketing API + Google từ Excel dự phòng')
-                : state === 'unavailable' ? 'API chưa nối — đang chạy bằng Excel' : 'Excel export tay (grain tháng)'}
+              : state === 'ready' && api
+                ? <>{api.google?.ready ? 'Meta + Google Ads API' : 'Meta Marketing API (Google từ Excel dự phòng)'} · theo ngày × chiến dịch
+                    {' '}· đồng bộ tới <b>{api.syncedThrough ? dmy(api.syncedThrough) : "—"}</b></>
+                : 'API chưa sẵn sàng'}
           </span>
+          {running.length > 0 && (
+            <span className="rounded bg-brand-gold/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-gold">
+              {running.map(formatMonthLabel).join(', ')} đang chạy · số tới hôm qua · chưa có doanh thu POS nên chưa tính ACR
+            </span>
+          )}
         </div>
-        {reconcile && (
+        {reconcile && reconcile.level !== 'ok' && (
           <div className={`rounded-lg border p-2 text-[11px] ${
-            reconcile.level === 'ok' ? 'border-status-ok/40 bg-status-okBg/20 text-status-ok'
-              : reconcile.level === 'warn' ? 'border-status-warning/40 bg-status-warningBg/20 text-status-warning'
-                : 'border-status-bad/40 bg-status-badBg/20 text-status-bad'}`}>
+            reconcile.level === 'warn' ? 'border-status-warning/40 bg-status-warningBg/20 text-status-warning'
+              : 'border-status-bad/40 bg-status-badBg/20 text-status-bad'}`}>
             <b>Đối chiếu Meta API vs Excel</b> ({reconcile.shared.map(formatMonthLabel).join(', ')}):
             {' '}API {formatVND(reconcile.apiSum)} · Excel {formatVND(reconcile.xlSum)} · lệch <b>{(reconcile.diff * 100).toFixed(2)}%</b>
             {reconcile.level === 'bad' && ' — VƯỢT 2%, sai cấu trúc chứ không phải làm tròn. Không dùng nguồn API cho tới khi tìm ra nguyên nhân.'}
@@ -135,13 +143,15 @@ export const DigitalAdsView: React.FC = () => {
         )}
       </div>
 
-      {/* Đang gọi API thì hiện khung chờ — không nhấp nháy màn hình Excel cũ rồi mới đổi. */}
-      {state === 'loading' && preferApi
+      {state === 'loading'
         ? <div className="rounded-xl border border-brand-border bg-brand-surface p-10 text-center text-xs text-brand-muted animate-pulse">Đang tải số liệu quảng cáo…</div>
-        : useApi && api
-          ? <AdsDashboard api={api} months={months} prevMonths={prevPeriodMonths} windowStart={windowStart} windowEnd={windowEnd}
+        : state === 'ready' && api
+          ? <AdsDashboard api={api} months={months} prevMonths={prevMonths} windowStart={windowStart} windowEnd={windowEnd}
               cmpApi={cmpStart ? cmpApi : null} cmpStart={cmpStart} />
-          : <DigitalAdsExcelView />}
+          : <div className="rounded-xl border border-status-warning/40 bg-status-warningBg/20 p-6 text-center text-xs text-status-warning">
+              <b>Chưa đọc được số quảng cáo từ API</b> (chưa cấu hình, chưa có dữ liệu cho kỳ này, hoặc mất mạng).
+              <div className="mt-1 text-brand-muted">Kiểm tra <code>/api/ads/performance</code> và lượt đồng bộ <code>/api/ads/sync</code> — M5_1 §3.</div>
+            </div>}
     </div>
   );
 };

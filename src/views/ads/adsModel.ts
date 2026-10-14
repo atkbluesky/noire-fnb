@@ -103,6 +103,34 @@ export const monthEnd = (month: string): string => {
 
 export const daysInMonth = (month: string): number => Number(monthEnd(month).slice(8));
 
+/** Hôm qua theo giờ ICT — dữ liệu Meta/Google chốt tới hôm qua (cron 00:35 ICT). */
+export function yesterdayIct(): string {
+  const now = new Date(Date.now() + 7 * 3600_000);
+  now.setUTCDate(now.getUTCDate() - 1);
+  return now.toISOString().slice(0, 10);
+}
+
+/**
+ * Tháng chọn được ở M5 = tháng POS (HUB) + các tháng Ads đang chạy sau đó, tới tháng của hôm qua.
+ * POS chốt theo tháng nên dừng ở tháng trọn gần nhất; Ads API có số theo ngày nên xem được
+ * tháng đang chạy (vd. T10/2026 khi POS mới tới T9) — ACR của tháng đó vẫn chưa tính (chưa có doanh thu).
+ */
+export function adsMonths(): string[] {
+  const base = [...HUB_DATA.meta.months].sort();
+  const last = yesterdayIct().slice(0, 7);
+  const out = [...base];
+  let cur = base[base.length - 1] ?? last;
+  while (cur < last) {
+    const [y, m] = cur.split('-').map(Number);
+    cur = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+    out.push(cur);
+  }
+  return out;
+}
+
+/** Tháng chỉ có số Ads, chưa có POS (tháng đang chạy). */
+export const isAdsOnlyMonth = (month: string): boolean => !HUB_DATA.meta.months.includes(month);
+
 /* ─── Doanh thu & ACR ─────────────────────────────────────────────────────── */
 
 /** Doanh thu thuần theo tháng. `brand` = null → toàn hệ thống (kể cả cửa hàng OTHER). */

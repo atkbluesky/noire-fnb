@@ -5,6 +5,7 @@ import { TopHeader } from './components/layout/TopHeader';
 import { FilterBar } from './components/layout/FilterBar';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { FeedbackWidget } from './components/common/FeedbackWidget';
+import { adsMonths } from './views/ads/adsModel';
 
 /* Mỗi màn hình là một chunk riêng — trước đây cả 14 màn (kèm toàn bộ ECharts
    và bảng dữ liệu của chúng) nằm chung một file 537 KB phải tải xong mới vẽ
@@ -100,6 +101,10 @@ const DashboardContent: React.FC = () => {
   if (['m4'].includes(activeView)) {
     customNote = 'Dữ liệu chỉ áp dụng cho Kế hoạch Quý 3/2026 (Tháng 7 · 8 · 9).';
     allowedMonths = ['2026-07', '2026-08', '2026-09'];
+  } else if (activeView === 'm5') {
+    // M5 xem được cả tháng Ads đang chạy (POS chưa chốt) — xem adsMonths() trong views/ads/adsModel.ts
+    customNote = 'Tháng đang chạy: số Ads tới hôm qua; chưa có doanh thu POS nên ACR lấy tháng trọn gần nhất.';
+    allowedMonths = adsMonths();
   } else if (activeView === 'm71') {
     customNote = 'Sổ đánh giá Pre_Analysis_2026 — dự báo theo kỳ chạy của từng chương trình (lọc bằng chip Kỳ bên dưới), không theo bộ lọc tháng.';
   } else if (activeView === 'm10') {

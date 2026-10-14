@@ -1,5 +1,17 @@
 # M5.1 · ADS AUTO — META MARKETING API + GOOGLE ADS API
 
+> **Cập nhật 14/10/2026 — bỏ màn EXPORT · bản cũ, mở tháng đang chạy:**
+> - Gỡ công tắc `API · 3 tầng / EXPORT · bản cũ` và xoá `src/views/ads/DigitalAdsExcelView.tsx` — người dùng
+>   đọc nhầm hai bộ số. M5 chỉ còn nhánh API; API chưa sẵn sàng thì báo thẳng (khung vàng), **không** rơi về Excel.
+>   Thay đổi này thay cho luật gate 14 (§6) và QĐ-1 "tự rơi về Excel".
+> - Băng đối chiếu Meta API vs Excel (§3d) vẫn tính, nhưng **chỉ hiện khi lệch ≥ 0,5%**.
+> - Ô chọn tháng ở M5 có thêm **tháng Ads đang chạy** (vd. T10/2026 khi POS mới tới T9): `adsMonths()` trong
+>   `adsModel.ts` = tháng POS + các tháng tới tháng của hôm qua (ICT). Kỳ của tab tự dựng từ `filters.from → to`
+>   (bộ lọc chung chỉ biết tháng POS). Tháng chỉ có Ads: số tới hôm qua, ACR lấy tháng trọn gần nhất.
+>   Rời M5 khi đang chọn tháng đó thì "Đến" tự kéo về tháng POS cuối. `App.tsx` chỉ THÊM nhánh `m5` (allowedMonths + ghi chú).
+> - 14/10/2026 đã chạy `/api/ads/sync?from=2026-10-01&to=2026-10-13` (Meta 114 dòng · Google 29) — trước đó DB chỉ tới 30/09,
+>   tức cron production chưa chạy cho T10: cần kiểm tra cron Vercel `/api/ads/sync`.
+
 > **Cập nhật kiểm chứng 28/09/2026:** Google Ads API đã đọc được tài khoản quảng cáo
 > `6930679147` qua MCC `1956330376`, phiên bản v25. Đã đồng bộ dữ liệu Google
 > 01/01–27/09/2026 vào PostgreSQL; M5 local hiển thị Google API theo ngày, chiến
@@ -22,7 +34,7 @@
 |---|---|
 | **Câu hỏi** | Số chi quảng cáo có tự về hệ thống mỗi ngày mà không ai phải export tay, và có khớp với số Excel đang dùng để báo cáo BOD không? |
 | **`activeView`** | `m5` *(nối vào tab M5 sẵn có, KHÔNG tạo tab thứ 18)* |
-| **View** | `src/views/DigitalAdsView.tsx` — thêm nhánh nguồn `api`, giữ nguyên nhánh `export` |
+| **View** | `src/views/DigitalAdsView.tsx` — chỉ nhánh `api` (nhánh `export` gỡ 14/10/2026) |
 | **Server** | `api/ads/` — `_shared.ts` · `_meta.ts` · `_google.ts` · `sync.ts` · `performance.ts` · `export.ts` · `database/migrations/005_ads_auto.sql` |
 | **Nguồn** | Meta Marketing API (`/insights`, `level=campaign`, `time_increment=1`) · Google Ads API (GAQL `campaign` + `search_term_view`) |
 | **Grain** | **1 ngày × 1 chiến dịch × 1 nền tảng** — quyết định chốt 27/09/2026, xem §0.5 QĐ-2 |
@@ -995,7 +1007,7 @@ Ghi ra để không ai tưởng là bỏ sót.
 > Nguồn yêu cầu: prompt "Performance & BI Specialist" của người vận hành — đi từ **tổng thể (Blended)**
 > tới **từng kênh (Meta → Google)**, giữ ACR làm thước đo chính, tách Dine-in / Tiệc.
 > File: `src/views/DigitalAdsView.tsx` (vỏ) · `src/views/ads/AdsDashboard.tsx` (ba tầng) ·
-> `src/views/ads/adsModel.ts` (**mọi công thức**) · `src/views/ads/DigitalAdsExcelView.tsx` (bản cũ, dự phòng).
+> `src/views/ads/adsModel.ts` (**mọi công thức**). *(`DigitalAdsExcelView.tsx` bản cũ đã xoá 14/10/2026.)*
 
 ### 9.1 Trục phân tách: 4 MẢNG — người vận hành chốt 28/09/2026
 
