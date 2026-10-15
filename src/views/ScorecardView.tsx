@@ -476,7 +476,6 @@ export const ScorecardView: React.FC = () => {
           data={storeRows}
           searchPlaceholder="Tìm theo tên hoặc mã cửa hàng..."
           searchKeys={['storeName', 'storeCode', 'brand']}
-          exportFilename={`Noire_Store_Scorecard_${periodFileTag}`}
         />
         <div className="mt-3 flex items-center justify-between text-[11px] text-brand-muted border-t border-brand-border/40 pt-2">
           <span>Ngưỡng chuẩn: ≥100% Đạt · 90–99% Cần theo dõi · &lt;90% Không đạt.</span>

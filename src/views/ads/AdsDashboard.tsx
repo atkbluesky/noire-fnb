@@ -862,7 +862,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
       <Card title="Chiến dịch Meta trong kỳ" description="Chiến dịch nào ăn tiền mà không ra hội thoại, chiến dịch nào tệp đã nóng? Tần suất tính trên cả tháng cuối kỳ."
         chip={`${campaignRows.length} CHIẾN DỊCH`}>
         <DataTable columns={campaignCols} data={campaignRows} searchable searchPlaceholder="Tìm chiến dịch..."
-          searchKeys={['campaignName', 'group']} pageSize={10} exportFilename="NOIRE_Meta_chien_dich" />
+          searchKeys={['campaignName', 'group']} pageSize={10} />
         <p className="mt-2 text-[11px] text-brand-faint">
           Nhóm: <b>Nhận diện & Reach</b> (mục tiêu tiếp cận) · <b>Tin nhắn & Tương tác</b> (combo, món mới, kéo inbox) · <b>Tiệc · Catering</b>.
           Tần suất ≥ 3,5 cam, ≥ 4 đỏ.
@@ -906,7 +906,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
                 { key: 'kw', header: 'Cụm từ', render: (r: (typeof gTerms.all)[number]) => <span className="text-brand-text">{r.kw}</span> },
                 { key: 'clicks', header: 'Nhấp', align: 'right', sortable: true, render: r => <span className="font-mono">{formatNumber(r.clicks)}</span> },
                 { key: 'conv', header: 'Chuyển đổi', align: 'right', sortable: true, render: r => <span className="font-mono">{r.conv ? formatNumber(r.conv) : '—'}</span> },
-              ]} data={gTerms.all} searchable searchKeys={['kw']} pageSize={6} exportFilename="NOIRE_Google_cum_tu" />
+              ]} data={gTerms.all} searchable searchKeys={['kw']} pageSize={6} />
             </Card>
           </div>
 
@@ -919,7 +919,7 @@ export const AdsDashboard: React.FC<Props> = ({ api, months, prevMonths, windowS
               { key: 'conv', header: 'Chuyển đổi', align: 'right', sortable: true, render: r => <span className="font-mono">{formatNumber(r.conv)}</span> },
               { key: 'cpa', header: 'CP / chuyển đổi', align: 'right', sortable: true, render: r => <span className="font-mono">{Number.isFinite(r.cpa) ? vnd(r.cpa) : '—'}</span> },
               { key: 'clicks', header: 'Nhấp', align: 'right', sortable: true, render: r => <span className="font-mono">{formatNumber(r.clicks)}</span> },
-            ]} data={gCampaigns} pageSize={6} exportFilename="NOIRE_Google_chien_dich" />
+            ]} data={gCampaigns} pageSize={6} />
           </Card>
         </>
       )}

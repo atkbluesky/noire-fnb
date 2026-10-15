@@ -228,7 +228,7 @@ export const CRMCustomerSection: React.FC = () => {
       <Card title={`Theo cửa hàng · ${formatMonthLabel(cur.month)}`} chip={`${storeRows.length} CỬA HÀNG`}
         description="Lượt chi tiêu theo lần, doanh thu thành viên, % giảm giá và AOV. % giảm ≥40% tô đỏ (Empress Tower, The 9 Stellars thường vượt).">
         <DataTable columns={storeCols} data={storeRows} searchable={false} pageSize={10}
-          exportFilename={`Noire_CRM_CuaHang_${cur.month}`} />
+ />
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

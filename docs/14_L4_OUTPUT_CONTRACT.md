@@ -180,7 +180,7 @@ Trước đây có **15 khoá bị bỏ phí** — dữ liệu đã tính rồi 
 | `Sidebar` | `src/components/layout/Sidebar.tsx` | `NAVIGATION_GROUPS` — 4 khối, 14 module, nhãn trạng thái |
 | `TopHeader` · `FilterBar` | `src/components/layout/` | Thanh lọc Brand · Từ · Đến · scope · perday · ghi chú phạm vi |
 | `CommandPalette` | `src/components/layout/` | Nhảy nhanh giữa module |
-| `MetricCard` · `Card` · `StatusBadge` · `DataTable` | `src/components/common/` | Thẻ KPI · khung · nhãn ngưỡng · bảng có sort/xuất CSV |
+| `MetricCard` · `Card` · `StatusBadge` · `DataTable` | `src/components/common/` | Thẻ KPI · khung · nhãn ngưỡng · bảng có sort/tìm kiếm/phân trang (không có nút xuất CSV) |
 | `EChartWrapper` | `src/components/charts/` | Bọc ECharts, đồng bộ theme sáng/tối |
 | `formatters.ts` | `src/utils/` | `formatVND` · `formatNumber` · `formatPercent` · `formatMonthLabel` · `calculateDelta` |
 

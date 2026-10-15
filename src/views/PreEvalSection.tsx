@@ -314,7 +314,7 @@ export const PreEvalSection: React.FC<{ brandMatches: (b: string) => boolean; is
 
       {/* 4 · BẢNG XẾP HẠNG — không giới hạn số chương trình */}
       <Card title="Bảng Xếp Hạng Chương Trình" description="Sắp theo quyết định rồi EBITDA Cơ sở · bấm tên để xem phiếu" chip={`${rows.length} CT`}>
-        <DataTable columns={columns} data={rows} searchable={false} pageSize={10} exportFilename="m7_1_xep_hang" emptyMessage="Không có chương trình trong bộ lọc" />
+        <DataTable columns={columns} data={rows} searchable={false} pageSize={10} emptyMessage="Không có chương trình trong bộ lọc" />
       </Card>
 
       {/* 5 · PHIẾU CHI TIẾT */}

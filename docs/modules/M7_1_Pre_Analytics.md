@@ -134,7 +134,7 @@ Trình bày theo thứ tự ra quyết định, không giới hạn số chươn
 | 1 | **Lọc** | chip Kỳ (quý tự tính từ `date_from`) · chip Quyết định (có đếm) · tìm theo tên / mã |
 | 2 | **Tổng quan danh mục** | số CT · Duyệt / Chạy thử / Sửa · Σ EBITDA và Σ chi ưu đãi của CT duyệt + chạy thử |
 | 3 | **Ma trận quyết định** + **Việc cần làm** | x = EBITDA Cơ sở, y = Thận trọng, cỡ chấm = chi ưu đãi, 3 vùng màu · mỗi CT 1 hành động đọc từ hoà vốn và %cannib tối đa |
-| 4 | **Bảng xếp hạng** | cột ① → ④ đúng thứ tự đọc · sắp theo mọi cột · 10 dòng/trang · xuất CSV |
+| 4 | **Bảng xếp hạng** | cột ① → ④ đúng thứ tự đọc · sắp theo mọi cột · 10 dòng/trang |
 | 5 | **Phiếu đánh giá** (bấm tên / chấm) | A Kết luận → B Vì sao (cầu EBITDA: khách vốn sẽ đến vs khách mới) → C Rủi ro 3 kịch bản & hoà vốn → D Chi tiết tính PP672 (Program's details · Financial evaluation) → E Thực tế so với kế hoạch (nếu đã chạy) · In phiếu |
 
 *(14/10/2026)* Bỏ khỏi màn hình: khung tham khảo kế hoạch Q3 lập tay (S16 — vẫn là target của M7.2), mục E cũ

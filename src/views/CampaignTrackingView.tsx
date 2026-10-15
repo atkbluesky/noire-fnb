@@ -766,7 +766,7 @@ export const CampaignTrackingView: React.FC = () => {
       {/* Scorecard */}
       <Card title="Bảng Chấm Điểm Chương Trình" description={`Số trong ${periodTxt} × ${B.stores.size} cửa hàng của brand đang lọc · dòng dưới = % so với brand cùng kỳ (DT ${formatVND(B.net)} · ${formatNumber(B.tc)} HĐ · AOV ${vnd(bAov)}) · DT tăng thêm & lãi của chương trình chạy dài được phân bổ theo tỷ trọng doanh thu CTKM trong kỳ (ký hiệu pb) · trạng thái ĐẠT chấm trên cả kỳ chạy · bấm tên để xem chi tiết`} chip="SCORECARD" hero>
         <DataTable columns={columns} data={list} searchKeys={['name', 'id', 'brand'] as any} pageSize={10}
-          exportFilename="m7_2_scorecard" emptyMessage="Không có chương trình trong kỳ lọc" />
+ emptyMessage="Không có chương trình trong kỳ lọc" />
       </Card>
 
       {/* Drill */}
@@ -1104,7 +1104,6 @@ export const CampaignTrackingView: React.FC = () => {
           data={unmapped}
           pageSize={8}
           searchKeys={['name_pos'] as any}
-          exportFilename="m7_2_ctkm_chua_khai"
           columns={[
             { key: 'name_pos', header: 'Tên CTKM trên POS', render: u => <span className="font-bold">{u.name_pos}</span> },
             { key: 'nature', header: 'Bản chất', render: u => <StatusBadge label={NAT[u.nature]?.short ?? u.nature} variant={(NAT[u.nature]?.badge as BadgeVariant) ?? 'neutral'} /> },

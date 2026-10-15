@@ -374,7 +374,7 @@ export const BudgetQ3View: React.FC = () => {
             <MetricCard label="% Sử dụng" subLabel="actual ÷ budget" value={nmBudget > 0 ? formatPercent(nmActual / nmBudget) : '—'}
               customDeltaText={nmBudget > 0 ? `Chênh ${formatVND(nmActual - nmBudget)}` : 'chưa khai ngân sách'} />
           </div>
-          <DataTable columns={nmColumns} data={NM} searchable={false} pageSize={8} exportFilename="Noire_NonMedia_Cost" />
+          <DataTable columns={nmColumns} data={NM} searchable={false} pageSize={8} />
         </Card>
       )}
     </div>

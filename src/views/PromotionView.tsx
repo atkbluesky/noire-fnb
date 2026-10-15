@@ -440,7 +440,6 @@ export const PromotionView: React.FC = () => {
           searchPlaceholder="Tìm chương trình khuyến mãi..."
           searchKeys={['name', 'nature'] as any}
           pageSize={10}
-          exportFilename="Noire_Top_25_Promotions"
         />
       </Card>
 
@@ -486,7 +485,6 @@ export const PromotionView: React.FC = () => {
             data={partnerTop}
             searchable={false}
             pageSize={8}
-            exportFilename="Noire_M7_Doi_Tac"
           />
         </Card>
       )}

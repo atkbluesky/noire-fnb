@@ -150,7 +150,6 @@ export const SystemMapView: React.FC = () => {
           data={tools}
           searchable={false}
           pageSize={8}
-          exportFilename="Noire_Parallel_Systems"
         />
       </Card>
 
@@ -242,7 +241,6 @@ export const SystemMapView: React.FC = () => {
           data={dashboards}
           searchPlaceholder="Tìm dashboard..."
           pageSize={6}
-          exportFilename="Noire_Disjointed_Dashboards"
         />
       </Card>
     </div>

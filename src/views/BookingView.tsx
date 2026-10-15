@@ -584,7 +584,7 @@ export const BookingView: React.FC = () => {
               description="Xếp theo doanh thu đã chốt, không theo số lead. TB / tiệc chỉ tính tiệc đã nhập Closed Revenue."
               chip="CHỐT & PIPELINE"
             >
-              <DataTable columns={sourceColumns} data={sourceRows} searchable={false} pageSize={8} exportFilename="Noire_Booking_Nguon" />
+              <DataTable columns={sourceColumns} data={sourceRows} searchable={false} pageSize={8} />
             </Card>
           </div>
 
@@ -625,7 +625,7 @@ export const BookingView: React.FC = () => {
               description="Loại nào vừa chốt được vừa có giá trị."
               chip="EVENT TYPE"
             >
-              <DataTable columns={typeColumns} data={typeRows} searchable={false} pageSize={7} exportFilename="Noire_Booking_Loai_Su_Kien" />
+              <DataTable columns={typeColumns} data={typeRows} searchable={false} pageSize={7} />
             </Card>
           </div>
 

@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useFilters } from '../../context/FilterContext';
+import { Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
@@ -39,7 +38,6 @@ interface DataTableProps<T> {
   searchPlaceholder?: string;
   searchKeys?: (keyof T)[];
   pageSize?: number;
-  exportFilename?: string;
   emptyMessage?: string;
   className?: string;
 }
@@ -51,11 +49,9 @@ export function DataTable<T extends Record<string, any>>({
   searchPlaceholder = 'Tìm kiếm dữ liệu...',
   searchKeys,
   pageSize = 10,
-  exportFilename,
   emptyMessage = 'Không có dữ liệu phù hợp',
   className = '',
 }: DataTableProps<T>) {
-  const { exportToCSV } = useFilters();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -115,41 +111,23 @@ export function DataTable<T extends Record<string, any>>({
     return sortedData.slice(start, start + pageSize);
   }, [sortedData, currentPage, pageSize]);
 
-  const handleExport = () => {
-    if (exportFilename && sortedData.length > 0) {
-      exportToCSV(exportFilename, columnsToRows(columns, sortedData));
-    }
-  };
-
   return (
     <div className={`space-y-3 ${className}`}>
-      {(searchable || exportFilename) && (
+      {searchable && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-          {searchable ? (
-            <div className="relative w-full sm:max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-muted" />
-              <input
-                type="text"
-                placeholder={searchPlaceholder}
-                value={searchTerm}
-                onChange={e => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full rounded-lg border border-brand-border bg-brand-surface py-1.5 pl-8 pr-3 text-xs text-brand-text placeholder-brand-muted outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold/30"
-              />
-            </div>
-          ) : <div />}
-
-          {exportFilename && (
-            <button
-              onClick={handleExport}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors flex-shrink-0"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span>Xuất CSV ({sortedData.length})</span>
-            </button>
-          )}
+          <div className="relative w-full sm:max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-muted" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchTerm}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-lg border border-brand-border bg-brand-surface py-1.5 pl-8 pr-3 text-xs text-brand-text placeholder-brand-muted outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold/30"
+            />
+          </div>
         </div>
       )}
 
