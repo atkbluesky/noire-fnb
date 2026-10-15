@@ -180,7 +180,6 @@ export const CRMView: React.FC = () => {
               data={memberRows}
               searchable={false}
               pageSize={7}
-              exportFilename="Noire_Member_vs_KPI"
             />
           ) : (
             <p className="py-6 text-center text-xs text-brand-muted">

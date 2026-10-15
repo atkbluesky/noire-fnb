@@ -411,7 +411,7 @@ export const ReservationView: React.FC = () => {
         </Card>
       </div>
       <Card title="Bảng phễu brand × mục chi phí" description="Chi phí, hội thoại/chuyển đổi là số thật; đơn, đơn giữ, chi phí / đơn là ước tính phân bổ (≈)." chip={`${compareRows.length} DÒNG`}>
-        <DataTable columns={compareColumns} data={compareRows} searchable={false} pageSize={12} exportFilename="Noire_M11_Dat_Ban_Pheu_Brand" />
+        <DataTable columns={compareColumns} data={compareRows} searchable={false} pageSize={12} />
       </Card>
 
       {/* Nguồn + xu hướng */}
@@ -435,7 +435,7 @@ export const ReservationView: React.FC = () => {
       {/* Cửa hàng + quy mô */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <Card title="Khách đặt theo cửa hàng" description={zeroStores.length ? `Chưa có khách đặt qua iPOS: ${zeroStores.join(', ')}.` : 'Mọi cửa hàng đều có khách đặt.'} chip="CỬA HÀNG" className="xl:col-span-3">
-          <DataTable columns={storeColumns} data={storeRows} searchable={false} pageSize={10} exportFilename="Noire_M11_Dat_Ban_Cua_Hang" />
+          <DataTable columns={storeColumns} data={storeRows} searchable={false} pageSize={10} />
         </Card>
         <Card title="Quy mô nhóm khách" description="Số đơn theo số khách trên đơn." chip={`${formatNumber(M.partyAvg, 1)} KHÁCH / ĐƠN`} className="xl:col-span-2">
           <EChartWrapper option={partyOption} height={220} />

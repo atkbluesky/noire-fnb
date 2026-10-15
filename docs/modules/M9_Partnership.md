@@ -145,14 +145,8 @@ Luỹ kế T1–T9: 532,9 tr. M7 thẻ “Đối tác” T9 = 246.374.455 = M9. 
 
 ## 7. Xuất CSV
 
-Mỗi bảng có nút **Xuất CSV** riêng, xuất **đúng những gì đang hiển thị** theo đúng bộ lọc tháng/brand,
-tên file kèm kỳ lọc (`Noire_M9_Aggregator_2026-01_2026-08.csv`). Cột gộp trên màn được tách ra cho máy
-đọc được (ô "Đối tác" → Mã ĐT · Đối tác · Kênh · Loại · Brand · Nguồn số…), số để dạng số thô nên Excel
-cộng được ngay. Định nghĩa ở `Column.exportValue` + `columnsToRows()` của `DataTable` — dùng chung cho
-mọi bảng toàn hệ thống.
-
-*(sửa 23/09/2026: trước đây nút xuất đổ thẳng object dòng ra CSV nên cột `t` — toàn bộ hoá đơn, doanh
-thu, chi phí — thành `[object Object]`, chương trình ưu đãi cũng mất; tiêu đề là khoá tiếng Anh.)*
+*(15/10/2026)* **Đã bỏ** nút Xuất CSV ở cả 3 bảng (Aggregator · Partner · eVoucher) — cũng như mọi cổng M0–M11
+theo yêu cầu. Số liệu xem trên màn hình; cần bản giấy thì dùng **In Báo Cáo** ở thanh trên.
 
 ## 8. Thêm một đối tác mới
 

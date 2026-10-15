@@ -589,7 +589,6 @@ export const MenuView: React.FC = () => {
             data={sortedProducts.slice(0, 15)}
             searchable={false}
             pageSize={8}
-            exportFilename="Noire_Top_15_Products"
           />
         </Card>
 
@@ -603,7 +602,6 @@ export const MenuView: React.FC = () => {
             data={HUB_DATA.cogs_flags.filter(f => brandMatches(f.brand))}
             searchable={false}
             pageSize={8}
-            exportFilename="Noire_COGS_Flags"
           />
           <div className="mt-2 text-[10px] text-brand-muted">
             Tổng cộng: {HUB_DATA.bom_stat.over45} món &gt;45% COGS, {HUB_DATA.bom_stat.loss} món bán lỗ (≥100%), {HUB_DATA.bom_stat.nocost} món thiếu cost.

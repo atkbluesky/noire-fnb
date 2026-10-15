@@ -986,7 +986,6 @@ export const SocialView: React.FC = () => {
           columns={pageColumns}
           data={pageRows}
           pageSize={6}
-          exportFilename="Noire_Social_5_Channels"
         />
       </Card>
 
@@ -1052,7 +1051,6 @@ export const SocialView: React.FC = () => {
           data={filteredPosts}
           searchable={false}
           pageSize={8}
-          exportFilename="Noire_Social_Top_Posts"
         />
       </Card>
 

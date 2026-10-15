@@ -1,11 +1,10 @@
 import React from 'react';
-import { Download } from 'lucide-react';
 import { useFilters } from '../context/FilterContext';
 import { HUB_DATA, MKT_DATA } from '../data';
 import { MetricCard } from '../components/common/MetricCard';
 import { Card } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { DataTable, Column, columnsToRows } from '../components/common/DataTable';
+import { DataTable, Column } from '../components/common/DataTable';
 import { EChartWrapper } from '../components/charts/EChartWrapper';
 import { formatVND, formatNumber, formatPercent, formatMonthLabel } from '../utils/formatters';
 import {
@@ -53,7 +52,7 @@ const Wrap: React.FC<{ w?: string; children: React.ReactNode }> = ({ w = 'max-w-
 );
 
 export const PartnershipView: React.FC = () => {
-  const { selectedMonths, brandMatches, aggByMonth, theme, filters, exportToCSV } = useFilters();
+  const { selectedMonths, brandMatches, aggByMonth, theme, filters } = useFilters();
   const isDark = theme === 'dark';
   const ms = selectedMonths;
 
@@ -133,11 +132,6 @@ export const PartnershipView: React.FC = () => {
       data: ms.map(m => rows.filter(r => r.month === m && r.channel === c.code).reduce((a, r) => a + r.net, 0)),
     })),
   };
-
-  /* Tên file CSV mang kỳ lọc: mở file ra là biết số của tháng nào, không lẫn với lần xuất trước. */
-  const csvPeriod = ms.length ? (ms.length === 1 ? ms[0] : `${ms[0]}_${ms[ms.length - 1]}`) : 'khong_ky';
-
-
 
   const ranked = active.slice().sort((a, b) => a.t.net - b.t.net);
   const rankOption: EChartsOption = {
@@ -590,16 +584,6 @@ export const PartnershipView: React.FC = () => {
       <Card
         title="Aggregator"
         hero
-        headerAction={
-          <button
-            onClick={() => exportToCSV(`Noire_M9_Aggregator_${csvPeriod}`, columnsToRows(aggCols, aggTable))}
-            className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface/60 hover:bg-brand-surface px-2.5 py-1 text-xs font-semibold text-brand-muted hover:border-brand-gold/50 hover:text-brand-gold transition-all"
-            title="Xuất bảng Aggregator ra CSV"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Xuất CSV ({aggTable.length})</span>
-          </button>
-        }
       >
         <DataTable columns={aggCols} data={aggTable} searchable={false} pageSize={10} />
       </Card>
@@ -608,16 +592,6 @@ export const PartnershipView: React.FC = () => {
       <Card
         title="Partner — Ngân Hàng · Ví · Thẻ"
         hero
-        headerAction={
-          <button
-            onClick={() => exportToCSV(`Noire_M9_Partner_${csvPeriod}`, columnsToRows(partCols, partTable))}
-            className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface/60 hover:bg-brand-surface px-2.5 py-1 text-xs font-semibold text-brand-muted hover:border-brand-gold/50 hover:text-brand-gold transition-all"
-            title="Xuất bảng Partner ra CSV"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Xuất CSV ({partTable.length})</span>
-          </button>
-        }
       >
         <DataTable columns={partCols} data={partTable} searchable={false} pageSize={10} />
       </Card>
@@ -625,18 +599,6 @@ export const PartnershipView: React.FC = () => {
       {/* eVoucher */}
       <Card
         title="eVoucher Đối Tác Theo Chiến Dịch"
-        headerAction={
-          camps.length ? (
-            <button
-              onClick={() => exportToCSV('Noire_M9_eVoucher_theo_chien_dich', columnsToRows(campCols, camps))}
-              className="flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface/60 hover:bg-brand-surface px-2.5 py-1 text-xs font-semibold text-brand-muted hover:border-brand-gold/50 hover:text-brand-gold transition-all"
-              title="Xuất danh sách eVoucher ra CSV"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span>Xuất CSV ({camps.length})</span>
-            </button>
-          ) : undefined
-        }
       >
         {camps.length
           ? <DataTable columns={campCols} data={camps} searchable={false} pageSize={6} />

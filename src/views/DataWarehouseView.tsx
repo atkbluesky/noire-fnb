@@ -268,7 +268,6 @@ export const DataWarehouseView: React.FC = () => {
           data={qa}
           searchable={false}
           pageSize={12}
-          exportFilename="Noire_QA_Gates_Audit"
         />
       </Card>
 
@@ -303,7 +302,6 @@ export const DataWarehouseView: React.FC = () => {
           searchPlaceholder="Tìm cửa hàng..."
           searchKeys={['name', 'code', 'brand']}
           pageSize={10}
-          exportFilename="Noire_Dim_Store"
         />
       </Card>
     </div>

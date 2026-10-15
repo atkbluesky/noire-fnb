@@ -505,7 +505,6 @@ export const CapacityView: React.FC = () => {
             data={channelRows}
             searchable={false}
             pageSize={6}
-            exportFilename="Noire_Sales_Channels"
           />
         </Card>
       </div>
@@ -522,7 +521,6 @@ export const CapacityView: React.FC = () => {
             data={zoneRows}
             searchPlaceholder="Tìm khu vực..."
             pageSize={7}
-            exportFilename="Noire_Zone_Performance"
           />
         </Card>
 
@@ -536,7 +534,6 @@ export const CapacityView: React.FC = () => {
             data={staffRows}
             searchPlaceholder="Tìm nhân viên..."
             pageSize={7}
-            exportFilename="Noire_Staff_Performance"
           />
         </Card>
       </div>
@@ -564,7 +561,6 @@ export const CapacityView: React.FC = () => {
               data={payRows}
               searchable={false}
               pageSize={7}
-              exportFilename="Noire_Payment_Methods"
             />
           </Card>
         )}

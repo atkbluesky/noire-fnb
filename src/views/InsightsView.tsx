@@ -668,7 +668,6 @@ export const InsightsView: React.FC = () => {
             data={anomalies}
             searchable={false}
             pageSize={6}
-            exportFilename={`bat_thuong_${lastFull}`}
             columns={anomalyCols}
           />
         )}
@@ -684,7 +683,6 @@ export const InsightsView: React.FC = () => {
           data={contribs}
           searchable={false}
           pageSize={8}
-          exportFilename={`dong_gop_bien_dong_${lastFull}`}
           columns={contribCols}
         />
       </Card>
