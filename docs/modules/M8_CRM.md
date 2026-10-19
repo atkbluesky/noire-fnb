@@ -116,3 +116,19 @@ Brand · Từ · Đến. Thanh lọc ghi rõ tỷ lệ nhận diện là số to
 - [ ] **So sánh chi tiêu member vs khách vãng lai** — dữ liệu đã đủ trong `fact_bill`
 - [ ] **Đóng góp doanh thu từ member** = `Net từ hoá đơn có member ÷ tổng Net`
 - [x] Tách Zalo OA sang M8.1 và thay export tay bằng OpenAPI + Webhook
+
+## 8. File `CRM khách hàng T10.2026.xlsx` — bố cục mới (19/10/2026)
+
+Bản xuất T10 (kỳ 01–18/10) khác T9: **mỗi dòng là một chuỗi `Nhãn,Giá trị,Đơn vị` nằm trong ô A**, sheet 3 voucher
+chỉ có tổng quan + chi tiết **theo chương trình** (không còn bảng theo cửa hàng), sheet 4 không còn.
+`tools/crm_reader.py` được **THÊM** nhánh đọc bản này (nhận biết bằng dòng `Chỉ số,Giá trị`); bản T9 đọc y như cũ (đã đối chiếu: số T9 không đổi).
+
+| Khối | Cách đọc bản T10 |
+|---|---|
+| Lượt chi tiêu · khách đăng ký | nhãn `Khách đăng ký` · `Lượt chi tiêu` (T9 ghi `Khách hàng đăng ký mới` · `Tổng lượt chi tiêu`) |
+| Doanh thu thành viên theo cửa hàng | đã nằm trong sheet 2 (header `Số lượng hóa đơn`) |
+| Voucher | `Đã phát hành` · `Đã dùng` · `Tổng doanh thu` (= trước giảm) · `Tổng giảm giá`; **không có voucher theo cửa hàng** nên cột voucher của bảng cửa hàng để trống |
+| Ảnh chụp khách | quy về bố cục T9 rồi dùng chung `parse_snapshot_sheet`; nhóm tuổi T10 chỉ có `18-24` · `Không xác định` · `Khác` |
+| Tháng chưa trọn | `crm_month.note` = `tháng chưa trọn — số tới 18/10/2026` |
+
+Hạng thành viên: T10 chỉ có bảng *lên hạng*, không có *số giao dịch theo hạng*.

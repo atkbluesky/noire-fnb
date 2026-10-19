@@ -120,6 +120,55 @@ def _sheet(wb, prefix):
     return None
 
 
+def _is_csvcells(rows):
+    """Bản xuất iPOS T10/2026: MỖI DÒNG là một chuỗi `Nhãn,Giá trị,Đơn vị` nằm gọn trong ô A
+    (thay vì mỗi giá trị một ô như T9). Nhận biết bằng dòng tiêu đề `Chỉ số,Giá trị`."""
+    return any(norm(_txt(r[0])).startswith("chỉ số,giá trị") for r in rows if r and r[0] is not None)
+
+
+def _explode(rows):
+    """Tách chuỗi `a,b,c` ở ô A thành các ô riêng — chỉ dùng cho sheet đã nhận là bản CSV-trong-ô."""
+    out = []
+    for r in rows:
+        a = _txt(r[0]) if r else ""
+        out.append(tuple(x.strip() for x in a.split(",")) if "," in a else tuple(r))
+    return out
+
+
+def _snapshot_legacy(rows):
+    """Sheet 1 bản CSV-trong-ô → các dòng theo bố cục T9 để `parse_snapshot_sheet` đọc chung một luật."""
+    ex = _explode(rows)
+    out, sec = [], None
+    top = {"tổng số khách hàng": "Tổng số khách hàng: {} khách", "tổng chi tiêu": "Tổng doanh thu tích lũy: {} VNĐ",
+           "tổng số hóa đơn": "Tổng số hóa đơn: {} hóa đơn"}
+    for r in ex:
+        a = _txt(r[0]) if r else ""
+        na = norm(a)
+        if not a:
+            continue
+        if na in top and len(r) > 1:
+            out.append((top[na].format(_txt(r[1])),))
+        elif na.startswith("khách ăn") and len(r) >= 6:
+            out.append(tuple(r))
+        elif na.startswith("phân bố giới tính"):
+            sec = "gender"; out.append(("Phân bố giới tính",))
+        elif na.startswith("phân bố độ tuổi"):
+            sec = "age"; out.append(("Phân bố độ tuổi",))
+        elif na.startswith("phân bố mức chi tiêu"):
+            sec = "spend"; out.append(("4. Phân bố mức chi tiêu tích lũy",))
+        elif na.startswith("tỷ lệ khách kết nối"):
+            sec = "channel"; out.append(("Kênh kết nối khách hàng:",))
+        elif a.isupper() and len(r) == 1:
+            sec = None
+        elif sec and len(r) >= 2 and not na.startswith(("tổng cộng", "giới tính", "nhóm tuổi", "mức chi tiêu", "kênh kết nối")):
+            n = _txt(r[1])
+            if sec == "spend":
+                out.append((a, f"{n} khách"))
+            else:
+                out.append((f"{a}: {n} khách",))
+    return out
+
+
 def parse_crm_file(path, month):
     wb = _load(path)
     out = {}
@@ -130,12 +179,25 @@ def parse_crm_file(path, month):
     if s2 is None:
         _w(f"{os.path.basename(path)}: không thấy sheet `2. Biến động khách hàng`")
         return None
+    csv_mode = _is_csvcells(s2)
+    if csv_mode:                          # T10/2026: CSV trong ô A → tách ô / quy về bố cục T9
+        s2 = _explode(s2)
+        if s1:
+            s1 = _snapshot_legacy(s1)
 
     # ── kỳ báo cáo phải đúng tháng của file ──
     head = " ".join(_txt(c) for r in s2[:3] for c in r)
     pm = re.search(r"(\d{2})/(\d{2})/(\d{4})\s*[–-]\s*(\d{2})/(\d{2})/(\d{4})", head)
+    if not pm and csv_mode:               # bản T10: kỳ báo cáo nằm giữa sheet, không ở 3 dòng đầu
+        pm = next(filter(None, (re.search(r"(\d{2})/(\d{2})/(\d{4})\s*[–-]\s*(\d{2})/(\d{2})/(\d{4})", _txt(r[0]))
+                                for r in s2 if r and r[0] is not None)), None)
     if pm and f"{pm.group(3)}-{pm.group(2)}" != month:
         _w(f"{os.path.basename(path)}: kỳ báo cáo {pm.group(0)} KHÔNG phải {month}")
+    part_note = None
+    if pm and f"{pm.group(6)}-{pm.group(5)}" == month:
+        import calendar
+        if int(pm.group(4)) > 0 and int(pm.group(1)) <= 1 and int(pm.group(4)) < calendar.monthrange(int(pm.group(6)), int(pm.group(5)))[1]:
+            part_note = f"tháng chưa trọn — số tới {pm.group(4)}/{pm.group(5)}/{pm.group(6)}"
 
     # ── sheet 2 · chỉ số tổng quan ──
     def val(label, col=1):
@@ -143,8 +205,16 @@ def parse_crm_file(path, month):
         return None if i is None else s2[i][col]
 
     month_rec = dict(month=month, src="S27")
-    member = cnt(val("khách hàng đăng ký mới"))
-    month_rec["spend_total"] = cnt(val("tổng lượt chi tiêu"))
+    def val_any(*labels):
+        for lb in labels:
+            v = val(lb)
+            if v is not None:
+                return v
+        return None
+
+    member = cnt(val_any("khách hàng đăng ký mới", "khách đăng ký"))
+    month_rec["note"] = part_note
+    month_rec["spend_total"] = cnt(val_any("tổng lượt chi tiêu", "lượt chi tiêu"))
     month_rec["spend_first"] = cnt(val("chi tiêu lần đầu"))
     month_rec["spend_second"] = cnt(val("chi tiêu lần 2"))
     month_rec["spend_third"] = cnt(val("chi tiêu từ 3 lần"))
@@ -171,6 +241,10 @@ def parse_crm_file(path, month):
             d["spend_total"] = (d["spend_first"] or 0) + (d["spend_second"] or 0) + (d["spend_third"] or 0)
     # ── sheet 2 · doanh thu thành viên theo cửa hàng ──
     i, p = _hdr(s2, "cửa hàng", "doanh thu", "giảm giá", "số lượng hđ")
+    if i is None:                          # bản T10: `Số lượng hóa đơn`
+        i, p = _hdr(s2, "cửa hàng", "doanh thu", "giảm giá", "số lượng hóa đơn")
+        if i is not None:
+            p["số lượng hđ"] = p.pop("số lượng hóa đơn")
     mem_src = "sheet 2"
     if i is None and s4:
         i, p = _hdr(s4, "cửa hàng", "doanh thu", "giảm giá", "số lượng ho")
@@ -279,7 +353,26 @@ def _parse_voucher_csvlines(rows, month):
     return v if v["used"] is not None else None
 
 
+def _parse_voucher_programs(rows, month):
+    """Bản T10/2026: tổng quan + chi tiết THEO CHƯƠNG TRÌNH voucher (không còn bảng theo cửa hàng).
+    `Tổng doanh thu` = doanh thu TRƯỚC giảm giá (đối chiếu: Σ chương trình · Doanh thu − Giảm giá = sau giảm)."""
+    lines = [",".join(_txt(c) for c in r if c is not None and _txt(c) != "") for r in rows]
+
+    def kv(label):
+        for l in lines:
+            p = l.split(",")
+            if len(p) >= 2 and norm(p[0]) == norm(label):
+                return p[1]
+        return None
+    before, disc = _n(kv("Tổng doanh thu")), _n(kv("Tổng giảm giá"))
+    v = dict(issued=cnt(kv("Đã phát hành")), used=cnt(kv("Đã dùng")), rev_before=before, disc=disc,
+             rev_after=None if before is None or disc is None else before - disc, stores={})
+    return v if v["used"] is not None else None
+
+
 def parse_voucher_sheet(rows, month):
+    if any(norm(_txt(r[0])).startswith("đã phát hành,") for r in rows if r and r[0] is not None):
+        return _parse_voucher_programs(rows, month)
     if any("voucher phát hành," in norm(_txt(r[0])) for r in rows if r and r[0] is not None):
         return _parse_voucher_csvlines(rows, month)
     full = "\n".join(_txt(r[0]) for r in rows if r and r[0] is not None)
@@ -721,6 +814,8 @@ def read_crm(month):
             s = stores.get(code)
             if s and s.get("mem_rev") is not None and abs(s["mem_rev"] - c["mem_rev"]) > 1:
                 _w(f"{month} {code}: doanh thu thành viên file CRM {s['mem_rev']:,.0f} ≠ CSV {c['mem_rev']:,.0f}")
+        if rec.get("note"):
+            notes.insert(0, rec["note"])
         rec["note"] = "; ".join(notes) or None
         out["crm_month"] = [rec]
         out["crm_store"] = list(stores.values())
