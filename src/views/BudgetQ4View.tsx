@@ -132,6 +132,8 @@ export const BudgetQ4View: React.FC = () => {
   const brands = Q4.brands.filter(b => brandMatches(b.brand));
   const brandList = brands.map(b => b.brand);
   const planOf = (b: typeof brands[0], item: string) => (b.items as Record<string, number>)[item] ?? 0;
+  /** Phần plan tính vào trần 2% — bản Final ghi riêng (không gồm Decoration Xmas); file cũ không có thì so cả tổng. */
+  const capBaseOf = (b: typeof brands[0]) => (b as { capBase?: number }).capBase ?? b.total;
   const digitalActualQ = (b: string) => { const x = dA(b, Q4.months); return x.meta + x.google + x.booking; };
   const actualOf = (b: string, item: string): number | null =>
     item === 'Digital Ads' ? (hasDigital ? digitalActualQ(b) : null) : ndActual(b, item);
@@ -231,20 +233,21 @@ export const BudgetQ4View: React.FC = () => {
                 <th className="p-2.5">Brand</th>
                 {Q4.items.map(i => <th key={i} className={TH}>{i}</th>)}
                 <th className={TH}>Tổng Q4</th>
-                <th className={TH} title="Mức MKT Budget 2% doanh thu mục tiêu — tham chiếu">Plan vs mức 2% DT</th>
+                <th className={TH} title="Mức MKT Budget 2% doanh thu mục tiêu — tham chiếu. Bản Final: Decoration Xmas là ngân sách riêng, không tính vào trần 2%.">Plan vs mức 2% DT</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border/40 font-mono">
               {brands.map(b => {
                 const tot = sum(Q4.items.map(i => actualOf(b.brand, i) ?? 0));
+                const capBase = capBaseOf(b);
                 return (
                   <tr key={b.brand} className="hover:bg-brand-cardHover">
                     <td className="p-2.5 align-top font-sans font-bold" style={{ color: BRAND_COLORS[b.brand] }}>● {b.brand}</td>
                     {Q4.items.map(i => <td key={i} className={TD}>{planOf(b, i) || actualOf(b.brand, i) ? <PvA a={actualOf(b.brand, i)} p={planOf(b, i)} /> : <span className="text-brand-faint">—</span>}</td>)}
                     <td className={TD}><PvA a={tot} p={b.total} strong /></td>
-                    <td className={`${TD} ${b.cap2pct && b.total > b.cap2pct ? 'text-status-bad' : 'text-brand-muted'}`}>
+                    <td className={`${TD} ${b.cap2pct && capBase > b.cap2pct ? 'text-status-bad' : 'text-brand-muted'}`}>
                       <div>{b.cap2pct ? formatVND(b.cap2pct) : '—'}</div>
-                      {b.cap2pct ? <div className="text-[10px]">{b.total > b.cap2pct ? 'vượt' : 'dư'} {formatVND(Math.abs(b.total - b.cap2pct))}</div> : null}
+                      {b.cap2pct ? <div className="text-[10px]">{capBase > b.cap2pct ? 'vượt' : 'dư'} {formatVND(Math.abs(capBase - b.cap2pct))}</div> : null}
                     </td>
                   </tr>
                 );
