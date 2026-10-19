@@ -90,6 +90,34 @@ nhưng thực tế `NCB-SKC-Performance Max` đã chi 746.599đ.
 từ 0,72% (The Mett, SKC) tới 3,20% (JFB SSV). Cửa hàng mới được đầu tư đậm hơn theo tỷ lệ,
 hợp lý về chiến lược, nhưng cần theo dõi hiệu quả riêng thay vì so ngang với cửa hàng đã ổn định.
 
+## 6b. Ngân sách Q4/2026 — `BudgetQ4View.tsx`
+
+Nút **Kỳ Q4/2026** ở đầu M4. Plan đọc từ `src/data/budget_q4.json`, dựng bằng
+`npm run build:budget-q4` (`scripts/build-budget-q4.mjs`) từ thư mục `L0_input/03_MARKETING/04_Ngan_Sach/`.
+
+**Nguồn hiện dùng (19/10/2026):** `NOIRE_MKT_Phân Bổ Chi Phí.Q4_2026_Final.xlsx` — bản Final.
+Script nhận cả bản cũ `NOIRE_Q4_Digital_Monthly_Allocation_*` (bố cục sheet khác); file sửa gần nhất thắng.
+
+| Sheet bản Final | Lấy gì |
+|---|---|
+| `TongHop_ChiPhi_Q4` khối A | brand × hạng mục · Sale Target Q4 · mức MKT 2% · Tổng CP MKT (trong trần) · Tổng gồm décor |
+| `Ads_7_Outlets` khối đầu | đơn vị chạy ads → tên cửa hàng · Digital gốc |
+| `Monthly_ByOutlet` | cửa hàng × tháng × Meta Promo / Google |
+| `Monthly_ByBrand` | brand × tháng × Meta Promo / Google / Booking Tiệc |
+
+| Brand | Tổng CP MKT (trần 2%) | Mức 2% | Decoration Xmas | Tổng gồm décor |
+|---|---|---|---|---|
+| NCB | 179,5 tr | 180,1 tr | 60 tr | 239,5 tr |
+| NDC | 161,0 tr | 170,4 tr | 75 tr | 236,0 tr |
+| NJFB | 160,0 tr | 173,5 tr | 60 tr | 220,0 tr |
+| **Tổng** | **500,5 tr** | 523,9 tr | 195 tr | **695,5 tr** |
+
+Digital 200 tr = Meta Promo 100 tr · Google 54 tr · Booking Tiệc 46 tr (Booking tách cấp brand, không chia cửa hàng).
+
+**Cột "Plan vs mức 2% DT"** so `capBase` (Tổng CP MKT, **không gồm Decoration Xmas** — bản Final ghi décor là
+ngân sách riêng ngoài trần 2%) với mức 2%. File cũ không có `capBase` thì so cả tổng như trước.
+Bản Final không có cột "focus" theo tháng → chú thích tháng ở bảng Digital để trống.
+
 ## 7. Checklist nâng cấp
 
 - [ ] **Chỉ số giải ngân** = `thực chi ÷ phần kế hoạch ĐÃ TỚI HẠN` *(không so với cả quý)*.

@@ -58,8 +58,11 @@ if (process.argv.includes('--template')) {
   process.exit(0);
 }
 
+/* Bản Final (NOIRE_MKT_Phân Bổ Chi Phí.Q4_2026_Final.xlsx) có bố cục sheet khác bản Digital Allocation cũ —
+ * đọc bằng parseFinal(); file nào sửa gần nhất thì thắng. */
+const FINAL_RE = /^NOIRE_MKT_.*Q4.*\.xlsx$/i;
 const files = fs.existsSync(DIR)
-  ? fs.readdirSync(DIR).filter((f) => /^NOIRE_Q4_Digital.*\.xlsx$/i.test(f) && !f.startsWith('~$'))
+  ? fs.readdirSync(DIR).filter((f) => (/^NOIRE_Q4_Digital.*\.xlsx$/i.test(f) || FINAL_RE.test(f)) && !f.startsWith('~$'))
   : [];
 if (!files.length) { console.log('[budget-q4] không thấy file Q4 — giữ nguyên budget_q4.json'); process.exit(0); }
 files.sort((a, b) => fs.statSync(path.join(DIR, b)).mtimeMs - fs.statSync(path.join(DIR, a)).mtimeMs);
@@ -74,6 +77,60 @@ const str = (c) => String(val(c) ?? '').trim();
 const sheet = (name) => { const ws = wb.getWorksheet(name); if (!ws) throw new Error(`thiếu sheet ${name}`); return ws; };
 const BRANDS = ['NCB', 'NDC', 'NJFB'];
 
+const ITEM_PAT = [
+  ['Digital Ads', /^digital ads/i], ['KOC & PR', /^koc/i], ['FOC Production', /^foc/i], ['Decoration Xmas', /^decoration/i],
+  ['POSM & Merchandise', /^posm/i], ['Activation', /^activation/i], ['Dự phòng', /^dự phòng/i],
+];
+
+/** Bản Final: TongHop_ChiPhi_Q4 (brand × hạng mục; Decoration Xmas ngoài trần 2%) · Ads_7_Outlets · Monthly_ByOutlet · Monthly_ByBrand. */
+function parseFinal() {
+  const s1 = sheet('TongHop_ChiPhi_Q4');
+  let hr = 0;
+  s1.eachRow((row, i) => { if (!hr && str(row.getCell(1)) === 'Brand' && /^sale target/i.test(str(row.getCell(2)))) hr = i; });
+  if (!hr) throw new Error('TongHop_ChiPhi_Q4: không thấy dòng tiêu đề Brand / Sale Target');
+  const colOf = (re) => { for (let c = 2; c < 25; c++) if (re.test(str(s1.getCell(hr, c)))) return c; throw new Error(`TongHop_ChiPhi_Q4: thiếu cột ${re}`); };
+  const itemCols = ITEM_PAT.map(([h, re]) => ({ h, c: colOf(re) }));
+  const cTarget = colOf(/^sale target/i), cCap = colOf(/2%$/), cCapBase = colOf(/^tổng cp mkt/i), cTotal = colOf(/^tổng chi q4/i);
+  const brands = [];
+  for (let r = hr + 1; r <= hr + 6; r++) {
+    const b = str(s1.getCell(r, 1));
+    if (!BRANDS.includes(b)) continue;
+    const items = {};
+    itemCols.forEach((x) => { items[x.h] = num(s1.getCell(r, x.c)); });
+    // total gồm Decoration Xmas (ngân sách riêng); capBase = phần tính vào trần 2% (không gồm décor)
+    brands.push({ brand: b, items, total: num(s1.getCell(r, cTotal)), cap2pct: num(s1.getCell(r, cCap)) || null,
+      capBase: num(s1.getCell(r, cCapBase)), saleTarget: num(s1.getCell(r, cTarget)) });
+  }
+  /* Ads_7_Outlets khối đầu: Brand | Cửa hàng | Đơn vị chạy ads | Digital gốc */
+  const unit = {}; let on = false;
+  sheet('Ads_7_Outlets').eachRow((row) => {
+    const a = str(row.getCell(1));
+    if (a === 'Brand' && /^cửa hàng/i.test(str(row.getCell(2)))) { on = true; return; }
+    if (on && /^total/i.test(a)) { on = false; return; }
+    if (on && BRANDS.includes(a)) unit[str(row.getCell(3))] = { brand: a, store: str(row.getCell(2)), base: num(row.getCell(4)) };
+  });
+  const stores = [];
+  sheet('Monthly_ByOutlet').eachRow((row) => {
+    const b = str(row.getCell(1));
+    if (!BRANDS.includes(b)) return;
+    const u = unit[str(row.getCell(2))];
+    if (!u || u.brand !== b) throw new Error(`Monthly_ByOutlet: đơn vị "${str(row.getCell(2))}" không có ở Ads_7_Outlets`);
+    const m = {};
+    MONTHS.forEach((mo, i) => { m[mo] = { meta: num(row.getCell(4 + i * 3)), google: num(row.getCell(5 + i * 3)) }; });
+    stores.push({ brand: b, store: u.store, base: u.base, months: m });
+  });
+  const brandMonth = [];
+  sheet('Monthly_ByBrand').eachRow((row) => {
+    const b = str(row.getCell(1)); const t = /^T(\d{1,2})\/(\d{4})$/i.exec(str(row.getCell(2)));
+    const mo = t ? `${t[2]}-${t[1].padStart(2, '0')}` : null;
+    if (!BRANDS.includes(b) || !MONTHS.includes(mo)) return;
+    brandMonth.push({ brand: b, month: mo, meta: num(row.getCell(3)), google: num(row.getCell(4)), booking: num(row.getCell(6)), focus: '' });
+  });
+  return { itemCols, brands, stores, brandMonth };
+}
+
+/** Bản cũ NOIRE_Q4_Digital_Monthly_Allocation_*: 01_TongHop_ChiPhi_Q4 · 06_Monthly_ByOutlet · 07_Monthly_ByBrand. */
+function parseLegacy() {
 /* 01 — brand × hạng mục: tìm dòng tiêu đề có "Brand" + "Digital Ads" */
 const s1 = sheet('01_TongHop_ChiPhi_Q4');
 let hr = 0;
@@ -119,6 +176,10 @@ s7.eachRow((row) => {
   if (!BRANDS.includes(b) || !mo) return;
   brandMonth.push({ brand: b, month: mo, meta: num(row.getCell(3)), google: num(row.getCell(4)), booking: num(row.getCell(6)), focus: str(row.getCell(11)) });
 });
+return { itemCols, brands, stores, brandMonth };
+}
+
+const { itemCols, brands, stores, brandMonth } = FINAL_RE.test(file) ? parseFinal() : parseLegacy();
 
 /* Kiểm tra chéo — sai là dừng, không ghi file */
 const errs = [];
