@@ -113,6 +113,8 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         status: SOCIAL_READY ? 'ok' : 'warning',
         statusText: SOCIAL_READY ? 'Kênh sở hữu' : 'Chờ số',
       },
+      /* M6.2 Social Auto — tạm ẩn khỏi menu cho tới khi có đăng nhập người dùng.
+         Route 'm62' trong App.tsx và API /api/social vẫn giữ nguyên.
       {
         id: 'm62',
         code: 'M6.2',
@@ -122,6 +124,7 @@ export const NAVIGATION_GROUPS: NavGroup[] = [
         statusText: 'Cần cấu hình',
         parent: 'm6',
       },
+      */
       /* M7 PROMOTION — mục mẹ + 2 mục con, cùng MỘT danh mục chương trình
          (L0_input/03_MARKETING/07_Campaign_Tracking) nối kế hoạch Pre-Analysis ↔ POS. */
       {
