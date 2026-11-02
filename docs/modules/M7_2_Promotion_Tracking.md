@@ -599,3 +599,42 @@ thả vào `L0_input/03_MARKETING/07_Campaign_Tracking/` → `CAP_NHAT.bat`. H�
 | 7 | **CT chồng kỳ cùng store** không tách được lift | Cảnh báo chồng kỳ | Lịch chạy so le |
 | 8 | **Store mới mở < 90 ngày** — doanh thu tự tăng theo đà | Cảnh báo, lift dễ bị thổi phồng | — |
 | 9 | **Target phải nộp TRƯỚC ngày chạy** (`submitted`) — nộp sau không được chấm ĐẠT | CHƯA CÓ TARGET | Team brand |
+
+---
+
+## 9. Soát Q4/2026 với POS T10 *(02/11/2026)*
+
+**Lỗi tìm ra:** (1) quà 20/10 bấm món 0 đ nhóm `NOIRE - EVENT`, không có tên CTKM → M7.2 ghi 0 hoá đơn;
+(2) kế hoạch Q4 (sổ M7.1 `Pre_Analysis_2026_Q4_V3.xlsx`) chưa điền `campaign_id` → M7.2 không có target, mọi CT ra CHƯA ĐO ĐƯỢC;
+(3) nhiều CT kế hoạch chạy từ 01/10 nhưng POS chỉ gắn tên CTKM ở 3–5 ngày cuối tháng.
+
+**Đã sửa:**
+
+| Chỗ sửa | Nội dung |
+|---|---|
+| `data_contract.json` `$campaign.lto_group_rx` | `LTO` → `LTO\|EVENT\|COMBO` — `fact_lto_line` nhận thêm món sự kiện / món tặng và món combo. Chỉ dòng có mã nối ở `campaign_item` vào số chương trình, nên CT cũ không đổi |
+| `campaign_item` (Campaign_Tracking) | NOR-EVE0001 → Blooming Velvet (NCB) · NOR-EVE0002 → Her Wonders (NDC) · CB-BLT0001–0003 → Halloween NCB · NOR-EVE0004–0007 → Guest Shift KAIDAN · DC-COMBO0001 → Set Lunch 199K |
+| `dim_campaign` | thêm `NCB-2026-10-HALLOWEEN` · `NJFB-2026-10-GSKAIDAN` · `NDC-2026-09-SETLUNCH199`; gộp 2 tên POS Morning Promotion vào `NDC-2026-10-NDC39NTMK` (dòng `…NDC39NTMK2` → CANCELLED); `date_to` 31/10 cho Office Exclusive và Set Lunch NJFB (kế hoạch 01–31/10) |
+| `campaign_cost` | `GIFT_COGS` thực = số ly POS × giá cost (`Trich_Xuat_Du_Lieu_Gia_Cost.xlsx`): NCB 126 × 11.685 = 1.472.310 đ · NDC 16 × 13.799 = 220.784 đ. Chưa gồm chi phí hoa 18–19/10 |
+| sổ M7.1 cột `campaign_id` | nối 11 kế hoạch Q4: BLOOMINGVELVET · HERWONDERS · SWEETBLOOM · OFFICEEXCL→CBOFFICE · KHUNGSANG→NDC39NTMK · PREBOOKPIZZA→NDCPREBOOKING · NJFB SETLUNCH→MONTHLYSETLUCH · RESIDENT15→RESIDENT · HALLOWEEN NCB · GSKAIDAN · SETLUNCH199 |
+
+Bản gốc 2 file L0 trước khi sửa: `L0_input/_GOC_iPOS/03_MARKETING/…_truoc_02-11.xlsx`.
+
+**Kết quả T10 (số POS tới 31/10):**
+
+| Chương trình | HĐ | DT CTKM | Kết quả |
+|---|---|---|---|
+| Blooming Velvet (NCB) | 45 (29 HĐ 0 đ chỉ có ly tặng) | 9,6 tr | KHÔNG ĐẠT — 51% target tăng thêm, EBITDA +0,15 tr |
+| Her Wonders (NDC) | 7 | 2,3 tr | CHƯA CÓ TARGET — kế hoạch khoá 14/10, sau ngày bắt đầu 13/10; EBITDA −1,8 tr (gồm ads 2 tr kế hoạch chưa khai thực) |
+| Halloween NCB (LTO) | 28 | 10,8 tr | KHÔNG ĐẠT — 46%; POS bán món khác kế hoạch, từ 29/10 |
+| Office Exclusive (NCB) | 8 | 2,4 tr | KHÔNG ĐẠT — 4% (POS gắn tên từ 30/10) |
+| Set Lunch mua 3 tặng 1 (NJFB) | 9 | 13,2 tr | KHÔNG ĐẠT — 29% (POS gắn tên từ 28/10) |
+| Khung Sáng · Pre-booking Pizza · Resident 15% | 10 · 1 · 1 | | TẠM TÍNH (đang chạy) — mới 1–5 ngày trên POS |
+| Set Lunch 199K (NDC) | 68 | 48,9 tr | TẠM TÍNH — chưa có target hợp lệ (khoá sau 21/09) |
+| Guest Shift KAIDAN | 15 | 10,0 tr | BRANDING |
+| Sweet Bloom (NJFB) | 0 | | CHƯA ĐO ĐƯỢC — POS không có dòng wagashi/nerikiri |
+
+**Chờ nguồn xác nhận (không vá trong hệ thống):** HĐ `NTM64323` The Mett 20/10 21:40 — 48 ly tặng trên 1 HĐ 0 đ ("All takeaway"),
+nghi xuất nội bộ; CT kế hoạch từ 01/10 mà POS gắn tên trễ — chạy muộn thật hay thu ngân quên gắn; NJFB Halloween Night 30–31/10
+và NDC Halloween dessert không có dòng nào trên POS; voucher "CB - 20/10/2026 - Gift voucher 100K" (7 HĐ) vẫn là dòng riêng,
+chưa cộng vào Blooming Velvet.
