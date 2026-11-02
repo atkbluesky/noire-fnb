@@ -112,7 +112,7 @@ const DashboardContent: React.FC = () => {
   } else if (activeView === 'm11' || activeView === 'm101') {
     customNote = 'Tháng = tháng của báo cáo iPOS (L0_input/06_ĐAT_BAN). Brand lọc ở nút trong phễu; đơn theo brand là ước tính phân bổ.';
   } else if (activeView === 'm8') {
-    customNote = 'Tỷ lệ nhận diện khách là số liệu toàn chuỗi; voucher lọc được theo brand.';
+    customNote = 'Dữ liệu khách hàng thành viên & voucher theo kỳ chọn.';
   } else if (activeView === 'm6') {
     customNote = 'Reach của Facebook và views của TikTok không cộng chung được — mỗi nền tảng một khung riêng.';
   }

@@ -367,7 +367,57 @@ def _parse_voucher_programs(rows, month):
     before, disc = _n(kv("Tổng doanh thu")), _n(kv("Tổng giảm giá"))
     v = dict(issued=cnt(kv("Đã phát hành")), used=cnt(kv("Đã dùng")), rev_before=before, disc=disc,
              rev_after=None if before is None or disc is None else before - disc, stores={})
+    _voucher_branch_table(lines, month, v)
     return v if v["used"] is not None else None
+
+
+def _voucher_branch_table(lines, month, v):
+    """THÊM 20/10/2026 — bảng `STT,Chi nhánh,Voucher sử dụng,…` của bản T10 (xuất lại có bảng chi nhánh).
+    Bảng chi nhánh đếm MỌI voucher dùng tại quầy (cùng phạm vi tổng tháng T6–T9 = Σ chi nhánh), còn
+    tổng quan bản T10 chỉ cộng các chương trình liệt kê → khi có bảng, số dùng/doanh thu tháng lấy dòng
+    TỔNG CỘNG; `Đã phát hành` chỉ có cho các chương trình nên không ghép với số dùng (để trống)."""
+    hdr = None
+    total = None
+    for l in lines:
+        p = [x.strip() for x in l.split(",")]
+        n = [norm(x) for x in p]
+        if hdr is None:
+            if len(n) > 2 and n[0] == "stt" and n[1] == "chi nhánh":
+                hdr = {k: i for i, k in enumerate(n)}
+            continue
+        if len(p) != len(hdr):
+            _w(f"{month}: dòng voucher chi nhánh lệch cột — {l}")
+            continue
+
+        def col(prefix):
+            for k, i in hdr.items():
+                if k.startswith(prefix):
+                    return p[i]
+            return None
+        row = dict(v_used=cnt(col("voucher sử dụng")), v_rev_before=_n(col("doanh thu trước giảm")),
+                   v_rev_after=_n(col("doanh thu sau giảm")), v_disc=_n(col("chi phí giảm giá")))
+        if norm(p[1]).startswith("tổng"):
+            total = row
+            break
+        if not re.match(r"^\d+$", p[0]):
+            break
+        code = _store(p[1])
+        if not code:
+            _w(f"cửa hàng lạ ở báo cáo voucher: {p[1]}")
+            continue
+        d = v["stores"].setdefault(code, dict(v_used=0, v_rev_before=0, v_disc=0, v_rev_after=0))
+        for k, x in row.items():
+            d[k] += x or 0
+    if not v["stores"]:
+        return
+    su = sum(d["v_used"] for d in v["stores"].values())
+    if total is None:
+        total = {k: sum(d[k] for d in v["stores"].values()) for k in ("v_used", "v_rev_before", "v_rev_after", "v_disc")}
+    elif total["v_used"] != su:
+        _w(f"{month}: voucher theo chi nhánh cộng {su} ≠ dòng TỔNG CỘNG {total['v_used']}")
+    v["program_used"], v["program_issued"] = v["used"], v["issued"]
+    v.update(used=total["v_used"], rev_before=total["v_rev_before"], rev_after=total["v_rev_after"],
+             disc=total["v_disc"], issued=None)
 
 
 def parse_voucher_sheet(rows, month):
@@ -806,6 +856,10 @@ def read_crm(month):
         if v:
             rec.update(v_issued=v["issued"], v_used=v["used"], v_rev_before=v["rev_before"],
                        v_rev_after=v["rev_after"], v_disc=v["disc"])
+            if v.get("program_used") is not None:
+                notes.append(f"voucher dùng/doanh thu theo bảng chi nhánh (mọi voucher); phát hành chỉ có cho "
+                             f"các chương trình liệt kê ({v['program_issued']:,} phát · {v['program_used']:,} dùng) "
+                             f"— không cùng phạm vi nên để trống")
             for code, vd in v["stores"].items():
                 stores.setdefault(code, dict(month=month, store=code)).update(vd)
         # đối chiếu CSV nếu cả hai cùng có

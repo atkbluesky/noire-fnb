@@ -175,7 +175,8 @@ export const CRMCustomerSection: React.FC = () => {
 
   /* ── Voucher (báo cáo CRM iPOS) ── */
   const vRows = activeCM.filter(r => r.v_used != null || r.note?.includes('voucher'));
-  const vStores = stores.filter(r => r.v_used != null);
+  const vStores = stores.filter(r => r.v_used != null).sort((a, b) => (b.v_used ?? 0) - (a.v_used ?? 0));
+  const vStoreUsed = vStores.reduce((s, r) => s + (r.v_used ?? 0), 0);
 
   const memPct = memCur != null && memTarget ? memCur / memTarget : null;
 
@@ -347,7 +348,7 @@ export const CRMCustomerSection: React.FC = () => {
                     <>
                       <td className="py-1.5 px-2 text-right">{formatNumber(r.v_issued)}</td>
                       <td className="py-1.5 px-2 text-right">{formatNumber(r.v_used)}</td>
-                      <td className="py-1.5 px-2 text-right">{formatPercent(rate(r.v_used, r.v_issued))}{r.v_used! > r.v_issued! ? ' ⚠' : ''}</td>
+                      <td className="py-1.5 px-2 text-right">{formatPercent(rate(r.v_used, r.v_issued))}{r.v_issued != null && r.v_used! > r.v_issued ? ' ⚠' : ''}</td>
                       <td className="py-1.5 px-2 text-right">{formatVND(r.v_rev_before)}</td>
                       <td className="py-1.5 px-2 text-right">{formatVND(r.v_rev_after)}</td>
                       <td className="py-1.5 px-2 text-right">{formatVND(r.v_disc)}</td>
@@ -359,8 +360,48 @@ export const CRMCustomerSection: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {cur.v_used != null && cur.v_issued == null && (
+          <p className="mt-2 text-[10px] text-brand-faint">{formatMonthLabel(cur.month)}: báo cáo chỉ ghi số phát hành cho từng chương trình, không có tổng phát hành cho mọi voucher — để "—" thay vì ghép hai phạm vi.</p>
+        )}
         {vStores.length > 0 && (
-          <p className="mt-2 text-[10px] text-brand-faint">Chi tiết theo chi nhánh {formatMonthLabel(cur.month)}: {vStores.length} cửa hàng có số voucher.</p>
+          <div className="mt-4">
+            <p className="mb-1.5 text-[11px] font-semibold text-brand-text">Voucher theo chi nhánh · {formatMonthLabel(cur.month)}{cur.note?.includes('chưa trọn') ? ' (tháng chưa trọn)' : ''}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="text-left text-brand-muted">
+                    {['Chi nhánh', 'Đã dùng', 'Tỷ trọng', 'DT trước giảm', 'DT sau giảm', 'Chi phí giảm', '% giảm', 'Giảm TB / voucher'].map((h, i) => (
+                      <th key={h} className={`py-1.5 px-2 font-semibold ${i ? 'text-right' : ''}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  {vStores.map(r => (
+                    <tr key={r.store} className="border-t border-brand-border/50">
+                      <td className="py-1.5 px-2 font-sans font-bold text-brand-text">{storeName(r.store)}</td>
+                      <td className="py-1.5 px-2 text-right">{formatNumber(r.v_used)}</td>
+                      <td className="py-1.5 px-2 text-right text-brand-muted">{formatPercent(rate(r.v_used, vStoreUsed))}</td>
+                      <td className="py-1.5 px-2 text-right">{formatVND(r.v_rev_before)}</td>
+                      <td className="py-1.5 px-2 text-right">{formatVND(r.v_rev_after)}</td>
+                      <td className="py-1.5 px-2 text-right">{formatVND(r.v_disc)}</td>
+                      <td className="py-1.5 px-2 text-right">{formatPercent(rate(r.v_disc, r.v_rev_before))}</td>
+                      <td className="py-1.5 px-2 text-right">{formatVND(rate(r.v_disc, r.v_used))}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-brand-border font-bold">
+                    <td className="py-1.5 px-2 font-sans text-brand-text">Tổng {vStores.length} chi nhánh</td>
+                    <td className="py-1.5 px-2 text-right">{formatNumber(vStoreUsed)}</td>
+                    <td className="py-1.5 px-2 text-right text-brand-muted">{formatPercent(1)}</td>
+                    <td className="py-1.5 px-2 text-right">{formatVND(vStores.reduce((s, r) => s + (r.v_rev_before ?? 0), 0))}</td>
+                    <td className="py-1.5 px-2 text-right">{formatVND(vStores.reduce((s, r) => s + (r.v_rev_after ?? 0), 0))}</td>
+                    <td className="py-1.5 px-2 text-right">{formatVND(vStores.reduce((s, r) => s + (r.v_disc ?? 0), 0))}</td>
+                    <td className="py-1.5 px-2 text-right">{formatPercent(rate(vStores.reduce((s, r) => s + (r.v_disc ?? 0), 0), vStores.reduce((s, r) => s + (r.v_rev_before ?? 0), 0)))}</td>
+                    <td className="py-1.5 px-2 text-right">{formatVND(rate(vStores.reduce((s, r) => s + (r.v_disc ?? 0), 0), vStoreUsed))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </Card>
     </section>
