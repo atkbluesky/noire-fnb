@@ -77,6 +77,7 @@ Dashboard mở mặc định ở kỳ **tháng dữ liệu đầu tiên → thá
 | **Target chỉ có Q3** | % Đạt Kế hoạch chỉ có nghĩa ở T7 · T8 · T9 |
 | **Chỉ The Mett đủ 18 tháng** | YoY toàn chuỗi chưa có ý nghĩa thống kê |
 | **Số khách nhập sai trên POS** *(soát 02/10/2026)* — HĐ `NET12214` NCB_ET 29/09/2026 ghi **5.017 khách** cho 289.737 đ · HĐ `GW0037` NCB_GW 12/05/2026 ghi **1.111 khách** cho 177.000 đ | Guest T9 (7 CH chính) +29,8% vs T8 thay vì ≈ +4,0% · TA −18,9% thay vì ≈ +1,2% · Party Size cũng lệch. Sửa ở iPOS rồi xuất lại file T9 / T5 — chưa có chốt QA nào bắt số khách bất thường |
+| **Số khách nhập sai trên POS — T10/2026** *(soát 02/11/2026)* — HĐ `NTM65241` NCB_MET 29/10/2026 ghi **994 khách** cho 1.163.484 đ | Guest · TA · Party Size T10 lệch; so T10 vs T9 còn lệch thêm vì T9 chưa sửa (dòng trên). Sửa ở iPOS rồi xuất lại file, không vá trong view (QT1.6) |
 | **`store_month` chưa có cột `voucher`** | Dòng “Voucher” dưới thẻ Discount % luôn `—` — ETL `tools/build_month.py` chưa ghi cột này (hợp đồng có khai) |
 
 ## 6. Checklist nâng cấp

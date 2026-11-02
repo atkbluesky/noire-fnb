@@ -227,6 +227,7 @@ danh sách bí danh và dò dòng tiêu đề theo nội dung, không đếm dò
 | `✖ 15. Khối POS phụ khớp store_month` | `daypart`/`channel` còn là bản dựng từ export thiếu ngày | Chạy lại `python tools/build_month.py <tháng>` |
 | `✖ 7. Rollup khớp báo cáo tháng` | Bảng kê hoá đơn thiếu ngày so với báo cáo tháng | Xuất lại bảng kê đủ tháng |
 | `✖ 8. Độ phủ giá vốn` | 1.200 SKU chưa có COGS | Bổ sung BOM — đây là điểm chặn của toàn bộ tầng biên lợi nhuận |
+| `Báo cáo bán hàng … thiếu cột: Cửa hàng, Giờ` | iPOS xuất bố cục mới (từ T10/2026) | Chạy `python tools/pos_item_normalize.py <tháng>` **trước** `update.py` — nếu không, `update.py` dời file vào `_REJECT` |
 | Số social không đổi sau khi nộp | Thư mục Fanpage đặt sai tên tháng | Đổi thành `Tháng N.YYYY` |
 | `không thấy báo cáo Meta Ads của 2026-09` | File chưa đặt đúng `YYYY-MM_report.xlsx` | Đổi tên file export |
 
