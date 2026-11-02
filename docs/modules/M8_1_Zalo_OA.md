@@ -73,6 +73,12 @@ export + S26, ẩn hàng chỉ số chat 2 chiều và hiện cảnh báo.
 **Nhịp hằng tháng:** API chạy tự động; đầu tháng thả file export tháng trước vào
 `L0_input/04_CRM/02_Zalo_OA` → `CAP_NHAT.bat`. File vào thì số export tự thay số API cho các ngày đó.
 
+> **Bẫy khi nạp (phát hiện 02/11/2026, nạp T10/2026):**
+> - OA Manager xuất file Tổng quan tên `Thống kê theo ngày.xls` — phải đổi thành `OA Zalo T<tháng>.<năm>.xls`, nếu không `S12` không nhận tháng đó.
+> - Đổi file `S12` thì `update.py` chỉ dựng phần `oa_follower`, **không** dựng phần `oa` (`_part_map()` ghi đè vì một nguồn nuôi hai phần).
+>   Cho tới khi sửa: chạy thêm `python tools/build_month.py <tháng> --parts=oa` rồi `node scripts/build-data.mjs`, và kiểm tra `oa.days`.
+> - T10/2026 không có file `Giới tính & độ tuổi`, nên khối đó hiện T9 (có ghi nhãn tháng).
+
 Zalo quy định OA access token hiệu lực 25 giờ; refresh token dùng một lần và được xoay sau
 mỗi lần refresh. Vì vậy token mới được mã hoá AES-256-GCM rồi ghi lại database, không giữ
 refresh token cũ trong code. Tham khảo tài liệu chính thức:

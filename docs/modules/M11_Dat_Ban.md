@@ -88,6 +88,18 @@ Kênh có Ads tạo 159/592 đơn (27%) · thực chi ÷ đơn từ Ads = 149 k;
 Chi phí Meta / hội thoại (gồm cả chi Tương tác): NJFB 27 k · NDC 41 k · NCB 115 k.
 Tỷ trọng chi ↔ đơn: NCB 23% ↔ 16% · NDC 41% ↔ 41% · NJFB 36% ↔ 42%. Khách huỷ: NDC 24% · NCB 14% · NJFB 14%.
 
+### 0f. Kết quả T10/2026 (01/10 → 31/10, nạp 02/11/2026)
+
+902 đơn · 99 huỷ (11,0%) · 3.030 khách đặt · thực chi Ads nhà hàng 52,3 tr (tiệc NEC 16,6 tr thuộc M10).
+Chốt QA như T9: tổng đơn khớp 902 ở cả 4 báo cáo · đơn huỷ 99 ↔ 99 · ⚠ khách 3.030 ↔ 2.664 (lệch 366) · ⚠ "Google Ads" ×7 mã.
+
+| Mục chi phí | Thực chi | Hành động | Đơn (nguồn) | Chi phí / đơn | Chi phí / đơn giữ |
+|---|---:|---:|---:|---:|---:|
+| Meta Ads *(Tin nhắn 27,7 tr + Tương tác 16,8 tr + Khác 1,0 tr)* | 45,5 tr | 926 hội thoại (49 k) | 222 Fanpage *(FacebookCRM 208 + Fanpage 14)* | 205 k | 244 k |
+| Google Ads | 6,8 tr | 3.372 chuyển đổi | 73 Google Ads *(Google Ads 52 + Website 21)* | 93 k | 111 k |
+
+Kênh có Ads tạo 295/902 đơn (33%) · thực chi ÷ đơn từ Ads = 177 k.
+
 ---
 
 > Tài liệu gốc: [iPOS Booking Open API](https://documenter.getpostman.com/view/2386655/2s83t9LZno) ·
