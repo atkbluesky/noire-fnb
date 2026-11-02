@@ -132,3 +132,38 @@ chỉ có tổng quan + chi tiết **theo chương trình** (không còn bảng 
 | Tháng chưa trọn | `crm_month.note` = `tháng chưa trọn — số tới 18/10/2026` |
 
 Hạng thành viên: T10 chỉ có bảng *lên hạng*, không có *số giao dịch theo hạng*.
+
+### 8b. Voucher theo chi nhánh T10 (20/10/2026)
+
+File T10 xuất lại có thêm bảng `STT,Chi nhánh,Voucher sử dụng,Tỷ trọng volume (%),Doanh thu trước giảm giá,…`
+(10 chi nhánh, dòng `TỔNG CỘNG` = 1.567 dùng · 1,05 tỷ trước giảm · 202,7 tr chi phí giảm).
+`tools/crm_reader.py` **THÊM** `_voucher_branch_table()` gọi trong nhánh bản T10 (bản T9 không đổi — đã đối chiếu).
+
+- **Phạm vi khác nhau trong cùng sheet:** tổng quan (`Đã phát hành 1.054 · Đã dùng 269`) chỉ cộng 5 chương trình liệt kê;
+  bảng chi nhánh đếm **mọi voucher**. T6–T9 tổng tháng = Σ chi nhánh, nên khi có bảng chi nhánh thì
+  `crm_month.v_used / v_rev_* / v_disc` lấy dòng TỔNG CỘNG, còn `v_issued` để **trống** (không ghép phát hành 5 chương trình
+  với số dùng mọi voucher). `crm_month.note` ghi rõ.
+- **Lệch trong file nguồn** (báo nguồn, không vá): Σ giảm giá 5 chương trình = 21.711.713đ ≠ `Tổng giảm giá` 32.551.400đ.
+- View: khối "Báo cáo voucher của CRM iPOS" thêm **bảng Voucher theo chi nhánh** của tháng đang xem
+  (Đã dùng · Tỷ trọng · DT trước/sau giảm · Chi phí giảm · % giảm · Giảm TB/voucher + dòng tổng). Không có cột so tháng trước
+  vì T10 chưa trọn tháng; tỷ trọng / % giảm là tỷ lệ, không gắn icon (QT2.6). Cột "Dùng ÷ phát" không gắn ⚠ khi thiếu phát hành.
+- Bản xuất Excel theo tháng: `bao_cao/M8/M8_Voucher_theo_chi_nhanh_T6-T10.2026.xlsx`.
+
+### 8c. File T10 đủ tháng — bố cục 5 sheet (02/11/2026)
+
+Bản đủ tháng `CRM khách hàng T10.2026.xlsx` (01–31/10) đổi bố cục lần nữa: 5 sheet tên mới (`Tổng Quan & Phân Khúc` ·
+`Biểu Đồ & Nhân Khẩu Học` · `Doanh thu thành viên` · `Biến động khách hàng` · `Báo cáo voucher`), hai sheet cuối là chuỗi `a,b,c`
+không dấu. `crm_reader.py` cần sheet `2. Biến động khách hàng` nên trả rỗng → **chạy trước** `python tools/crm_normalize.py <tháng>`:
+dựng lại file theo bố cục T9, dừng nếu các tổng trong file không khớp, bản gốc dời sang `L0_input/_GOC_iPOS/`. Không sửa `crm_reader.py`.
+
+| Khối | Bản T10 đủ tháng |
+|---|---|
+| Chỉ số tháng | 880 đăng ký · 1.843 lượt chi tiêu (831 lần đầu · 93 lần 2 · 919 từ 3 lần) · DT thành viên 1,71 tỷ · giảm 177,6 tr |
+| Ảnh chụp luỹ kế | 3.812 khách · 7,56 tỷ · 14.144 HĐ · 3 phân khúc |
+| Lên hạng | 579 khách (không có *giao dịch theo hạng*) |
+| Nhân khẩu học · kênh · mức chi tiêu | **không nạp** — bản gốc chỉ có tỷ lệ *ước tính từ biểu đồ*, không có số khách |
+| Voucher | **không nạp** — bản gốc chỉ có e-voucher theo chương trình (1.018 phát · 188 dùng · giá trị 92,4 tr / 14,5 tr), khác phạm vi số voucher T6–T9; số voucher theo chi nhánh của bản tới 18/10 (§8b) bị thay |
+
+`update.py` đổi file `S27` chỉ dựng phần `crm`, bỏ phần `member` (cùng lỗi `_part_map` ghi ở M8.1) → dựng tay:
+`python tools/build_month.py <tháng> --parts=member,crm` rồi `node scripts/build-data.mjs`.
+Nguồn cần sửa: dòng `IFC Signature by Noire` ở sheet Doanh thu thành viên có Giảm giá 292.500 nhưng trống Doanh thu.
