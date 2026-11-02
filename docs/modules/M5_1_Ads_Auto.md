@@ -1,5 +1,11 @@
 # M5.1 · ADS AUTO — META MARKETING API + GOOGLE ADS API
 
+> **Cập nhật 02/11/2026 — T10/2026 đủ tháng:** đã chạy `/api/ads/sync?month=2026-10` (Meta 294 dòng · Google 101).
+> Chi T10: Meta **62.107.958 đ** · Google **6.774.938 đ** · ACR **1,16%**. Trước đó DB chỉ tới 25/10; các lượt gần nhất trong
+> `ads_sync_run` đều là chạy tay, chưa thấy lượt cron — vẫn cần kiểm tra cron Vercel `/api/ads/sync`.
+> Cần team Digital xác nhận: Meta 29/10 cả tài khoản 0 đ · 0 hiển thị; Google không có dòng ngày 01, 04, 05/10.
+> Nhánh Excel không có `2026-10_report.xlsx` / `Tháng 10.2026` nên `ads_*` T10 trong `data_mkt.json` trống — M5 không đọc nhánh này.
+
 > **Cập nhật 14/10/2026 — bỏ màn EXPORT · bản cũ, mở tháng đang chạy:**
 > - Gỡ công tắc `API · 3 tầng / EXPORT · bản cũ` và xoá `src/views/ads/DigitalAdsExcelView.tsx` — người dùng
 >   đọc nhầm hai bộ số. M5 chỉ còn nhánh API; API chưa sẵn sàng thì báo thẳng (khung vàng), **không** rơi về Excel.
