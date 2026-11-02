@@ -3183,7 +3183,8 @@
     ],
     "min_store_share": 0.05,
     "min_store_bills": 20,
-    "lto_group_rx": "LTO"
+    "lto_group_rx": "LTO|EVENT|COMBO",
+    "lto_group_note": "Nhóm món đưa vào fact_lto_line (chương trình đo theo MÓN qua campaign_item). Từ 02/11/2026 thêm EVENT (món tặng / món sự kiện nhóm 'NOIRE - EVENT', vd. trà 20/10 NOR-EVE0001/0002 bấm 0 đ) và COMBO (vd. DC-COMBO0001 Set Lunch 199K) — các chương trình này không có tên CTKM trên POS. Chỉ dòng món có mã nối ở campaign_item mới vào số chương trình."
   },
   "$preeval": {
     "_doc": "M7.1 · Pre-Analytics — mô hình đánh giá chương trình TRƯỚC khi chạy. Khung PP672 (Program's Details + Financial Evaluation + chi phí vận hành → EBITDA tăng thêm) × SALES = TC × AOV (TC_AOV_FnB_Marketing.pdf). Tham số ở đây là MẶC ĐỊNH; từng chương trình ghi đè ở Pre_Analysis_2026.xlsx. Mô hình 1 hoá đơn thống nhất với sổ Q4/2026 (23/09/2026): khách mới mang cả hoá đơn V; khách vốn sẽ đến (cannib) giữ hoá đơn thường ± uplift u × V và vẫn nhận ưu đãi (cộng dồn); món tặng tính là chi phí quà theo giá vốn; chi phí chương trình chưa VAT; kịch bản = hệ số số hoá đơn 60/100/140%.",
