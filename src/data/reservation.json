@@ -1,5 +1,5 @@
 {
- "built": "2026-10-26T04:26:17.376Z",
+ "built": "2026-11-02T03:53:44.133Z",
  "ads_items": [
   {
    "key": "meta",
@@ -862,8 +862,8 @@
   "2026-09": {
    "from": "2026-09-03",
    "to": "2026-09-30",
-   "synced_through": "2026-10-18",
-   "pulled_at": "2026-10-26T04:26:16.228Z",
+   "synced_through": "2026-10-25",
+   "pulled_at": "2026-11-02T03:53:43.062Z",
    "campaigns": [
     {
      "platform": "meta",
@@ -1683,8 +1683,8 @@
   "2026-10": {
    "from": "2026-10-01",
    "to": "2026-10-18",
-   "synced_through": "2026-10-18",
-   "pulled_at": "2026-10-26T04:26:17.096Z",
+   "synced_through": "2026-10-25",
+   "pulled_at": "2026-11-02T03:53:43.875Z",
    "campaigns": [
     {
      "platform": "meta",
@@ -1692,9 +1692,9 @@
      "objective": "Tin nhắn",
      "funnel": "booking",
      "campaign": "NEC | Messages | 2026",
-     "spend": 8475154,
-     "spend_month": 8475154,
-     "impr": 55383,
+     "spend": 8475296,
+     "spend_month": 8475296,
+     "impr": 55390,
      "clicks": 2718,
      "conv": 0,
      "msgs": 86
@@ -1705,9 +1705,9 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NJFB | Messages 2026",
-     "spend": 7091148,
-     "spend_month": 7091148,
-     "impr": 68011,
+     "spend": 7091320,
+     "spend_month": 7091320,
+     "impr": 68012,
      "clicks": 1595,
      "conv": 0,
      "msgs": 134
@@ -1718,9 +1718,9 @@
      "objective": "Tương tác",
      "funnel": "store",
      "campaign": "NCB | Engagement | 2026",
-     "spend": 5353312,
-     "spend_month": 5353312,
-     "impr": 195991,
+     "spend": 5353368,
+     "spend_month": 5353368,
+     "impr": 195992,
      "clicks": 3050,
      "conv": 0,
      "msgs": 5
@@ -1731,9 +1731,9 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NDC | Messages 2026",
-     "spend": 4643773,
-     "spend_month": 4643773,
-     "impr": 38798,
+     "spend": 4643835,
+     "spend_month": 4643835,
+     "impr": 38800,
      "clicks": 1397,
      "conv": 0,
      "msgs": 141
@@ -1744,9 +1744,9 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NJFB | Messages | Local SSV Điện Biên Phủ | 27.05.2026",
-     "spend": 2819978,
-     "spend_month": 2819978,
-     "impr": 46040,
+     "spend": 2820565,
+     "spend_month": 2820565,
+     "impr": 46048,
      "clicks": 1494,
      "conv": 0,
      "msgs": 164
@@ -1757,9 +1757,9 @@
      "objective": "Tương tác",
      "funnel": "store",
      "campaign": "NJFB | Engagement | 2026-1",
-     "spend": 2436111,
-     "spend_month": 2436111,
-     "impr": 32723,
+     "spend": 2436136,
+     "spend_month": 2436136,
+     "impr": 32727,
      "clicks": 1207,
      "conv": 0,
      "msgs": 0
@@ -1770,11 +1770,11 @@
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NDC-39NTMK-Performance Max Local -21.08.26",
-     "spend": 1993701,
-     "spend_month": 1993701,
-     "impr": 31105,
+     "spend": 1993700,
+     "spend_month": 1993700,
+     "impr": 31100,
      "clicks": 1479,
-     "conv": 548,
+     "conv": 667,
      "msgs": 0
     },
     {
@@ -1783,9 +1783,9 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NDC | Messages | Mass HCM | 25.05.2026",
-     "spend": 1972525,
-     "spend_month": 1972525,
-     "impr": 14427,
+     "spend": 1972681,
+     "spend_month": 1972681,
+     "impr": 14429,
      "clicks": 430,
      "conv": 0,
      "msgs": 68
@@ -1798,9 +1798,9 @@
      "campaign": "NCB-SKC-Performance Max Local -19.08.26",
      "spend": 1910544,
      "spend_month": 1910544,
-     "impr": 28601,
+     "impr": 28597,
      "clicks": 1841,
-     "conv": 604,
+     "conv": 801,
      "msgs": 0
     },
     {
@@ -1809,10 +1809,10 @@
      "objective": "Tương tác",
      "funnel": "store",
      "campaign": "NDC | Engagement 2026 -1",
-     "spend": 1747101,
-     "spend_month": 1747101,
-     "impr": 124740,
-     "clicks": 1352,
+     "spend": 1748489,
+     "spend_month": 1748489,
+     "impr": 124755,
+     "clicks": 1354,
      "conv": 0,
      "msgs": 1
     },
@@ -1835,9 +1835,9 @@
      "objective": "Khác",
      "funnel": "booking",
      "campaign": "NEC | LikePage | 2026",
-     "spend": 730166,
-     "spend_month": 730166,
-     "impr": 7593,
+     "spend": 730268,
+     "spend_month": 730268,
+     "impr": 7597,
      "clicks": 293,
      "conv": 0,
      "msgs": 0
@@ -1848,9 +1848,9 @@
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NCB - Like Fanpage",
-     "spend": 145132,
-     "spend_month": 145132,
-     "impr": 6061,
+     "spend": 145368,
+     "spend_month": 145368,
+     "impr": 6067,
      "clicks": 696,
      "conv": 0,
      "msgs": 2
@@ -1865,7 +1865,7 @@
      "spend_month": 78588,
      "impr": 6317,
      "clicks": 342,
-     "conv": 69,
+     "conv": 109,
      "msgs": 0
     },
     {
@@ -1878,7 +1878,7 @@
      "spend_month": 33991,
      "impr": 3272,
      "clicks": 199,
-     "conv": 28,
+     "conv": 49,
      "msgs": 0
     }
    ],
@@ -2205,7 +2205,7 @@
      "date": "2026-10-14",
      "brand": "NDC",
      "funnel": "store",
-     "spend": 561408
+     "spend": 561407
     },
     {
      "date": "2026-10-14",
@@ -2295,25 +2295,25 @@
      "date": "2026-10-18",
      "brand": "NCB",
      "funnel": "store",
-     "spend": 361893
+     "spend": 362185
     },
     {
      "date": "2026-10-18",
      "brand": "NDC",
      "funnel": "store",
-     "spend": 813018
+     "spend": 814624
     },
     {
      "date": "2026-10-18",
      "brand": "NEC",
      "funnel": "booking",
-     "spend": 574418
+     "spend": 574662
     },
     {
      "date": "2026-10-18",
      "brand": "NJFB",
      "funnel": "store",
-     "spend": 499920
+     "spend": 500704
     }
    ]
   }

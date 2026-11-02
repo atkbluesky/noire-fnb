@@ -22,6 +22,10 @@ S05 BOM  → dim_product ┴→ join theo Mã hàng → cogs_unit · has_cogs ·
    → MenuView
 ```
 
+> **Bố cục export mới (từ T10/2026):** báo cáo bán hàng không còn cột `Cửa hàng`, `Giờ` và `Thời gian` là số mili-giây.
+> Chạy `python tools/pos_item_normalize.py <YYYY-MM>` **trước** `update.py`: công cụ đưa file về mẫu chuẩn (cửa hàng, giờ vào lấy từ
+> bảng kê theo mã hoá đơn), dừng nếu Tổng tiền lệch bảng kê, và giữ bản gốc ở `L0_input/_GOC_iPOS/`.
+
 ## 2. Màn hình hiển thị gì
 
 | Khối | Nội dung |
