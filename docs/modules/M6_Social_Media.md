@@ -11,6 +11,11 @@
 | **Giai đoạn** | P7.5 |
 | **Trạng thái** | ✅ **4 kênh Fanpage · T7 + T8/2026** · TikTok ⛔ chưa có export số |
 
+> **T10/2026 (02/11/2026): mới có fanpage NEC** (`Facebook_Tong_hop_10_2026.xlsx`, lập từ `Tháng 10.2026/NEC-T10`).
+> Chọn T10 thì M6 chỉ có 1 kênh: thẻ "Tiếp cận Facebook (4 page)" và "Lượt xem TikTok" hiện **0** — nghĩa là CHƯA CÓ SỐ, không phải bằng 0.
+> NCB · NDC · NJFB và TikTok T10 có thì thêm dòng vào cùng file tổng hợp rồi chạy `CAP_NHAT.bat`.
+> NEC: "+838 follower ròng" thật ra là lượt theo dõi MỚI — export không có bỏ theo dõi; tăng mạnh từ 14/10 trùng chiến dịch `NEC | LikePage | 2026`.
+
 ---
 
 ## 1. Chuỗi trace
