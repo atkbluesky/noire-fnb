@@ -42,8 +42,13 @@ export const CampaignTrackingView: React.FC = () => {
   const objOf = (c: Campaign) => OBJ[c.objective ?? LEVER[c.lever ?? '']?.group ?? ''];
   const NAT = byCode(T.natures);
   const COST = byCode(T.cost_types);
+  /** trạng thái vận hành ($campaign.run_states) — tách khỏi nhãn kết quả */
+  const RUN = byCode(T.run_states ?? []);
+  /** ngày cuối có dữ liệu POS — mốc chốt "đang chạy / đã kết thúc" */
+  const lastData = CAMPAIGN.daily.reduce((m, d) => (d.date > m ? d.date : m), '');
 
   const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  const [runFilter, setRunFilter] = useState<string | null>(null);
   /** quý: của kế hoạch M7.1 (nếu đã nối campaign_id) — không thì quý của ngày chạy */
   const [qFilter, setQFilter] = useState<string | null>(null);
   const [tlScope, setTlScope] = useState<'key' | 'all'>('key');
@@ -125,6 +130,7 @@ export const CampaignTrackingView: React.FC = () => {
   const RANK: Record<string, number> = { DAT: 0, DAT_LO: 0, GAN_DAT: 0, KHONG_DAT: 0, CHUA_TARGET: 1, CHUA_CHIN: 2, CHUA_DO: 3, KE_HOACH: 4 };
   type Row = Campaign & { rev: number; n_bills: number; aov: number | null; incr_s: number | null; flow_s: number | null; alloc: number };
   const list: Row[] = (labelFilter ? inScope.filter(c => c.label === labelFilter) : inScope.filter(c => c.label !== 'KE_HOACH'))
+    .filter(c => !runFilter || c.run_state === runFilter)
     .map(c => {
       const x = sc(c);
       return { ...c, rev: x.net, n_bills: x.bills, aov: x.bills ? x.net / x.bills : null, incr_s: x.incr, flow_s: x.flow, alloc: x.share };
@@ -171,6 +177,9 @@ export const CampaignTrackingView: React.FC = () => {
   const kpiLto = running.filter(c => c.prog.basis === 'ITEM' && sc(c).bills > 0).length;
   const kpiAov = kpiBills ? kpiNet / kpiBills : null;
   const counts = T.labels.map(l => ({ ...l, n: inScope.filter(c => c.label === l.code).length }));
+  // kế hoạch chưa chạy xem ở chip KẾ HOẠCH / M7.1 — chip vận hành chỉ cho chương trình đã chạy
+  const runCounts = (T.run_states ?? []).filter(s => s.code !== 'PLANNED')
+    .map(s => ({ ...s, n: inScope.filter(c => c.run_state === s.code && c.label !== 'KE_HOACH').length }));
   const periodTxt = mFrom === mTo ? formatMonthLabel(mFrom) : `${formatMonthLabel(mFrom)}–${formatMonthLabel(mTo)}`;
 
   /* ── BẢNG CHẤM ĐIỂM ─────────────────────────────────────────── */
@@ -213,6 +222,35 @@ export const CampaignTrackingView: React.FC = () => {
     );
   };
 
+  const runCell = (c: Campaign) => {
+    const r = RUN[c.run_state ?? ''];
+    if (!r) return <span className="text-brand-faint">—</span>;
+    const sub = c.run_state === 'RUNNING' ? (c.last_bill ? `HĐ cuối ${dmy(c.last_bill)}` : 'chưa có HĐ trên POS')
+      : c.run_state === 'ENDED_POS' ? `HĐ cuối ${dmy(c.last_bill)} · chưa khai ngày KT`
+      : c.run_state === 'ENDED' ? `kết thúc ${dmy(c.date_to)}` : null;
+    return (
+      <div className="leading-tight" title={r.desc}>
+        <StatusBadge label={r.label} variant={(r.badge as BadgeVariant) ?? 'neutral'} />
+        {sub && <div className="mt-0.5 whitespace-nowrap text-[10px] text-brand-muted">{sub}</div>}
+      </div>
+    );
+  };
+  const resultCell = (c: Campaign) => {
+    const l = LABEL[c.label];
+    const prov = c.label === 'CHUA_CHIN' && c.label_prov ? LABEL[c.label_prov] : undefined;
+    return (
+      <div className="leading-tight" title={l?.desc}>
+        <StatusBadge label={l?.label ?? c.label} variant={(l?.badge as BadgeVariant) ?? 'neutral'} />
+        {prov && (
+          <div className="mt-0.5 whitespace-nowrap text-[10px] font-semibold" style={{ color: prov.color }}
+            title={`Nếu chốt ở ngày cuối có dữ liệu (${dmy(lastData)}) — chưa phải kết luận`}>
+            tạm: {prov.label}{c.label_prov !== 'CHUA_TARGET' && c.att.incr !== null ? ` · ${pct(c.att.incr)} target` : ''}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const columns: Column<Row>[] = [
     {
       key: 'name',
@@ -221,7 +259,7 @@ export const CampaignTrackingView: React.FC = () => {
         <button className="block max-w-[230px] text-left" onClick={() => setSelId(c.id)} title={c.name}>
           <div className={`truncate font-bold ${sel?.id === c.id ? 'text-brand-gold' : 'text-brand-text'}`}>{c.name}</div>
           <div className="text-[10px] text-brand-muted">
-            {c.brand} · {c.period_from ? `${dmy(c.period_from)} → ${c.date_to ? dmy(c.period_to) : 'đang chạy'} · ${c.days_run ?? 0} ngày` : 'chưa chạy'}
+            {c.brand} · {c.period_from ? `${dmy(c.period_from)} → ${c.run_state === 'RUNNING' ? 'nay' : dmy(c.period_to)} · ${c.days_run ?? 0} ngày` : 'chưa chạy'}
           </div>
           {(c.pre_id || c.prog.basis === 'ITEM') && (
             <div className="text-[10px] text-brand-gold">
@@ -231,11 +269,10 @@ export const CampaignTrackingView: React.FC = () => {
         </button>
       ),
     },
-    {
-      key: 'label',
-      header: 'Trạng thái',
-      render: c => <StatusBadge label={LABEL[c.label]?.label ?? c.label} variant={(LABEL[c.label]?.badge as BadgeVariant) ?? 'neutral'} />,
-    },
+    /* Hai lớp trạng thái (M7.2 §4.6): VẬN HÀNH = còn chạy hay đã kết thúc · KẾT QUẢ = đạt hay không.
+       Đang chạy thì kết quả là TẠM TÍNH, dòng dưới ghi nhãn sẽ ra nếu chốt ở ngày cuối có dữ liệu. */
+    { key: 'run_state', header: 'Vận hành', render: c => runCell(c) },
+    { key: 'label', header: 'Kết quả', render: c => resultCell(c) },
     /* THỨ TỰ CỘT đi theo SALES = TC × AOV (TC_AOV_FnB_Marketing.pdf):
          quy mô (Doanh thu CTKM) → cấu thành (Hoá đơn × AOV) → hiệu quả (DT tăng thêm) → lợi nhuận.
        Mỗi ô 2 tầng: TRÊN là số tuyệt đối · DƯỚI là % so với CẢ cửa hàng cùng kỳ — đọc được ngay
@@ -435,7 +472,7 @@ export const CampaignTrackingView: React.FC = () => {
     DAT_LO: '#F97316',      // Cam (Đạt target DT nhưng lỗ ròng vì chi phí cao)
     GAN_DAT: '#EAB308',     // Vàng chanh (Gần đạt 80-99%)
     KHONG_DAT: '#EF4444',   // Đỏ (Dưới 80% target)
-    CHUA_CHIN: '#3B82F6',   // Xanh dương (Đang chạy / số tạm)
+    CHUA_CHIN: '#3B82F6',   // Xanh dương (Tạm tính — đang chạy)
     CHUA_TARGET: '#8B5CF6', // Tím (Có lift thực nhưng chưa có target trước kỳ)
     CHUA_DO: '#64748B',     // Xám (Chưa đủ điều kiện đo)
     BRANDING: '#EC4899',    // Hồng (Nhận diện thương hiệu)
@@ -748,7 +785,21 @@ export const CampaignTrackingView: React.FC = () => {
         </div>
       )}
 
-      {/* Nhãn */}
+      {/* Vận hành */}
+      {runCounts.some(s => s.n) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Vận hành</span>
+          {[{ code: null as string | null, label: 'Mọi trạng thái', desc: undefined as string | undefined, n: null as number | null }, ...runCounts.filter(s => s.n)].map(s => (
+            <button key={s.code ?? 'ALL'} title={s.desc} onClick={() => setRunFilter(s.code && runFilter !== s.code ? s.code : null)}
+              className={`rounded-full border px-3 py-1 text-[11px] ${runFilter === s.code ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
+              {s.label}{s.n !== null ? ` · ${s.n}` : ''}
+            </button>
+          ))}
+          <span className="text-[10px] text-brand-faint">số POS tới {dmy(lastData)} · không khai ngày kết thúc mà quá {CAMPAIGN.meta.end_gap_days ?? 14} ngày không có HĐ = đã kết thúc</span>
+        </div>
+      )}
+
+      {/* Kết quả */}
       <div className="flex flex-wrap gap-2">
         <button onClick={() => setLabelFilter(null)}
           className={`rounded-full border px-3 py-1 text-[11px] ${!labelFilter ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
@@ -764,7 +815,7 @@ export const CampaignTrackingView: React.FC = () => {
       </div>
 
       {/* Scorecard */}
-      <Card title="Bảng Chấm Điểm Chương Trình" description={`Số trong ${periodTxt} × ${B.stores.size} cửa hàng của brand đang lọc · dòng dưới = % so với brand cùng kỳ (DT ${formatVND(B.net)} · ${formatNumber(B.tc)} HĐ · AOV ${vnd(bAov)}) · DT tăng thêm & lãi của chương trình chạy dài được phân bổ theo tỷ trọng doanh thu CTKM trong kỳ (ký hiệu pb) · trạng thái ĐẠT chấm trên cả kỳ chạy · bấm tên để xem chi tiết`} chip="SCORECARD" hero>
+      <Card title="Bảng Chấm Điểm Chương Trình" description={`Số trong ${periodTxt} × ${B.stores.size} cửa hàng của brand đang lọc · dòng dưới = % so với brand cùng kỳ (DT ${formatVND(B.net)} · ${formatNumber(B.tc)} HĐ · AOV ${vnd(bAov)}) · DT tăng thêm & lãi của chương trình chạy dài được phân bổ theo tỷ trọng doanh thu CTKM trong kỳ (ký hiệu pb) · Kết quả chấm trên cả kỳ chạy, chương trình đang chạy là TẠM TÍNH (số POS tới ${dmy(lastData)}) · bấm tên để xem chi tiết`} chip="SCORECARD" hero>
         <DataTable columns={columns} data={list} searchKeys={['name', 'id', 'brand'] as any} pageSize={10}
  emptyMessage="Không có chương trình trong kỳ lọc" />
       </Card>
@@ -772,8 +823,8 @@ export const CampaignTrackingView: React.FC = () => {
       {/* Drill */}
       {sel && (
         <Card title={`Chi Tiết · ${sel.name}`}
-          description={`${sel.id} · SỐ CẢ KỲ CHẠY ${sel.period_from ? `${dmy(sel.period_from)} → ${sel.date_to ? dmy(sel.period_to) : 'đang chạy'}` : ''} × mọi cửa hàng của chương trình (${sel.stores.join(', ')})${scope.by[sel.id] ? ` · trong ${periodTxt} × brand đang lọc: ${formatVND(scope.by[sel.id].net)} · ${formatNumber(scope.by[sel.id].bills)} HĐ` : ''}`}
-          chip={LABEL[sel.label]?.label}>
+          description={`${sel.id} · SỐ CẢ KỲ CHẠY ${sel.period_from ? `${dmy(sel.period_from)} → ${sel.run_state === 'RUNNING' ? `nay (số tới ${dmy(lastData)})` : dmy(sel.period_to)}${sel.end_source === 'POS' ? ' — ngày kết thúc suy từ HĐ POS cuối' : ''}` : ''} × mọi cửa hàng của chương trình (${sel.stores.join(', ')})${scope.by[sel.id] ? ` · trong ${periodTxt} × brand đang lọc: ${formatVND(scope.by[sel.id].net)} · ${formatNumber(scope.by[sel.id].bills)} HĐ` : ''}`}
+          chip={[RUN[sel.run_state ?? '']?.label, LABEL[sel.label]?.label, sel.label === 'CHUA_CHIN' && sel.label_prov ? `tạm ${LABEL[sel.label_prov]?.label ?? sel.label_prov}` : null].filter(Boolean).join(' · ')}>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-3 text-xs">
               <div className="rounded-lg border border-brand-border p-3">
@@ -985,7 +1036,7 @@ export const CampaignTrackingView: React.FC = () => {
               <span className="inline-block h-2 w-2 rounded-sm bg-[#EF4444]" /> Không đạt (&lt;80%)
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[#3B82F6]" /> Đang chạy / Số tạm
+              <span className="inline-block h-2 w-2 rounded-sm bg-[#3B82F6]" /> Tạm tính (đang chạy)
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block h-2 w-2 rounded-sm bg-[#8B5CF6]" /> Chưa target
@@ -1062,7 +1113,7 @@ export const CampaignTrackingView: React.FC = () => {
 
       {/* Chưa đo được + CTKM chưa khai + lỗi */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card title="Chưa Chấm Được" description="Chưa đo được · chưa đủ chín · chưa có target — hệ thống tự khai phần nó CHƯA chấm được" chip={`${unmeasured.length}`}>
+        <Card title="Chưa Chấm Được" description="Chưa đo được · tạm tính (đang chạy) · chưa có target — hệ thống tự khai phần nó CHƯA chấm được" chip={`${unmeasured.length}`}>
           <DataTable
             data={unmeasured}
             pageSize={6}
@@ -1072,7 +1123,7 @@ export const CampaignTrackingView: React.FC = () => {
               { key: 'label', header: 'Trạng thái', render: c => <StatusBadge label={LABEL[c.label]?.label ?? c.label} variant="neutral" /> },
               { key: 'reason', header: 'Vì sao · cần làm gì', render: c => <span className="text-[11px] text-brand-muted">{c.label === 'CHUA_TARGET'
                 ? `đã đo được (lift cửa hàng ${pct(c.lift, 1)}) nhưng chưa có target nộp trước ngày chạy — nối pre_id nếu có trong Pre-Analysis, hoặc điền campaign_target`
-                : c.reason ?? (c.cadence === 'BURST' ? 'đợt đang chạy — số tạm, tự chốt khi hết ngày kết thúc' : 'chương trình lặp chưa đủ 2 lần để so')}</span> },
+                : c.reason ?? (c.cadence === 'BURST' ? `đang chạy — số tạm tới ${dmy(lastData)}, tự chốt khi qua ngày kết thúc (hoặc POS ngừng có HĐ quá ${CAMPAIGN.meta.end_gap_days ?? 14} ngày)` : 'chương trình lặp chưa đủ 2 lần để so')}</span> },
             ]}
           />
         </Card>

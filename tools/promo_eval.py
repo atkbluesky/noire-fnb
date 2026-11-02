@@ -300,14 +300,16 @@ def evaluate(r, c, lock, tgt, costs, last, opex_by_brand):
         verified = None if v is None else bool(_n(v, 0))
     t_incr = T["incr"]
     att = rows["incr"]["p"]
-    if not matured:
-        label = "CHUA_CHIN"
-    elif t_incr is None or verified is False:
-        label = "CHUA_TARGET"
+    # đang chạy → nhãn CHUA_CHIN (TẠM TÍNH); nhãn sẽ ra nếu chốt hôm nay giữ ở label_prov
+    if t_incr is None or verified is False:
+        final = "CHUA_TARGET"
+    elif t_incr > 0 and att is None:                               # chưa có số để so (chỉ gặp ở chương trình đang chạy)
+        final = None
     elif t_incr > 0:
-        label = ("DAT" if ebitda > 0 else "DAT_LO") if att >= 1 else ("GAN_DAT" if att >= 0.8 else "KHONG_DAT")
+        final = ("DAT" if ebitda > 0 else "DAT_LO") if att >= 1 else ("GAN_DAT" if att >= 0.8 else "KHONG_DAT")
     else:                                                          # target không dương (kế hoạch tự biết lỗ): chấm theo mức kế hoạch
-        label = ("DAT" if ebitda > 0 else "DAT_LO") if incr >= t_incr else "KHONG_DAT"
+        final = ("DAT" if ebitda > 0 else "DAT_LO") if incr >= t_incr else "KHONG_DAT"
+    label = final if matured else "CHUA_CHIN"
 
     flags = []
     if basis == "UOC":
@@ -344,6 +346,6 @@ def evaluate(r, c, lock, tgt, costs, last, opex_by_brand):
         cost_total=round(disc_ex + gift + cost_used), cost_promo_actual=round(disc_ex + gift), cost_fixed_actual=round(cost_used),
         cm_pct=(1 - cogs_pct - opex_pct) / VAT, breakeven_sales=u["breakeven_rev"],
         plan_sales=T["rev"], base_sales=N["rev"], plan_tc=T["tc"], act_sales=round(rev),
-        label=label, measurable=1, reason=None, basis=basis, cannib_used=c_used,
+        label=label, label_prov=None if matured else final, measurable=1, reason=None, basis=basis, cannib_used=c_used,
         eval_scope="PROGRAM" if lock else "STORE", u=u)
     return u, patch

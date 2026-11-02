@@ -2690,6 +2690,34 @@
     "default_cm_pct": 0.65,
     "default_cm_note": "Biên lợi nhuận mặc định khi campaign_target.cm_pct để trống. Chưa lấy từ BOM vì giá vốn mới phủ ~40% doanh thu món.",
     "maturity_days": 14,
+    "end_gap_days": 14,
+    "end_gap_note": "Chương trình KHÔNG khai ngày kết thúc mà quá end_gap_days ngày không có hoá đơn POS (tính tới ngày cuối có dữ liệu) → coi là ĐÃ KẾT THÚC ở ngày có hoá đơn cuối, chấm kết quả chính thức và báo việc điền date_to. 14 = 2 chu kỳ tuần, để chương trình theo thứ không bị kết luận ngừng nhầm.",
+    "run_states": [
+      {
+        "code": "PLANNED",
+        "label": "Kế hoạch",
+        "badge": "neutral",
+        "desc": "Chưa tới ngày chạy / chưa có hoá đơn POS"
+      },
+      {
+        "code": "RUNNING",
+        "label": "Đang chạy",
+        "badge": "ok",
+        "desc": "Ngày kết thúc khai báo chưa qua, hoặc không khai mà vẫn có hoá đơn POS trong end_gap_days ngày gần nhất"
+      },
+      {
+        "code": "ENDED",
+        "label": "Đã kết thúc",
+        "badge": "neutral",
+        "desc": "Ngày kết thúc khai báo đã qua ngày cuối có dữ liệu POS"
+      },
+      {
+        "code": "ENDED_POS",
+        "label": "Đã kết thúc · suy từ POS",
+        "badge": "warning",
+        "desc": "Không khai ngày kết thúc, nhưng quá end_gap_days ngày không còn hoá đơn POS — lấy ngày có hoá đơn cuối làm ngày kết thúc"
+      }
+    ],
     "base_days": 28,
     "control_factor_range": [
       0.5,
@@ -2989,7 +3017,7 @@
         "label": "KHÔNG ĐẠT",
         "color": "#EF4444",
         "badge": "bad",
-        "desc": "Dưới 80% target, đã chạy đủ 14 ngày"
+        "desc": "Dưới 80% target, chương trình đã kết thúc nên kết quả đã chốt"
       },
       {
         "code": "CHUA_TARGET",
@@ -3000,10 +3028,10 @@
       },
       {
         "code": "CHUA_CHIN",
-        "label": "CHƯA ĐỦ CHÍN",
+        "label": "TẠM TÍNH",
         "color": "#38BDF8",
         "badge": "neutral",
-        "desc": "Đợt đang chạy (hoặc chương trình lặp chưa đủ 2 lần) — số tạm, chưa kết luận"
+        "desc": "Chương trình đang chạy (hoặc chương trình lặp mới chạy dưới 2 lần) — số tạm tính tới ngày cuối có dữ liệu, chưa kết luận ĐẠT / KHÔNG ĐẠT"
       },
       {
         "code": "CHUA_DO",
