@@ -1,5 +1,5 @@
 {
- "built": "2026-11-02T03:53:44.133Z",
+ "built": "2026-11-02T04:52:47.788Z",
  "ads_items": [
   {
    "key": "meta",
@@ -488,104 +488,104 @@
     "xu_huong_dat_ban_theo_so_luong (1).xlsx"
    ],
    "first": "2026-10-01",
-   "last": "2026-10-18",
-   "days": 18,
-   "days_month": 18,
-   "orders": 494,
-   "cancelled": 52,
-   "guests_store": 1712,
-   "cancel_guests_store": 275,
-   "guests_daily": 1517,
+   "last": "2026-10-31",
+   "days": 31,
+   "days_month": 31,
+   "orders": 902,
+   "cancelled": 99,
+   "guests_store": 3030,
+   "cancel_guests_store": 500,
+   "guests_daily": 2664,
    "sources": [
     {
      "name": "FacebookCRM",
      "group": "meta",
      "kind": "paid",
-     "orders": 114,
+     "orders": 208,
      "slices": 1
     },
     {
      "name": "Gọi đặt",
      "group": "phone",
      "kind": "offline",
-     "orders": 100,
-     "slices": 1
-    },
-    {
-     "name": "ZaloCRM",
-     "group": "zalo",
-     "kind": "owned",
-     "orders": 57,
+     "orders": 178,
      "slices": 1
     },
     {
      "name": "Vãng lai",
      "group": "walkin",
      "kind": "offline",
-     "orders": 51,
+     "orders": 103,
+     "slices": 1
+    },
+    {
+     "name": "ZaloCRM",
+     "group": "zalo",
+     "kind": "owned",
+     "orders": 103,
      "slices": 1
     },
     {
      "name": "Đối tác",
      "group": "direct",
      "kind": "offline",
-     "orders": 41,
+     "orders": 86,
      "slices": 1
     },
     {
-     "name": "Hotline",
+     "name": "HOTLINE",
      "group": "phone",
      "kind": "offline",
-     "orders": 39,
+     "orders": 76,
      "slices": 1
     },
     {
      "name": "Google Ads",
      "group": "google",
      "kind": "paid",
-     "orders": 34,
-     "slices": 6
-    },
-    {
-     "name": "Website",
-     "group": "google",
-     "kind": "paid",
-     "orders": 19,
-     "slices": 1
+     "orders": 52,
+     "slices": 7
     },
     {
      "name": "Marketing",
      "group": "mkt",
      "kind": "owned",
-     "orders": 17,
+     "orders": 29,
      "slices": 1
     },
     {
-     "name": "Cộng tác viên",
-     "group": "direct",
-     "kind": "offline",
-     "orders": 7,
+     "name": "Website",
+     "group": "google",
+     "kind": "paid",
+     "orders": 21,
      "slices": 1
     },
     {
      "name": "Fanpage",
      "group": "meta",
      "kind": "paid",
-     "orders": 7,
+     "orders": 14,
+     "slices": 1
+    },
+    {
+     "name": "Cộng tác viên",
+     "group": "direct",
+     "kind": "offline",
+     "orders": 13,
      "slices": 1
     },
     {
      "name": "Sales",
      "group": "direct",
      "kind": "offline",
-     "orders": 6,
+     "orders": 12,
      "slices": 1
     },
     {
      "name": "Nội bộ",
      "group": "direct",
      "kind": "offline",
-     "orders": 2,
+     "orders": 7,
      "slices": 1
     }
    ],
@@ -697,6 +697,84 @@
      "orders": 42,
      "cancelled": 1,
      "guests": 141
+    },
+    {
+     "date": "2026-10-19",
+     "orders": 28,
+     "cancelled": 0,
+     "guests": 85
+    },
+    {
+     "date": "2026-10-20",
+     "orders": 88,
+     "cancelled": 19,
+     "guests": 226
+    },
+    {
+     "date": "2026-10-21",
+     "orders": 34,
+     "cancelled": 3,
+     "guests": 90
+    },
+    {
+     "date": "2026-10-22",
+     "orders": 19,
+     "cancelled": 4,
+     "guests": 53
+    },
+    {
+     "date": "2026-10-23",
+     "orders": 33,
+     "cancelled": 7,
+     "guests": 78
+    },
+    {
+     "date": "2026-10-24",
+     "orders": 45,
+     "cancelled": 2,
+     "guests": 121
+    },
+    {
+     "date": "2026-10-25",
+     "orders": 28,
+     "cancelled": 3,
+     "guests": 65
+    },
+    {
+     "date": "2026-10-26",
+     "orders": 9,
+     "cancelled": 0,
+     "guests": 22
+    },
+    {
+     "date": "2026-10-27",
+     "orders": 28,
+     "cancelled": 4,
+     "guests": 75
+    },
+    {
+     "date": "2026-10-28",
+     "orders": 21,
+     "cancelled": 0,
+     "guests": 94
+    },
+    {
+     "date": "2026-10-29",
+     "orders": 17,
+     "cancelled": 2,
+     "guests": 52
+    },
+    {
+     "date": "2026-10-30",
+     "orders": 19,
+     "cancelled": 2,
+     "guests": 53
+    },
+    {
+     "date": "2026-10-31",
+     "orders": 39,
+     "cancelled": 1,
+     "guests": 133
     }
    ],
    "stores": [
@@ -705,7 +783,7 @@
      "store": "NCB_MET",
      "brand": "NCB",
      "name": "NCB · The Mett",
-     "guests": 102,
+     "guests": 162,
      "cancel_guests": 21
     },
     {
@@ -713,7 +791,7 @@
      "store": "NCB_ET",
      "brand": "NCB",
      "name": "NCB · Empress Tower",
-     "guests": 67,
+     "guests": 109,
      "cancel_guests": 0
     },
     {
@@ -729,7 +807,7 @@
      "store": "NCB_GW",
      "brand": "NCB",
      "name": "NCB · Gateway",
-     "guests": 3,
+     "guests": 5,
      "cancel_guests": 0
     },
     {
@@ -745,24 +823,24 @@
      "store": "NDC_NTMK",
      "brand": "NDC",
      "name": "NDC · 39 NTMK",
-     "guests": 413,
-     "cancel_guests": 101
+     "guests": 726,
+     "cancel_guests": 176
     },
     {
      "ipos": "Noire Japanese Fusion & Bar - SSV",
      "store": "NJFB_SSV",
      "brand": "NJFB",
      "name": "NJFB · SSV",
-     "guests": 324,
-     "cancel_guests": 63
+     "guests": 533,
+     "cancel_guests": 125
     },
     {
      "ipos": "Noire Café & Lounge - SKC",
      "store": "NCB_SKC",
      "brand": "NCB",
      "name": "NCB · SKC",
-     "guests": 56,
-     "cancel_guests": 7
+     "guests": 146,
+     "cancel_guests": 28
     },
     {
      "ipos": "IFC Signature by Noire",
@@ -777,42 +855,42 @@
      "store": "NJFB_CRE",
      "brand": "NJFB",
      "name": "NJFB · The Crest",
-     "guests": 340,
-     "cancel_guests": 10
+     "guests": 683,
+     "cancel_guests": 22
     },
     {
      "ipos": "Noire Dining & Cafe - The Berkley",
      "store": "NDC_BKL",
      "brand": "NDC",
      "name": "NDC · The Berkley",
-     "guests": 407,
-     "cancel_guests": 73
+     "guests": 666,
+     "cancel_guests": 128
     }
    ],
    "party": [
     {
      "group": "1-5 khách",
-     "orders": 443
+     "orders": 819
     },
     {
      "group": "6-10 khách",
-     "orders": 37
+     "orders": 61
     },
     {
      "group": "11-15 khách",
-     "orders": 7
+     "orders": 9
     },
     {
      "group": "16-20 khách",
-     "orders": 2
-    },
-    {
-     "group": "21-30 khách",
      "orders": 3
     },
     {
+     "group": "21-30 khách",
+     "orders": 6
+    },
+    {
      "group": "31-40 khách",
-     "orders": 1
+     "orders": 3
     },
     {
      "group": "41-1000000 khách",
@@ -828,17 +906,17 @@
     {
      "name": "Tổng đơn khớp giữa 4 báo cáo",
      "ok": true,
-     "detail": "nguồn 494 · theo ngày 494 · tỷ lệ huỷ 494 · quy mô nhóm 494"
+     "detail": "nguồn 902 · theo ngày 902 · tỷ lệ huỷ 902 · quy mô nhóm 902"
     },
     {
      "name": "Đơn huỷ khớp (theo ngày ↔ tỷ lệ huỷ)",
      "ok": true,
-     "detail": "52 ↔ 52"
+     "detail": "99 ↔ 99"
     },
     {
      "name": "Số khách khớp (theo cửa hàng ↔ theo ngày)",
      "ok": false,
-     "detail": "1712 khách theo cửa hàng (gồm 275 khách huỷ) ↔ 1517 theo ngày — lệch 195. iPOS không ghi rõ trục ngày của từng báo cáo (ngày tạo hay ngày phục vụ) — tỷ trọng brand lấy theo báo cáo cửa hàng."
+     "detail": "3030 khách theo cửa hàng (gồm 500 khách huỷ) ↔ 2664 theo ngày — lệch 366. iPOS không ghi rõ trục ngày của từng báo cáo (ngày tạo hay ngày phục vụ) — tỷ trọng brand lấy theo báo cáo cửa hàng."
     },
     {
      "name": "Cửa hàng iPOS nhận ra hết",
@@ -853,7 +931,7 @@
     {
      "name": "Mã nguồn trùng tên",
      "ok": false,
-     "detail": "\"Google Ads\" ×6 mã — iPOS xuất theo tên nên không tách được mã nào thuộc cửa hàng nào"
+     "detail": "\"Google Ads\" ×7 mã — iPOS xuất theo tên nên không tách được mã nào thuộc cửa hàng nào"
     }
    ]
   }
@@ -862,8 +940,8 @@
   "2026-09": {
    "from": "2026-09-03",
    "to": "2026-09-30",
-   "synced_through": "2026-10-25",
-   "pulled_at": "2026-11-02T03:53:43.062Z",
+   "synced_through": "2026-10-31",
+   "pulled_at": "2026-11-02T04:52:46.755Z",
    "campaigns": [
     {
      "platform": "meta",
@@ -1682,9 +1760,9 @@
   },
   "2026-10": {
    "from": "2026-10-01",
-   "to": "2026-10-18",
-   "synced_through": "2026-10-25",
-   "pulled_at": "2026-11-02T03:53:43.875Z",
+   "to": "2026-10-31",
+   "synced_through": "2026-10-31",
+   "pulled_at": "2026-11-02T04:52:47.528Z",
    "campaigns": [
     {
      "platform": "meta",
@@ -1692,12 +1770,12 @@
      "objective": "Tin nhắn",
      "funnel": "booking",
      "campaign": "NEC | Messages | 2026",
-     "spend": 8475296,
-     "spend_month": 8475296,
-     "impr": 55390,
-     "clicks": 2718,
+     "spend": 14613569,
+     "spend_month": 14613569,
+     "impr": 115050,
+     "clicks": 6702,
      "conv": 0,
-     "msgs": 86
+     "msgs": 137
     },
     {
      "platform": "meta",
@@ -1705,25 +1783,12 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NJFB | Messages 2026",
-     "spend": 7091320,
-     "spend_month": 7091320,
-     "impr": 68012,
-     "clicks": 1595,
+     "spend": 10296954,
+     "spend_month": 10296954,
+     "impr": 101362,
+     "clicks": 2514,
      "conv": 0,
-     "msgs": 134
-    },
-    {
-     "platform": "meta",
-     "brand": "NCB",
-     "objective": "Tương tác",
-     "funnel": "store",
-     "campaign": "NCB | Engagement | 2026",
-     "spend": 5353368,
-     "spend_month": 5353368,
-     "impr": 195992,
-     "clicks": 3050,
-     "conv": 0,
-     "msgs": 5
+     "msgs": 202
     },
     {
      "platform": "meta",
@@ -1731,12 +1796,38 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NDC | Messages 2026",
-     "spend": 4643835,
-     "spend_month": 4643835,
-     "impr": 38800,
-     "clicks": 1397,
+     "spend": 7907420,
+     "spend_month": 7907420,
+     "impr": 71782,
+     "clicks": 2692,
      "conv": 0,
-     "msgs": 141
+     "msgs": 238
+    },
+    {
+     "platform": "meta",
+     "brand": "NCB",
+     "objective": "Tương tác",
+     "funnel": "store",
+     "campaign": "NCB | Engagement | 2026",
+     "spend": 7729423,
+     "spend_month": 7729423,
+     "impr": 260432,
+     "clicks": 4648,
+     "conv": 0,
+     "msgs": 8
+    },
+    {
+     "platform": "meta",
+     "brand": "NDC",
+     "objective": "Tương tác",
+     "funnel": "store",
+     "campaign": "NDC | Engagement 2026 -1",
+     "spend": 4819626,
+     "spend_month": 4819626,
+     "impr": 212125,
+     "clicks": 3244,
+     "conv": 0,
+     "msgs": 2
     },
     {
      "platform": "meta",
@@ -1744,12 +1835,12 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NJFB | Messages | Local SSV Điện Biên Phủ | 27.05.2026",
-     "spend": 2820565,
-     "spend_month": 2820565,
-     "impr": 46048,
-     "clicks": 1494,
+     "spend": 4740121,
+     "spend_month": 4740121,
+     "impr": 76391,
+     "clicks": 2498,
      "conv": 0,
-     "msgs": 164
+     "msgs": 295
     },
     {
      "platform": "meta",
@@ -1757,12 +1848,12 @@
      "objective": "Tương tác",
      "funnel": "store",
      "campaign": "NJFB | Engagement | 2026-1",
-     "spend": 2436136,
-     "spend_month": 2436136,
-     "impr": 32727,
-     "clicks": 1207,
+     "spend": 4222133,
+     "spend_month": 4222133,
+     "impr": 50338,
+     "clicks": 1927,
      "conv": 0,
-     "msgs": 0
+     "msgs": 2
     },
     {
      "platform": "google",
@@ -1770,11 +1861,11 @@
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NDC-39NTMK-Performance Max Local -21.08.26",
-     "spend": 1993700,
-     "spend_month": 1993700,
-     "impr": 31100,
-     "clicks": 1479,
-     "conv": 667,
+     "spend": 3327146,
+     "spend_month": 3327146,
+     "impr": 63521,
+     "clicks": 3014,
+     "conv": 1348,
      "msgs": 0
     },
     {
@@ -1783,12 +1874,12 @@
      "objective": "Tin nhắn",
      "funnel": "store",
      "campaign": "NDC | Messages | Mass HCM | 25.05.2026",
-     "spend": 1972681,
-     "spend_month": 1972681,
-     "impr": 14429,
-     "clicks": 430,
+     "spend": 3250630,
+     "spend_month": 3250630,
+     "impr": 24114,
+     "clicks": 750,
      "conv": 0,
-     "msgs": 68
+     "msgs": 129
     },
     {
      "platform": "google",
@@ -1796,25 +1887,25 @@
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NCB-SKC-Performance Max Local -19.08.26",
-     "spend": 1910544,
-     "spend_month": 1910544,
-     "impr": 28597,
-     "clicks": 1841,
-     "conv": 801,
+     "spend": 3110083,
+     "spend_month": 3110083,
+     "impr": 64515,
+     "clicks": 3819,
+     "conv": 1643,
      "msgs": 0
     },
     {
      "platform": "meta",
-     "brand": "NDC",
-     "objective": "Tương tác",
-     "funnel": "store",
-     "campaign": "NDC | Engagement 2026 -1",
-     "spend": 1748489,
-     "spend_month": 1748489,
-     "impr": 124755,
-     "clicks": 1354,
+     "brand": "NEC",
+     "objective": "Khác",
+     "funnel": "booking",
+     "campaign": "NEC | LikePage | 2026",
+     "spend": 1997901,
+     "spend_month": 1997901,
+     "impr": 34944,
+     "clicks": 911,
      "conv": 0,
-     "msgs": 1
+     "msgs": 0
     },
     {
      "platform": "meta",
@@ -1831,27 +1922,14 @@
     },
     {
      "platform": "meta",
-     "brand": "NEC",
-     "objective": "Khác",
-     "funnel": "booking",
-     "campaign": "NEC | LikePage | 2026",
-     "spend": 730268,
-     "spend_month": 730268,
-     "impr": 7597,
-     "clicks": 293,
-     "conv": 0,
-     "msgs": 0
-    },
-    {
-     "platform": "meta",
      "brand": "NCB",
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NCB - Like Fanpage",
-     "spend": 145368,
-     "spend_month": 145368,
-     "impr": 6067,
-     "clicks": 696,
+     "spend": 819131,
+     "spend_month": 819131,
+     "impr": 43564,
+     "clicks": 4123,
      "conv": 0,
      "msgs": 2
     },
@@ -1861,12 +1939,25 @@
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NDC-Berkley-Performance Max Local-13.08.26",
-     "spend": 78588,
-     "spend_month": 78588,
-     "impr": 6317,
-     "clicks": 342,
-     "conv": 109,
+     "spend": 255229,
+     "spend_month": 255229,
+     "impr": 14946,
+     "clicks": 898,
+     "conv": 270,
      "msgs": 0
+    },
+    {
+     "platform": "meta",
+     "brand": "NDC",
+     "objective": "Khác",
+     "funnel": "store",
+     "campaign": "NDC | LikeFanpage 2026",
+     "spend": 164293,
+     "spend_month": 164293,
+     "impr": 9987,
+     "clicks": 235,
+     "conv": 0,
+     "msgs": 1
     },
     {
      "platform": "google",
@@ -1874,11 +1965,11 @@
      "objective": "Khác",
      "funnel": "store",
      "campaign": "NJFB-Crest-Performance Max Local -12.08.26",
-     "spend": 33991,
-     "spend_month": 33991,
-     "impr": 3272,
-     "clicks": 199,
-     "conv": 49,
+     "spend": 82480,
+     "spend_month": 82480,
+     "impr": 6968,
+     "clicks": 460,
+     "conv": 111,
      "msgs": 0
     }
    ],
@@ -2314,6 +2405,318 @@
      "brand": "NJFB",
      "funnel": "store",
      "spend": 500704
+    },
+    {
+     "date": "2026-10-19",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 298359
+    },
+    {
+     "date": "2026-10-19",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 782267
+    },
+    {
+     "date": "2026-10-19",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 683346
+    },
+    {
+     "date": "2026-10-19",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 706096
+    },
+    {
+     "date": "2026-10-20",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 300290
+    },
+    {
+     "date": "2026-10-20",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 788314
+    },
+    {
+     "date": "2026-10-20",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 609133
+    },
+    {
+     "date": "2026-10-20",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 669264
+    },
+    {
+     "date": "2026-10-21",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 159061
+    },
+    {
+     "date": "2026-10-21",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 235855
+    },
+    {
+     "date": "2026-10-21",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 119624
+    },
+    {
+     "date": "2026-10-21",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 62146
+    },
+    {
+     "date": "2026-10-22",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 233211
+    },
+    {
+     "date": "2026-10-22",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 536012
+    },
+    {
+     "date": "2026-10-22",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 537967
+    },
+    {
+     "date": "2026-10-22",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 433758
+    },
+    {
+     "date": "2026-10-23",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 448985
+    },
+    {
+     "date": "2026-10-23",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 846662
+    },
+    {
+     "date": "2026-10-23",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 600973
+    },
+    {
+     "date": "2026-10-23",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 618546
+    },
+    {
+     "date": "2026-10-24",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 491076
+    },
+    {
+     "date": "2026-10-24",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 827725
+    },
+    {
+     "date": "2026-10-24",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 482114
+    },
+    {
+     "date": "2026-10-24",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 858870
+    },
+    {
+     "date": "2026-10-25",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 359095
+    },
+    {
+     "date": "2026-10-25",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 765628
+    },
+    {
+     "date": "2026-10-25",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 552674
+    },
+    {
+     "date": "2026-10-25",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 673019
+    },
+    {
+     "date": "2026-10-26",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 328540
+    },
+    {
+     "date": "2026-10-26",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 747604
+    },
+    {
+     "date": "2026-10-26",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 725410
+    },
+    {
+     "date": "2026-10-26",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 745454
+    },
+    {
+     "date": "2026-10-27",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 359497
+    },
+    {
+     "date": "2026-10-27",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 695154
+    },
+    {
+     "date": "2026-10-27",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 676786
+    },
+    {
+     "date": "2026-10-27",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 641611
+    },
+    {
+     "date": "2026-10-28",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 277555
+    },
+    {
+     "date": "2026-10-28",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 499874
+    },
+    {
+     "date": "2026-10-28",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 496475
+    },
+    {
+     "date": "2026-10-28",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 451959
+    },
+    {
+     "date": "2026-10-29",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 92433
+    },
+    {
+     "date": "2026-10-29",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 105021
+    },
+    {
+     "date": "2026-10-29",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 0
+    },
+    {
+     "date": "2026-10-29",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 1931
+    },
+    {
+     "date": "2026-10-30",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 404190
+    },
+    {
+     "date": "2026-10-30",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 1083379
+    },
+    {
+     "date": "2026-10-30",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 825056
+    },
+    {
+     "date": "2026-10-30",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 494204
+    },
+    {
+     "date": "2026-10-31",
+     "brand": "NCB",
+     "funnel": "store",
+     "spend": 497066
+    },
+    {
+     "date": "2026-10-31",
+     "brand": "NDC",
+     "funnel": "store",
+     "spend": 1373556
+    },
+    {
+     "date": "2026-10-31",
+     "brand": "NEC",
+     "funnel": "booking",
+     "spend": 1096348
+    },
+    {
+     "date": "2026-10-31",
+     "brand": "NJFB",
+     "funnel": "store",
+     "spend": 602817
     }
    ]
   }
