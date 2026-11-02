@@ -14,8 +14,33 @@
      "result": 74
     }
    ]
+  },
+  "2026-10": {
+   "through": "2026-10-31",
+   "campaigns": [
+    {
+     "campaign": "NEC | Messages | 2026",
+     "page": "NEC",
+     "brand": "Không xác định",
+     "rkind": "msg",
+     "spend": 14613569,
+     "impr": 115050,
+     "clicks": 1526,
+     "result": 137
+    },
+    {
+     "campaign": "NEC | LikePage | 2026",
+     "page": "NEC",
+     "brand": "Không xác định",
+     "rkind": "like",
+     "spend": 1997901,
+     "impr": 34944,
+     "clicks": 39,
+     "result": 0
+    }
+   ]
   }
  },
- "synced_through": "2026-09-30",
- "pulled_at": "2026-10-02T07:14:20.352Z"
+ "synced_through": "2026-10-31",
+ "pulled_at": "2026-11-02T06:52:50.602Z"
 }

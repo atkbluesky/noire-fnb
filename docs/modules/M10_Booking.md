@@ -117,6 +117,27 @@ Chạy lại: `node scripts/build-booking-ads.mjs 2026-09` rồi `node scripts/b
 
 Báo nguồn (Sales) sửa: `Source = Sale` ×2 (nên là `Sales`) · `LEAD-0464` ngày nhận 2027-09-25 · 5 ngày nhận gõ đảo ngày/tháng đã tự sửa.
 
+## 6c. Cập nhật T10/2026 (02/11/2026)
+
+**Sổ Sales** `NOIRE Booking Tiec Sales 2026.xlsx` — 562 lead (111 đặt bàn nhỏ tách riêng) · Σ Closed Confirmed 2,13 tỷ. Tiệc & sự kiện nhận trong T10:
+
+- **74 lead** · 20 chốt · 37 đang theo · 17 mất · **DT chốt 364,0 tr** (1 lead Confirmed chưa nhập tiền).
+- **MKT T10:** 53 lead · 5 chốt (9,4%) · DT chốt 74,5 tr · 33 đang theo → tỷ lệ chốt chưa chín.
+
+**Chi phí ads T10 — chưa có file Meta Ads, lấy từ API M5.1** (`node scripts/build-booking-ads.mjs 2026-10`, đọc đến 31/10): **16.611.470 đ** · 137 hội thoại · CPL ≈ 313 k · ROAS ≈ 4,5×. `update.py` không tự chạy bước này.
+
+**Sổ mới đổi số tháng cũ:** T8 chốt 937,0 tr → 37,0 tr (không còn lead Nội bộ 900 tr) · T9 253,6 tr → 275,6 tr.
+
+Báo nguồn (Sales) sửa:
+
+- **31 lead Confirmed chưa nhập Closed Revenue** (Expected 1,34 tỷ), trong đó 15 lead có tiệc diễn ra T9 — lịch doanh thu T9 đang hiện 0.
+- **19 lead Lost + 1 Tentative vẫn còn số ở Closed Revenue** (301,0 tr) — loader không tính vì chỉ tính Confirmed.
+- Outlet `NOIRE` ×2 · `NOIRE JFB` ×1 chưa khai ở `dim_store.aliases` — không vào được bộ lọc brand.
+- `Source`: `Sale` · `Nội Bộ` viết lệch, 3 lead trống. `Event Type` T10 gần như trống (73/74 "chưa rõ loại") nên khối Loại sự kiện chưa đọc được.
+
+**Fanpage NEC (M6)** T10 từ `Tháng 10.2026/NEC-T10` + `Facebook_Tong_hop_10_2026.xlsx`: 158.518 lượt xem · 3.945 truy cập · 1.597 click · 838 theo dõi mới · **152 người liên hệ · 149 hội thoại**
+→ hội thoại từ ads NEC 137 ÷ 149 của trang = **92%**. Người xem trong kỳ để trống vì export không có số cả kỳ, không cộng theo ngày.
+
 ## 7. Còn thiếu
 
 | Thiếu | Hệ quả | Cách lấp |
