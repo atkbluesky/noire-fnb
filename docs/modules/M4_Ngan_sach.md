@@ -118,6 +118,9 @@ Digital 200 tr = Meta Promo 100 tr · Google 54 tr · Booking Tiệc 46 tr (Book
 ngân sách riêng ngoài trần 2%) với mức 2%. File cũ không có `capBase` thì so cả tổng như trước.
 Bản Final không có cột "focus" theo tháng → chú thích tháng ở bảng Digital để trống.
 
+**Số thực tế tới hết T10/2026 (soát 02/11/2026):** Digital **68,9 tr** / plan T10 64,0 tr (API, đồng bộ tới 31/10).
+Ngoài Digital hiện `0` vì `NOIRE_Q4_ThucChi_2026.xlsx` **chưa có dòng nào** — nghĩa là *chưa nhập*, không phải chưa chi.
+
 ## 7. Checklist nâng cấp
 
 - [ ] **Chỉ số giải ngân** = `thực chi ÷ phần kế hoạch ĐÃ TỚI HẠN` *(không so với cả quý)*.

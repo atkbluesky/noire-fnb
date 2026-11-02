@@ -37,6 +37,11 @@ chương trình ALL → NJFB T8 hiện 4,09 tỷ. Số đúng (POS): **269,0 tr 
 **Đối soát T1–T9/2026:** tổng hoá đơn + Tổng tiền CTKM trên màn hình = `fact_promo_day` (bỏ INTERNAL) khớp từng đồng mỗi tháng,
 trừ 3 mã giảm tay đã để CANCELLED (không phải chương trình): *Chiết khấu trực tiếp* · *Mã Xử Lý Tình Huống KH (FOC 100%)* · *Giảm giá trực tiếp* — tổng 5 hoá đơn, 368K.
 
+**Soát T10/2026 (02/11/2026):** M7.2 2.029 HĐ · 1.026,4 tr so với `fact_promo_day` bỏ INTERNAL 2.074 HĐ · 1.045,9 tr — lệch 45 HĐ · 19,5 tr (1,9%).
+Đo cùng cách, T6–T9 cũng lệch (−122 tr · −263 tr · −13 tr · +9 tr), nên câu "khớp từng đồng" ở trên không còn đúng với dữ liệu hiện tại.
+Phần lệch T10 thấy ở các tên POS có hoá đơn sau `date_to` đã khai (nhiều voucher đã ENDED) và một phần hoá đơn của chương trình đang chạy (vd. `Bistro - Power Breakfast` 161 HĐ, M7.2 tính 148).
+Muốn hết lệch thì team brand xem lại kỳ chạy · phạm vi cửa hàng ở `Campaign_Tracking_2026.xlsx`; ô nhập tay không được tool tự sửa.
+
 ## ⓪b Kế hoạch M7.1 làm chuẩn so sánh · lọc theo quý *(23/09/2026)*
 
 | Câu hỏi | Trả lời trong hệ thống |
