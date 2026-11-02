@@ -298,7 +298,7 @@ GUIDE = [
     ("· Lucky500 · Highball · Carbonara · Power Lunch — đo được lift (BURST có kỳ nền).", False),
     ("· Happy Tuesday — RECURRING chạy từ trước khi hệ thống có số → CHƯA ĐO ĐƯỢC.", False),
     ("· Berkley pre-booking — cửa hàng mới khai trương → CHƯA ĐO ĐƯỢC.", False),
-    ("· 10% Off The Crest (đang chạy) → CHƯA ĐỦ CHÍN.", False),
+    ("· 10% Off The Crest (đang chạy) → TẠM TÍNH. Để trống date_to mà POS ngừng có hoá đơn quá 14 ngày → hệ thống tự coi là đã kết thúc.", False),
     ("· Target ví dụ = kỳ nền THẬT × (1 + mức tăng kỳ vọng); chi phí quà tặng / KOL / in ấn là SỐ MẪU.", False),
 ]
 

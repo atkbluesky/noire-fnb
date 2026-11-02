@@ -477,18 +477,19 @@ def measure(c, tgt, costs, controls, daily, promo, ads, first, last, items=None)
     # nhãn
     # BURST: đợt ĐÃ KẾT THÚC là chốt được, dù ngắn (8/3 chạy 3 ngày vẫn phải có kết luận);
     # đợt ĐANG CHẠY là số tạm. RECURRING cần ≥ 2 lần lặp mới so được.
+    # Đang chạy thì nhãn là CHUA_CHIN (TẠM TÍNH); nhãn sẽ ra nếu chốt hôm nay giữ ở label_prov để màn hình ghi "tạm tính · …".
     running = cad == "BURST" and (not d1 or (last and d1 > last))
     matured = (not running) if cad == "BURST" else len(period) >= 2
-    if not matured:
-        res["label"] = "CHUA_CHIN"
-    elif res.get("att_incr") is None or res.get("target_verified") == 0:
-        res["label"] = "CHUA_TARGET"
+    if res.get("att_incr") is None or res.get("target_verified") == 0:
+        final = "CHUA_TARGET"
     elif res["att_incr"] >= 1:
-        res["label"] = "DAT" if ft > 0 else "DAT_LO"
+        final = "DAT" if ft > 0 else "DAT_LO"
     elif res["att_incr"] >= 0.8:
-        res["label"] = "GAN_DAT"
+        final = "GAN_DAT"
     else:
-        res["label"] = "KHONG_DAT"
+        final = "KHONG_DAT"
+    res["label"] = final if matured else "CHUA_CHIN"
+    res["label_prov"] = None if matured else final
 
     # chuỗi ngày: từ đầu kỳ nền → hết kỳ chạy. exp_net = kỳ nền từng cửa hàng (× f trong kỳ chạy)
     promo_by = defaultdict(float)
@@ -546,6 +547,58 @@ def derive_cadence(camps, promo):
         c["cadence"], dow = cadence_of(ds)
         if c["cadence"] == "RECURRING" and c.get("recur_dow") in (None, ""):
             c["recur_dow"] = dow
+
+
+def infer_end(camps, promo, item_map, last):
+    """Trạng thái vận hành — docs/modules/M7_2_Promotion_Tracking.md §4.6.
+    File khai báo hay để trống date_to (seed ghi RUNNING lúc tạo dòng và không ai quay lại sửa), khiến chương trình
+    đã ngừng từ lâu bị coi là "đang chạy" mãi, không bao giờ được chấm. Trống date_to mà quá $campaign.end_gap_days
+    ngày không còn hoá đơn POS → lấy ngày có hoá đơn cuối làm date_to và báo người khai điền lại.
+    Trả {campaign_id: (nguồn ngày kết thúc DECLARED | POS | None, ngày có hoá đơn POS cuối)} + danh sách lỗi khai báo."""
+    gap = int(C.get("end_gap_days") or 14)
+    by = defaultdict(list)
+    for r in promo:
+        by[r["key"]].append((r["store"], r["date"]))
+    info, iss = {}, []
+    for c in camps:
+        cid = c["campaign_id"]
+        d0, d1 = _d(c.get("date_from")), _d(c.get("date_to"))
+        if not d0 or str(c.get("status") or "").upper() == "CANCELLED":
+            info[cid] = (None, None)
+            continue
+        stores = set(_stores(c.get("store_scope"), c.get("brand")))
+        if item_map.get(cid):
+            span = {d0 + timedelta(i) for i in range(((last or d0) - d0).days + 1)}
+            ds = [r["date"] for r in lto_bills(item_map[cid], stores, span)[0]]
+        else:
+            ds = []
+            for pat in [norm(x) for x in str(c.get("name_pos") or "").split("|") if x.strip()]:
+                for k, v in by.items():
+                    if fnmatch.fnmatch(k, pat) if "*" in pat else k == pat:
+                        ds += [d for s, d in v if s in stores and d >= d0]
+        hit = max(ds) if ds else None
+        if d1:
+            info[cid] = ("DECLARED", hit)
+        elif hit and last and (last - hit).days > gap:
+            c["date_to"] = str(hit)
+            info[cid] = ("POS", hit)
+            iss.append((cid, "date_to", "CẢNH BÁO",
+                        f"chưa khai ngày kết thúc nhưng POS không còn hoá đơn từ sau {hit:%d/%m/%Y} "
+                        f"({(last - hit).days} ngày tới {last:%d/%m}) — hệ thống coi là ĐÃ KẾT THÚC ngày {hit:%d/%m/%Y} "
+                        f"và chấm kết quả chính thức; điền date_to nếu khác"))
+        else:
+            info[cid] = (None, hit)
+    return info, iss
+
+
+def run_state(c, label, src, last):
+    """PLANNED · RUNNING · ENDED · ENDED_POS ($campaign.run_states). Cùng mốc với promo_eval: date_to > last = còn chạy."""
+    d0, d1 = _d(c.get("date_from")), _d(c.get("date_to"))
+    if label == "KE_HOACH" or not d0 or (last and d0 > last):
+        return "PLANNED"
+    if d1 and (not last or d1 <= last):
+        return "ENDED_POS" if src == "POS" else "ENDED"
+    return "RUNNING"
 
 
 # ─────────────────────────── kiểm khai báo ───────────────────────────
@@ -964,6 +1017,10 @@ def main():
         if not c.get("objective") and LEVER_GROUP.get(str(c.get("lever_primary") or "").upper()):
             c["objective"] = LEVER_GROUP[str(c["lever_primary"]).upper()]
     derive_cadence(camps, promo)
+    end_info, end_issues = infer_end(camps, promo, item_map, last)
+    plan_issues += end_issues
+    log(f"  trạng thái vận hành: {len(end_issues)} chương trình không khai ngày kết thúc, đã ngừng trên POS"
+        f" > {C.get('end_gap_days')} ngày → coi là ĐÃ KẾT THÚC")
     issues = plan_issues + validate(camps, list(targets.values()), [x for v in costs.values() for x in v],
                       [dict(campaign_id=k, control_store=s) for k, v in controls.items() for s in v])
     results, series = [], []
@@ -1081,7 +1138,7 @@ def main():
         ok, why = promo_eval._reliability(r)
         for k in HEADS:
             r[k] = None
-        r.update(measurable=0, label="CHUA_DO",
+        r.update(measurable=0, label="CHUA_DO", label_prov=None,
                  reason="chưa có kế hoạch M7.1 để ước tính %cannib, và lift cửa hàng chưa đủ tin cậy: " + "; ".join(why))
 
     done = set()
@@ -1106,6 +1163,11 @@ def main():
             apply(r, out, m)
         else:
             cannot(r)
+
+    for r in results:
+        src, hit = end_info.get(r["campaign_id"], (None, None))
+        r.update(run_state=run_state(camp_by[r["campaign_id"]], r.get("label"), src, last),
+                 end_source=src, last_bill=str(hit) if hit else None)
 
     # CTKM trên POS chưa gắn vào chương trình nào
     pats = [norm(p) for c in camps for p in str(c.get("name_pos") or "").split("|") if p.strip()]

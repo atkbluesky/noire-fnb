@@ -474,13 +474,35 @@ lớn nhất mà M7.2 mang lại, lớn hơn cả việc báo cáo sau khi chạ
 att_<metric> = actual / target        với metric ∈ {net, tc, aov, ta, incr_net}
 ```
 
-| Nhãn | Điều kiện |
+**Hai lớp trạng thái** *(chốt 02/11/2026)*: mỗi chương trình có **Vận hành** (còn chạy không?) và **Kết quả** (đạt không?) —
+hai cột riêng trên Scorecard. Trước đây một nhãn gánh cả hai, và nhãn "CHƯA ĐỦ CHÍN" bị hiểu là "chưa chạy đủ ngày".
+
+**Lớp 1 · Vận hành** — `campaign_result.run_state`, danh mục `$campaign.run_states`, tính ở `tools/campaign.py` (`infer_end` · `run_state`).
+Mốc so là **ngày cuối có dữ liệu POS** (`last`).
+
+| Vận hành | Điều kiện |
 |---|---|
-| 🟢 **ĐẠT** | `att_incr_net ≥ 100%` **và** `roi_promo > 0` |
-| 🟡 **ĐẠT DOANH THU · LỖ** | `att_incr_net ≥ 100%` nhưng `roi_promo ≤ 0` — *bán được nhưng bán lỗ* |
-| 🟠 **CHƯA ĐỦ CHÍN** | chạy < 14 ngày, hoặc `BURST` chưa kết thúc |
-| 🔴 **KHÔNG ĐẠT** | `att_incr_net < 80%` và đã đủ 14 ngày |
-| ⚪ **CHƯA ĐO ĐƯỢC** | thiếu `dim_campaign` / `campaign_target` / `no_control` |
+| **Kế hoạch** `PLANNED` | chưa có ngày bắt đầu, hoặc ngày bắt đầu sau `last` |
+| **Đang chạy** `RUNNING` | `date_to` khai > `last`; hoặc **không khai** `date_to` mà còn hoá đơn POS trong `$campaign.end_gap_days` (= 14) ngày gần nhất |
+| **Đã kết thúc** `ENDED` | `date_to` khai ≤ `last` |
+| **Đã kết thúc · suy từ POS** `ENDED_POS` | **không khai** `date_to` và quá 14 ngày không có hoá đơn POS → `date_to` = ngày có hoá đơn cuối (`last_bill`), chấm kết quả chính thức, ghi CẢNH BÁO `date_to` vào "Việc Cần Khai Báo" để người khai điền lại |
+
+Vì sao cần `ENDED_POS`: `campaign_seed.py` ghi `status=RUNNING`, `date_to` trống lúc tạo dòng (CTKM còn hoá đơn trong 7 ngày cuối)
+và `--merge` không đụng ô đã có, nên chương trình ngừng từ lâu bị coi là "đang chạy" mãi. Số POS T10/2026: Noire Passport
+(HĐ cuối 22/09), Birthday Decoration (27/09), The Monday Treat (07/09) bị treo nhãn chưa chấm suốt 5–8 tuần. 14 ngày = 2 chu kỳ
+tuần, để chương trình theo thứ không bị kết luận ngừng nhầm. Chương trình ít hoá đơn (voucher sinh nhật 1 HĐ/tháng) có thể bị
+coi là kết thúc sớm — chỉ đổi cột Vận hành, vì các chương trình này vốn là CHƯA ĐO ĐƯỢC; khai `date_to` xa để giữ là đang chạy.
+
+**Lớp 2 · Kết quả** — `campaign_result.label`, danh mục `$campaign.labels`.
+
+| Kết quả | Điều kiện |
+|---|---|
+| 🟢 **ĐẠT** | đã kết thúc · `att_incr_net ≥ 100%` **và** `roi_promo > 0` |
+| 🟡 **ĐẠT DOANH THU · LỖ** | đã kết thúc · `att_incr_net ≥ 100%` nhưng `roi_promo ≤ 0` — *bán được nhưng bán lỗ* |
+| 🟡 **GẦN ĐẠT** | đã kết thúc · 80–99% |
+| 🔴 **KHÔNG ĐẠT** | đã kết thúc · `att_incr_net < 80%` |
+| 🔵 **TẠM TÍNH** `CHUA_CHIN` *(trước 02/11/2026: "CHƯA ĐỦ CHÍN")* | **đang chạy** (hoặc CT lặp < 2 lần). Không kết luận; `label_prov` giữ nhãn sẽ ra nếu chốt ở `last` — màn hình ghi dòng dưới *"tạm: ĐẠT · 127% target"*. **Không liên quan số ngày đã chạy** |
+| ⚪ **CHƯA CÓ TARGET** · **CHƯA ĐO ĐƯỢC** | không có target nộp trước ngày chạy · thiếu khai báo / kỳ nền / cửa hàng không đủ tin cậy |
 
 > Ô 🟡 là ô quan trọng nhất của cả hệ thống. Chương trình giảm 50% gần như **luôn**
 > đạt target doanh thu và gần như **luôn** lỗ. Một dashboard chỉ có 🟢/🔴 sẽ khen đúng
@@ -490,7 +512,7 @@ att_<metric> = actual / target        với metric ∈ {net, tc, aov, ta, incr_n
 
 | Rào chắn | Luật |
 |---|---|
-| **Độ chín 14 ngày** | Chương trình chạy < 14 ngày **không được** gắn nhãn KHÔNG ĐẠT |
+| **Chốt kết quả khi kết thúc** | CT đang chạy **không được** gắn ĐẠT / KHÔNG ĐẠT, chỉ ghi `TẠM TÍNH`. Đợt đã kết thúc luôn được kết luận dù ngắn. *(Bản thiết kế cũ ghi "độ chín 14 ngày" — code không dùng ngưỡng số ngày đã chạy; 14 ngày hiện nay là `end_gap_days`: khoảng vắng hoá đơn để suy ra chương trình đã ngừng.)* |
 | **Ăn thịt lẫn nhau** *(cannibalization)* | Nếu `net` của bill **không** gắn CTKM giảm trong cùng kỳ, phần giảm đó phải **trừ khỏi** `incr_net` |
 | **Lệch mix biên LN** | `incr_net` cao nhưng `cm_pct` thực tế của giỏ hàng thấp hơn kế hoạch → cảnh báo. Bán thêm nước ngọt khác hẳn bán thêm sashimi |
 
@@ -502,13 +524,13 @@ att_<metric> = actual / target        với metric ∈ {net, tc, aov, ta, incr_n
 |---|---|
 | **Băng DỮ LIỆU MẪU** | Hiện khi nguồn là `_MAU_…` — nói rõ số nào thật (POS) và số nào mẫu (target, chi phí khai tay) |
 | **Hàng KPI** | Doanh thu CTKM · Hoá đơn · Guest · AOV · DT tăng thêm · Lãi thực thêm (ROI gộp, chi phí). Tổng chỉ cộng CT **đã chốt** — CT đang chạy là số tạm |
-| **Chip trạng thái** | Lọc nhanh theo 7 nhãn `$campaign.labels` |
-| **Scorecard** | Tên · kỳ · nhãn · 3 trục phân loại · **Lift + mức hoà vốn** · chi phí · lãi thực thêm/ROI · % đạt target cho Tăng thêm · Net · TC · AOV/TA |
+| **Chip trạng thái** | Hai hàng: **Vận hành** (Đang chạy · Đã kết thúc · Đã kết thúc · suy từ POS — kèm "số POS tới dd/mm") và **Kết quả** (`$campaign.labels`). Hai bộ lọc chồng được |
+| **Scorecard** | Tên · kỳ · **Vận hành** (dòng dưới: HĐ cuối / ngày kết thúc) · **Kết quả** (đang chạy: TẠM TÍNH + "tạm: … · % target") · 3 trục phân loại · **Lift + mức hoà vốn** · chi phí · lãi thực thêm/ROI · % đạt target cho Tăng thêm · Net · TC · AOV/TA |
 | **Chi tiết 1 CT** | Giả thuyết · kỳ nền · đối chứng + hệ số mùa vụ · cảnh báo (chồng kỳ, store mới, tăng nhờ đòn bẩy khác giả thuyết, target nộp muộn) · bảng Target/Kỳ vọng/Thực tế · bóc chi phí · biểu đồ trước/trong/sau (vùng tô = kỳ chạy) · **waterfall Kỳ vọng → ΔTC → Δnhóm → ΔTA → tương tác → Thực tế** |
 | **Timeline** | Gantt phân tách đợt chiến dịch (Bursts) và chương trình định kỳ (Recurring), toggle Trọng điểm / Tất cả mã POS, trục ngày co giãn theo kỳ lọc, viền đỏ = chồng kỳ; bấm thanh để mở chi tiết |
 | **Chi phí × ROI** | Ma trận 4 phần tư: x chi phí ưu đãi · y ROI (lần) · size DT tăng thêm · đường hoà vốn (ROI = 0) · nét liền = Pre-Analysis có đối chứng · nét đứt = Ước lượng · cảnh báo mẫu nhỏ (&lt; 5 bills) |
 | **Lịch cửa sổ marketing** | Tháng × brand, số CT thương mại; cảnh báo khoảng trống > 14 ngày |
-| **Chưa đo được · chưa đủ chín** | Lý do + việc cần làm cho từng CT |
+| **Chưa chấm được** (chưa đo được · tạm tính · chưa có target) | Lý do + việc cần làm cho từng CT |
 | **Lỗi khai báo** | Từ `campaign_issue` — sửa ở L0 rồi chạy lại `CAP_NHAT.bat` |
 | **CTKM trên POS chưa khai** | Tên CTKM có doanh thu nhưng chưa gắn chương trình — danh sách việc cho team brand |
 
@@ -516,7 +538,7 @@ att_<metric> = actual / target        với metric ∈ {net, tc, aov, ta, incr_n
 (QT2.6) nên không gắn icon tăng/giảm nữa (trước đây luôn ↗ xanh). Thẻ AOV · DT tăng thêm và cột AOV · DT tăng thêm của
 Scorecard là so sánh → icon + xanh khi tăng, icon + đỏ khi giảm (`DeltaText` cho ô bảng).
 
-**Luật nhãn đã chốt:** `CHUA_CHIN` = đợt BURST **đang chạy** (hoặc CT lặp < 2 lần). Đợt đã kết thúc
+**Luật nhãn đã chốt:** `CHUA_CHIN` (hiển thị **TẠM TÍNH**) = chương trình **đang chạy** theo §4.6 lớp Vận hành (hoặc CT lặp < 2 lần). Đợt đã kết thúc
 luôn được kết luận dù ngắn (8/3 chạy 3 ngày vẫn phải có ĐẠT/KHÔNG ĐẠT).
 
 Khối "chưa đo được" không phải để trang trí. Hệ thống phải **tự khai ra phần nó chưa đo được**,

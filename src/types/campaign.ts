@@ -98,6 +98,14 @@ export interface Campaign {
   label: string;
   measurable: boolean;
   reason: string | null;
+  /** PLANNED · RUNNING · ENDED · ENDED_POS ($campaign.run_states) */
+  run_state: string | null;
+  /** DECLARED = date_to khai trong file · POS = suy từ ngày có hoá đơn cuối · null = chưa có ngày kết thúc */
+  end_source: 'DECLARED' | 'POS' | null;
+  /** ngày cuối có hoá đơn POS gắn chương trình */
+  last_bill: string | null;
+  /** đang chạy: nhãn sẽ ra nếu chốt ở ngày cuối có dữ liệu (label = CHUA_CHIN) */
+  label_prov: string | null;
   period_from: string | null;
   period_to: string | null;
   days_run: number | null;
@@ -304,8 +312,9 @@ export interface PreEvalProgram {
 }
 
 export interface CampaignData {
-  meta: { demo: boolean; empty: boolean; default_cm_pct: number; maturity_days: number };
+  meta: { demo: boolean; empty: boolean; default_cm_pct: number; maturity_days: number; end_gap_days: number | null };
   taxonomy: {
+    run_states: TaxItem[];
     levers: TaxItem[];
     mechanics: TaxItem[];
     windows: TaxItem[];

@@ -1570,6 +1570,9 @@ function buildCampaign(tables) {
       status: d.status ?? null, owner: d.owner ?? null, hypothesis: d.hypothesis ?? null,
       discount_rule: d.discount_rule ?? null, cost_owner: d.cost_owner ?? null,
       label: r.label, measurable: !!n0(r.measurable), reason: r.reason ?? null,
+      // trạng thái vận hành ($campaign.run_states) + nhãn tạm tính khi đang chạy (tools/campaign.py · infer_end)
+      run_state: r.run_state ?? null, end_source: r.end_source ?? null, last_bill: r.last_bill ?? null,
+      label_prov: r.label_prov ?? null,
       period_from: r.period_from ?? null, period_to: r.period_to ?? null, days_run: num(r.days_run),
       base_from: r.base_from ?? null, base_to: r.base_to ?? null,
       stores: String(r.stores ?? '').split('|').filter(Boolean),
@@ -1624,11 +1627,12 @@ function buildCampaign(tables) {
     meta: {
       demo: res.some((r) => n0(r.demo) === 1),
       empty: !res.length,
-      default_cm_pct: C.default_cm_pct, maturity_days: C.maturity_days,
+      default_cm_pct: C.default_cm_pct, maturity_days: C.maturity_days, end_gap_days: C.end_gap_days ?? null,
     },
     taxonomy: {
       levers: C.levers, mechanics: C.mechanics, windows: C.windows, cadences: C.cadences,
       cost_types: C.cost_types, labels: C.labels, natures: CONTRACT.$promo_nature.labels,
+      run_states: C.run_states ?? [],
       pre_kinds: C.pre_kinds, sources: C.sources, objectives: C.objectives,
       // quy chuẩn tên · đơn vị · công thức từng dòng của bảng chấm (docs/modules/M7_QUY_CHUAN.md)
       metrics: CONTRACT.$metrics,
