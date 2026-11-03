@@ -776,30 +776,32 @@ export const CampaignTrackingView: React.FC = () => {
           } />
       </div>
 
-      {/* Quý */}
-      {quarters.length > 0 && (
+      {/* Quý + Vận hành — gộp 1 hàng */}
+      {(quarters.length > 0 || runCounts.some(s => s.n)) && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Quý</span>
-          {[null, ...quarters].map(q => (
-            <button key={q ?? 'ALL'} onClick={() => setQFilter(q)} title="Quý của kế hoạch M7.1 — chương trình chưa nối kế hoạch lấy quý của ngày chạy"
-              className={`rounded-full border px-3 py-1 text-[11px] ${qFilter === q ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
-              {q ? q.replace('-', ' ') : 'Mọi quý'}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Vận hành */}
-      {runCounts.some(s => s.n) && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Vận hành</span>
-          {[{ code: null as string | null, label: 'Mọi trạng thái', desc: undefined as string | undefined, n: null as number | null }, ...runCounts.filter(s => s.n)].map(s => (
-            <button key={s.code ?? 'ALL'} title={s.desc} onClick={() => setRunFilter(s.code && runFilter !== s.code ? s.code : null)}
-              className={`rounded-full border px-3 py-1 text-[11px] ${runFilter === s.code ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
-              {s.label}{s.n !== null ? ` · ${s.n}` : ''}
-            </button>
-          ))}
-          <span className="text-[10px] text-brand-faint">số POS tới {dmy(lastData)} · không khai ngày kết thúc mà quá {CAMPAIGN.meta.end_gap_days ?? 14} ngày không có HĐ = đã kết thúc</span>
+          {quarters.length > 0 && (
+            <>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Quý</span>
+              {[null, ...quarters].map(q => (
+                <button key={q ?? 'ALL'} onClick={() => setQFilter(q)} title="Quý của kế hoạch M7.1 — chương trình chưa nối kế hoạch lấy quý của ngày chạy"
+                  className={`rounded-full border px-3 py-1 text-[11px] ${qFilter === q ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
+                  {q ? q.replace('-', ' ') : 'Mọi quý'}
+                </button>
+              ))}
+            </>
+          )}
+          {quarters.length > 0 && runCounts.some(s => s.n) && <span className="mx-1 h-5 w-px bg-brand-border" />}
+          {runCounts.some(s => s.n) && (
+            <>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">Vận hành</span>
+              {[{ code: null as string | null, label: 'Mọi trạng thái', desc: undefined as string | undefined, n: null as number | null }, ...runCounts.filter(s => s.n)].map(s => (
+                <button key={s.code ?? 'ALL'} title={s.desc} onClick={() => setRunFilter(s.code && runFilter !== s.code ? s.code : null)}
+                  className={`rounded-full border px-3 py-1 text-[11px] ${runFilter === s.code ? 'border-brand-gold text-brand-gold' : 'border-brand-border text-brand-muted'}`}>
+                  {s.label}{s.n !== null ? ` · ${s.n}` : ''}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
