@@ -524,15 +524,16 @@ coi là kết thúc sớm — chỉ đổi cột Vận hành, vì các chương 
 |---|---|
 | **Băng DỮ LIỆU MẪU** | Hiện khi nguồn là `_MAU_…` — nói rõ số nào thật (POS) và số nào mẫu (target, chi phí khai tay) |
 | **Hàng KPI** | Doanh thu CTKM · Hoá đơn · Guest · AOV · DT tăng thêm · Lãi thực thêm (ROI gộp, chi phí). Tổng chỉ cộng CT **đã chốt** — CT đang chạy là số tạm |
-| **Chip trạng thái** | Hai hàng: **Vận hành** (Đang chạy · Đã kết thúc · Đã kết thúc · suy từ POS — kèm "số POS tới dd/mm") và **Kết quả** (`$campaign.labels`). Hai bộ lọc chồng được |
-| **Scorecard** | Tên · kỳ · **Vận hành** (dòng dưới: HĐ cuối / ngày kết thúc) · **Kết quả** (đang chạy: TẠM TÍNH + "tạm: … · % target") · 3 trục phân loại · **Lift + mức hoà vốn** · chi phí · lãi thực thêm/ROI · % đạt target cho Tăng thêm · Net · TC · AOV/TA |
+| **Chip trạng thái** | Hai hàng: **Vận hành** (Đang chạy · Đã kết thúc — `ENDED_POS` hiển thị "Đã kết thúc" (view cắt đuôi "· suy từ POS", chip lọc gộp chung với `ENDED`); kèm "số POS tới dd/mm") và **Kết quả** (`$campaign.labels`). Hai bộ lọc chồng được |
+| **Scorecard** | *(03/11/2026: bỏ dòng mô tả dưới tiêu đề)* Tên · kỳ · **Vận hành** (dòng dưới: HĐ cuối / ngày kết thúc — `ENDED_POS` chỉ ghi "HĐ cuối dd/mm", bỏ "· chưa khai ngày KT") · **Kết quả** (đang chạy: TẠM TÍNH + "tạm: … · % target") · 3 trục phân loại · **Lift + mức hoà vốn** · chi phí · lãi thực thêm/ROI · % đạt target cho Tăng thêm · Net · TC · AOV/TA |
 | **Chi tiết 1 CT** | Giả thuyết · kỳ nền · đối chứng + hệ số mùa vụ · cảnh báo (chồng kỳ, store mới, tăng nhờ đòn bẩy khác giả thuyết, target nộp muộn) · bảng Target/Kỳ vọng/Thực tế · bóc chi phí · biểu đồ trước/trong/sau (vùng tô = kỳ chạy) · **waterfall Kỳ vọng → ΔTC → Δnhóm → ΔTA → tương tác → Thực tế** |
-| **Timeline** | Gantt phân tách đợt chiến dịch (Bursts) và chương trình định kỳ (Recurring), toggle Trọng điểm / Tất cả mã POS, trục ngày co giãn theo kỳ lọc, viền đỏ = chồng kỳ; bấm thanh để mở chi tiết |
 | **Chi phí × ROI** | Ma trận 4 phần tư: x chi phí ưu đãi · y ROI (lần) · size DT tăng thêm · đường hoà vốn (ROI = 0) · nét liền = Pre-Analysis có đối chứng · nét đứt = Ước lượng · cảnh báo mẫu nhỏ (&lt; 5 bills) |
 | **Lịch cửa sổ marketing** | Tháng × brand, số CT thương mại; cảnh báo khoảng trống > 14 ngày |
-| **Chưa chấm được** (chưa đo được · tạm tính · chưa có target) | Lý do + việc cần làm cho từng CT |
-| **Lỗi khai báo** | Từ `campaign_issue` — sửa ở L0 rồi chạy lại `CAP_NHAT.bat` |
-| **CTKM trên POS chưa khai** | Tên CTKM có doanh thu nhưng chưa gắn chương trình — danh sách việc cho team brand |
+
+**Đã gỡ khỏi giao diện (03/11/2026):** Timeline Chương Trình · Chưa Chấm Được · Việc Cần Khai Báo · CTKM Trên POS Chưa Khai
+Thành Chương Trình. Dữ liệu vẫn build trong `campaign.json` (`issues`, `unmapped`, `label`/`reason`) — **Việc Cần Khai Báo**
+(`campaign.issues`) xuất riêng ra Excel `bao_cao/M7_2/M7.2_Viec_can_khai_bao_<kỳ>.xlsx` gửi người khai báo cập nhật
+`Campaign_Tracking_2026.xlsx`, không hiện trên dashboard.
 
 **Tăng/giảm** *(chuẩn hoá 02/10/2026 theo `AGENTS.md` QT2)*: thẻ Doanh thu CTKM · Hoá đơn · Guest là **tỷ trọng** so brand
 (QT2.6) nên không gắn icon tăng/giảm nữa (trước đây luôn ↗ xanh). Thẻ AOV · DT tăng thêm và cột AOV · DT tăng thêm của

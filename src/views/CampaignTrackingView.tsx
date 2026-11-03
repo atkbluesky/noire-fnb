@@ -44,6 +44,10 @@ export const CampaignTrackingView: React.FC = () => {
   const COST = byCode(T.cost_types);
   /** trạng thái vận hành ($campaign.run_states) — tách khỏi nhãn kết quả */
   const RUN = byCode(T.run_states ?? []);
+  /** nhãn trạng thái hiển thị — bỏ đuôi "· suy từ POS" của ENDED_POS */
+  const runLabel = (code?: string | null) => RUN[code ?? '']?.label?.replace(/\s*·\s*suy từ POS/i, '');
+  /** chip lọc vận hành gộp ENDED_POS vào "Đã kết thúc" */
+  const runGroup = (c: Campaign) => (c.run_state === 'ENDED_POS' ? 'ENDED' : c.run_state);
   /** ngày cuối có dữ liệu POS — mốc chốt "đang chạy / đã kết thúc" */
   const lastData = CAMPAIGN.daily.reduce((m, d) => (d.date > m ? d.date : m), '');
 
@@ -130,7 +134,7 @@ export const CampaignTrackingView: React.FC = () => {
   const RANK: Record<string, number> = { DAT: 0, DAT_LO: 0, GAN_DAT: 0, KHONG_DAT: 0, CHUA_TARGET: 1, CHUA_CHIN: 2, CHUA_DO: 3, KE_HOACH: 4 };
   type Row = Campaign & { rev: number; n_bills: number; aov: number | null; incr_s: number | null; flow_s: number | null; alloc: number };
   const list: Row[] = (labelFilter ? inScope.filter(c => c.label === labelFilter) : inScope.filter(c => c.label !== 'KE_HOACH'))
-    .filter(c => !runFilter || c.run_state === runFilter)
+    .filter(c => !runFilter || runGroup(c) === runFilter)
     .map(c => {
       const x = sc(c);
       return { ...c, rev: x.net, n_bills: x.bills, aov: x.bills ? x.net / x.bills : null, incr_s: x.incr, flow_s: x.flow, alloc: x.share };
@@ -178,8 +182,8 @@ export const CampaignTrackingView: React.FC = () => {
   const kpiAov = kpiBills ? kpiNet / kpiBills : null;
   const counts = T.labels.map(l => ({ ...l, n: inScope.filter(c => c.label === l.code).length }));
   // kế hoạch chưa chạy xem ở chip KẾ HOẠCH / M7.1 — chip vận hành chỉ cho chương trình đã chạy
-  const runCounts = (T.run_states ?? []).filter(s => s.code !== 'PLANNED')
-    .map(s => ({ ...s, n: inScope.filter(c => c.run_state === s.code && c.label !== 'KE_HOACH').length }));
+  const runCounts = (T.run_states ?? []).filter(s => s.code !== 'PLANNED' && s.code !== 'ENDED_POS')
+    .map(s => ({ ...s, n: inScope.filter(c => runGroup(c) === s.code && c.label !== 'KE_HOACH').length }));
   const periodTxt = mFrom === mTo ? formatMonthLabel(mFrom) : `${formatMonthLabel(mFrom)}–${formatMonthLabel(mTo)}`;
 
   /* ── BẢNG CHẤM ĐIỂM ─────────────────────────────────────────── */
@@ -226,11 +230,11 @@ export const CampaignTrackingView: React.FC = () => {
     const r = RUN[c.run_state ?? ''];
     if (!r) return <span className="text-brand-faint">—</span>;
     const sub = c.run_state === 'RUNNING' ? (c.last_bill ? `HĐ cuối ${dmy(c.last_bill)}` : 'chưa có HĐ trên POS')
-      : c.run_state === 'ENDED_POS' ? `HĐ cuối ${dmy(c.last_bill)} · chưa khai ngày KT`
+      : c.run_state === 'ENDED_POS' ? `HĐ cuối ${dmy(c.last_bill)}`
       : c.run_state === 'ENDED' ? `kết thúc ${dmy(c.date_to)}` : null;
     return (
       <div className="leading-tight" title={r.desc}>
-        <StatusBadge label={r.label} variant={(r.badge as BadgeVariant) ?? 'neutral'} />
+        <StatusBadge label={runLabel(c.run_state) ?? r.label} variant={(r.badge as BadgeVariant) ?? 'neutral'} />
         {sub && <div className="mt-0.5 whitespace-nowrap text-[10px] text-brand-muted">{sub}</div>}
       </div>
     );
@@ -815,7 +819,7 @@ export const CampaignTrackingView: React.FC = () => {
       </div>
 
       {/* Scorecard */}
-      <Card title="Bảng Chấm Điểm Chương Trình" description={`Số trong ${periodTxt} × ${B.stores.size} cửa hàng của brand đang lọc · dòng dưới = % so với brand cùng kỳ (DT ${formatVND(B.net)} · ${formatNumber(B.tc)} HĐ · AOV ${vnd(bAov)}) · DT tăng thêm & lãi của chương trình chạy dài được phân bổ theo tỷ trọng doanh thu CTKM trong kỳ (ký hiệu pb) · Kết quả chấm trên cả kỳ chạy, chương trình đang chạy là TẠM TÍNH (số POS tới ${dmy(lastData)}) · bấm tên để xem chi tiết`} chip="SCORECARD" hero>
+      <Card title="Bảng Chấm Điểm Chương Trình" chip="SCORECARD" hero>
         <DataTable columns={columns} data={list} searchKeys={['name', 'id', 'brand'] as any} pageSize={10}
  emptyMessage="Không có chương trình trong kỳ lọc" />
       </Card>
@@ -824,7 +828,7 @@ export const CampaignTrackingView: React.FC = () => {
       {sel && (
         <Card title={`Chi Tiết · ${sel.name}`}
           description={`${sel.id} · SỐ CẢ KỲ CHẠY ${sel.period_from ? `${dmy(sel.period_from)} → ${sel.run_state === 'RUNNING' ? `nay (số tới ${dmy(lastData)})` : dmy(sel.period_to)}${sel.end_source === 'POS' ? ' — ngày kết thúc suy từ HĐ POS cuối' : ''}` : ''} × mọi cửa hàng của chương trình (${sel.stores.join(', ')})${scope.by[sel.id] ? ` · trong ${periodTxt} × brand đang lọc: ${formatVND(scope.by[sel.id].net)} · ${formatNumber(scope.by[sel.id].bills)} HĐ` : ''}`}
-          chip={[RUN[sel.run_state ?? '']?.label, LABEL[sel.label]?.label, sel.label === 'CHUA_CHIN' && sel.label_prov ? `tạm ${LABEL[sel.label_prov]?.label ?? sel.label_prov}` : null].filter(Boolean).join(' · ')}>
+          chip={[runLabel(sel.run_state), LABEL[sel.label]?.label, sel.label === 'CHUA_CHIN' && sel.label_prov ? `tạm ${LABEL[sel.label_prov]?.label ?? sel.label_prov}` : null].filter(Boolean).join(' · ')}>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-3 text-xs">
               <div className="rounded-lg border border-brand-border p-3">
@@ -944,111 +948,6 @@ export const CampaignTrackingView: React.FC = () => {
         </Card>
       )}
 
-      {/* ── TIMELINE CHƯƠNG TRÌNH (FULL WIDTH) ── */}
-      <Card
-        title="Timeline Chương Trình"
-        description="Màu = trạng thái · viền đỏ = chạy chồng kỳ trên cùng cửa hàng · Click vào thanh để xem chi tiết"
-        chip={`GANTT · ${burstTl.length} ĐỢT CHIẾN DỊCH`}
-        headerAction={
-          <div className="flex items-center gap-1 rounded-lg border border-brand-border bg-brand-surface p-0.5 text-[11px]">
-            <button
-              onClick={() => setTlScope('key')}
-              className={`rounded px-2.5 py-1 font-semibold transition-all ${
-                tlScope === 'key'
-                  ? 'bg-brand-gold text-brand-dark shadow-sm'
-                  : 'text-brand-muted hover:text-brand-text'
-              }`}
-            >
-              Trọng điểm ({keyTl.filter(c => !isRecurring(c)).length})
-            </button>
-            <button
-              onClick={() => setTlScope('all')}
-              className={`rounded px-2.5 py-1 font-semibold transition-all ${
-                tlScope === 'all'
-                  ? 'bg-brand-gold text-brand-dark shadow-sm'
-                  : 'text-brand-muted hover:text-brand-text'
-              }`}
-            >
-              Tất cả mã POS ({rawTl.filter(c => !isRecurring(c)).length})
-            </button>
-          </div>
-        }
-      >
-        {/* Strip các chương trình định kỳ / chạy nền (RECURRING / ALWAYS_ON) */}
-        {recurringTl.length > 0 && (
-          <div className="mb-3 rounded-lg border border-brand-border/60 bg-brand-surface/40 p-2.5">
-            <div className="mb-1.5 flex items-center justify-between text-[11px]">
-              <span className="font-bold text-brand-gold uppercase tracking-wider flex items-center gap-1.5">
-                <span>🔄</span> Chương trình định kỳ / Chạy nền ({recurringTl.length})
-              </span>
-              <span className="text-[10px] text-brand-muted">Lặp định kỳ hàng tuần / dài hạn</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {recurringTl.map(c => {
-                const isSel = sel?.id === c.id;
-                const x = sc(c);
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelId(c.id)}
-                    className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-left transition-all ${
-                      isSel
-                        ? 'border-brand-gold bg-brand-gold/15 text-brand-gold shadow-sm'
-                        : 'border-brand-border bg-brand-surface hover:border-brand-muted text-brand-text'
-                    }`}
-                  >
-                    <span
-                      className="inline-block h-2 w-2 rounded-full"
-                      style={{ backgroundColor: STATUS_COLORS[c.label] ?? '#9E9B93' }}
-                    />
-                    <span className="font-semibold text-xs">{c.name}</span>
-                    <span className="text-[10px] text-brand-muted font-mono">[{c.brand} · {formatNumber(x.bills)} bills]</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Biểu đồ Gantt các đợt chiến dịch */}
-        {burstTl.length > 0 ? (
-          <EChartWrapper
-            option={tlOption}
-            height={tlHeight}
-            onEvents={{ click: (p: any) => setSelId(burstTl[p.dataIndex]?.id ?? null) }}
-          />
-        ) : (
-          <div className="p-8 text-center text-xs text-brand-muted">
-            Không có chiến dịch nào trong phạm vi thời gian đang lọc.
-          </div>
-        )}
-
-        {/* Chú giải trạng thái Timeline */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-brand-border/40 pt-2 text-[10px] text-brand-muted">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[#22C55E]" /> Đạt & Có lãi
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[#F97316]" /> Đạt nhưng Lỗ ròng
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[#EF4444]" /> Không đạt (&lt;80%)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[#3B82F6]" /> Tạm tính (đang chạy)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-[#8B5CF6]" /> Chưa target
-            </span>
-            <span className="flex items-center gap-1 font-semibold text-red-400">
-              <span className="inline-block h-2 w-2 rounded-sm border-2 border-red-500" /> ⚠ Viền đỏ = Chồng kỳ
-            </span>
-          </div>
-          <span>Click vào thanh chiến dịch để đồng bộ dữ liệu chi tiết bên dưới</span>
-        </div>
-      </Card>
-
       {/* ── 2 CỘT: MA TRẬN CHI PHÍ × ROI & LỊCH CỬA SỔ MARKETING ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card
@@ -1110,62 +1009,6 @@ export const CampaignTrackingView: React.FC = () => {
           </div>
         </Card>
       </div>
-
-      {/* Chưa đo được + CTKM chưa khai + lỗi */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card title="Chưa Chấm Được" description="Chưa đo được · tạm tính (đang chạy) · chưa có target — hệ thống tự khai phần nó CHƯA chấm được" chip={`${unmeasured.length}`}>
-          <DataTable
-            data={unmeasured}
-            pageSize={6}
-            searchable={false}
-            columns={[
-              { key: 'name', header: 'Chương trình', render: c => <button className="text-left font-bold" onClick={() => setSelId(c.id)}>{c.name}</button> },
-              { key: 'label', header: 'Trạng thái', render: c => <StatusBadge label={LABEL[c.label]?.label ?? c.label} variant="neutral" /> },
-              { key: 'reason', header: 'Vì sao · cần làm gì', render: c => <span className="text-[11px] text-brand-muted">{c.label === 'CHUA_TARGET'
-                ? `đã đo được (lift cửa hàng ${pct(c.lift, 1)}) nhưng chưa có target nộp trước ngày chạy — nối pre_id nếu có trong Pre-Analysis, hoặc điền campaign_target`
-                : c.reason ?? (c.cadence === 'BURST' ? `đang chạy — số tạm tới ${dmy(lastData)}, tự chốt khi qua ngày kết thúc (hoặc POS ngừng có HĐ quá ${CAMPAIGN.meta.end_gap_days ?? 14} ngày)` : 'chương trình lặp chưa đủ 2 lần để so')}</span> },
-            ]}
-          />
-        </Card>
-        <Card title="Việc Cần Khai Báo" description="Từ Campaign_Tracking_2026.xlsx — điền ô CAM trong file rồi chạy lại CAP_NHAT.bat" chip={`${CAMPAIGN.issues.length}`}>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {issueSummary.map(([k, n]) => (
-              <span key={k} className="rounded-full border border-brand-border px-2 py-0.5 text-[10px] text-brand-muted">
-                {k} · <b className="text-brand-text">{n}</b>
-              </span>
-            ))}
-          </div>
-          <DataTable
-            data={CAMPAIGN.issues}
-            pageSize={6}
-            searchable={false}
-            emptyMessage="Không có lỗi khai báo"
-            columns={[
-              { key: 'id', header: 'Mã', render: r => <span className="font-mono text-[11px]">{r.id}</span> },
-              { key: 'level', header: 'Mức', render: r => <StatusBadge label={r.level} variant={r.level === 'LỖI' ? 'bad' : r.level === 'THIẾU' ? 'warning' : 'neutral'} /> },
-              { key: 'msg', header: 'Nội dung', render: r => <span className="text-[11px]"><b>{r.field}</b> · {r.msg}</span> },
-            ]}
-          />
-        </Card>
-      </div>
-
-      <Card title="CTKM Trên POS Chưa Khai Thành Chương Trình" description="Thương mại · Loyalty · Đối tác — chưa gắn vào danh mục nên chưa được đo · xếp theo doanh thu chạm" chip={`${unmapped.length} TÊN`}>
-        <DataTable
-          emptyMessage="Mọi tên CTKM thương mại · loyalty · đối tác trên POS đã nằm trong danh mục chương trình"
-          data={unmapped}
-          pageSize={8}
-          searchKeys={['name_pos'] as any}
-          columns={[
-            { key: 'name_pos', header: 'Tên CTKM trên POS', render: u => <span className="font-bold">{u.name_pos}</span> },
-            { key: 'nature', header: 'Bản chất', render: u => <StatusBadge label={NAT[u.nature]?.short ?? u.nature} variant={(NAT[u.nature]?.badge as BadgeVariant) ?? 'neutral'} /> },
-            { key: 'brand', header: 'Brand', render: u => <span style={{ color: BRAND_COLORS[u.brand] }}>{u.brand}</span> },
-            { key: 'first', header: 'Có trên POS', render: u => <span className="font-mono text-[11px]">{dmy(u.first)} → {dmy(u.last)} · {u.days} ngày</span> },
-            { key: 'bills', header: 'Hoá đơn', align: 'right', render: u => <span className="font-mono">{formatNumber(u.bills ?? 0)}</span> },
-            { key: 'net', header: 'Doanh thu chạm', align: 'right', render: u => <span className="font-mono">{vnd(u.net)}</span> },
-            { key: 'disc', header: 'Chi phí ưu đãi', align: 'right', render: u => <span className="font-mono">{vnd(u.disc)}</span> },
-          ]}
-        />
-      </Card>
     </div>
   );
 };
