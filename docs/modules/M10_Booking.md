@@ -73,7 +73,7 @@ của tiệc tháng 8 (nhận từ tháng 5). Sai với mọi chỉ số chi ph�
 
 | Khối | Nội dung |
 |---|---|
-| Thẻ KPI | Chi phí ads booking · Lead MKT ghi sổ (CPL) · Tiệc chốt từ MKT (tỷ lệ chốt, chi phí/tiệc) · DT chốt từ MKT (ROAS) · DT tiệc đã chốt mọi nguồn |
+| Thẻ KPI | Chi phí ads booking · Lead MKT (CPL) · Tiệc chốt từ MKT (tỷ lệ chốt, chi phí/tiệc) · DT chốt từ MKT (ROAS) · DT tiệc đã chốt mọi nguồn |
 | **Phễu Marketing → Tiệc** | 6 tầng, mỗi tầng: số thật · tỷ lệ so với tầng trên · chi phí đơn vị. Độ rộng thanh chỉ minh hoạ thứ tự |
 | **Fanpage NEC** | lượt xem, người xem, truy cập, theo dõi, người liên hệ, hội thoại + % hội thoại đến từ ads |
 | **Xu hướng theo tháng nhận lead** | hội thoại ads · lead MKT chồng theo kết quả · đường chi phí; tooltip cảnh báo tháng chưa chín (>40% đang theo) |
@@ -137,6 +137,36 @@ Báo nguồn (Sales) sửa:
 
 **Fanpage NEC (M6)** T10 từ `Tháng 10.2026/NEC-T10` + `Facebook_Tong_hop_10_2026.xlsx`: 158.518 lượt xem · 3.945 truy cập · 1.597 click · 838 theo dõi mới · **152 người liên hệ · 149 hội thoại**
 → hội thoại từ ads NEC 137 ÷ 149 của trang = **92%**. Người xem trong kỳ để trống vì export không có số cả kỳ, không cộng theo ngày.
+
+## 6d. Nạp lại sổ T10/2026 đã soát (05/11/2026)
+
+**Sổ Sales** `NOIRE_Booking_Dashboard_T10.2026.xlsx` (thay `NOIRE Booking Tiec Sales 2026.xlsx`; thêm sheet `Dashboard Booking`, `Validation` — loader vẫn chỉ đọc `Sales Info`) — 558 lead (111 đặt bàn nhỏ tách riêng). Chốt QA giữ 15/17 (#8, #10 đỏ từ trước).
+
+Thay đổi so với sổ 02/11 (mọi nguồn, gồm đặt bàn nhỏ):
+
+| Tháng nhận lead | Trước | Sau |
+|---|---|---|
+| T12/2025 | 50 lead · 11 chốt · 148,2 tr | **46 lead · 10 chốt · 133,2 tr** — bớt 4 lead MKT (1 Confirmed NCB_ET 15 tr, 1 Pending, 2 Lost) |
+| T10/2026 | 74 lead · 20 chốt · 364,0 tr | **74 lead · 19 chốt · 335,5 tr** — 1 tiệc MKT NOIRE ET 28,5 tr (`LEAD-0528`) chuyển sang Lost |
+| Các tháng khác | | không đổi |
+
+**T10 trên màn hình (tiệc & sự kiện):** MKT 53 lead · **4 chốt (7,5%)** · DT chốt MKT **46,0 tr** · **ROAS 2,8×** (trước 4,5×) · DT chốt mọi nguồn 335,5 tr. Chi phí ads giữ 16,6 tr từ API M5.1.
+
+Lỗi sổ Sales **vẫn còn** sau lần soát này — báo nguồn sửa:
+
+- **30 lead Confirmed chưa nhập Closed Revenue** (phần lớn tiệc diễn ra T7–T9; T10: `261007-0469`, `260830-0523`) — 9 dòng tiệc T7 còn trống cả `Lead ID`.
+- **21 lead Lost/Tentative còn số ở Closed Revenue** (vd. `LEAD-0528` 28,5 tr, `LEAD-0497` 49 tr) — loader không tính, nhưng nên xoá cho sạch.
+- Outlet `NOIRE` ×2 · `NOIRE JFB` ×1 chưa vào được bộ lọc brand; 19 lead trống Outlet.
+- `Source`: `MKT ` (dư khoảng trắng — loader đã cắt), `Nội Bộ` ×3 tách riêng khỏi `Nội bộ` trên bảng nguồn, `Sale` ×1, 3 lead trống.
+- `Event Type` T10: 73/74 trống → khối Loại sự kiện chưa đọc được. Toàn sổ còn 144 trống.
+- Ngày nhận vô lý loader tự sửa: `LEAD-0214` 2026-12-07 → 12/07 · `261008-0370` → 10/08 · `261009-0422` → 10/09 · `LEAD-0520` → ngày sự kiện. Nhiều ngày nhận gõ dạng chữ `29/07/2026` — vẫn đọc được.
+
+**Người xem Fanpage NEC T10 = 114.608** (05/11/2026, theo yêu cầu; cả 4 page đều điền cùng cách, xem M6): điền vào cột `Người xem trong kỳ`
+của `Facebook_Tong_hop_10_2026.xlsx` = **cộng 31 ngày** `NEC-T10/Người xem.csv` (export Meta chỉ có số theo ngày).
+Số này **có đếm trùng** người xem nhiều ngày — cao hơn reach cả tháng của Meta (tham chiếu NCB T8: cộng ngày cao hơn ~35%),
+không so sánh trực tiếp với reach các tháng lấy số cả kỳ. Có số cả tháng từ Meta Business Suite thì thay vào. Ghi chú ở sheet `Ghi_chu` của file.
+
+**Chữ trên màn hình (05/11/2026):** bỏ chữ "ghi sổ" ở M10 (thẻ KPI, tầng phễu, tooltip, ghi chú) — nhãn là "Lead MKT", tỷ lệ hiện "% so với liên hệ"; tầng Chốt tiệc chỉ ghi `Confirmed`, bỏ đoạn "· còn N đang theo".
 
 ## 7. Còn thiếu
 

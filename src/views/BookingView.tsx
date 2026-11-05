@@ -14,7 +14,7 @@ import type { BookingRow, BookingStage } from '../types/hub';
 
    Ba nguồn, nối theo THÁNG NHẬN LEAD (cohort):
      Meta Ads (chiến dịch booking) → hiển thị · click · hội thoại/lead form
-     Sổ booking của Sales          → lead ghi sổ · chốt · doanh thu
+     Sổ booking của Sales          → lead · chốt · doanh thu
      Fanpage NEC                   → bối cảnh: tổng liên hệ vào trang tiệc
 
    Mọi luật (chốt là gì, dòng nào là đặt bàn, ads nào là booking) nằm ở
@@ -153,16 +153,16 @@ export const BookingView: React.FC = () => {
       cost: contacts > 0 ? `${formatVND(spend / contacts)} / liên hệ` : undefined,
     },
     {
-      label: 'Lead MKT ghi sổ', sub: 'Sổ Sales · Source = MKT',
+      label: 'Lead MKT', sub: 'Sổ Sales · Source = MKT',
       value: formatNumber(MKT.leads), width: 58, color: '#AE8966',
       rate: handoff === null ? undefined : {
-        text: formatPercent(handoff), label: 'được ghi sổ',
+        text: formatPercent(handoff), label: 'so với liên hệ',
         tone: handoff > 1 ? 'warn' : handoff < 0.5 ? 'bad' : 'ok',
       },
       cost: cpl !== null ? `CPL ${formatVND(cpl)}` : undefined,
     },
     {
-      label: 'Chốt tiệc', sub: `Confirmed · còn ${formatNumber(MKT.open)} đang theo`,
+      label: 'Chốt tiệc', sub: 'Confirmed',
       value: formatNumber(MKT.won), width: 44, color: '#82846C',
       rate: { text: formatPercent(mktWin), label: 'tỷ lệ chốt', tone: (mktWin ?? 0) < 0.2 ? 'bad' : 'ok' },
       cost: cpa !== null ? `${formatVND(cpa)} / tiệc` : undefined,
@@ -209,7 +209,7 @@ export const BookingView: React.FC = () => {
           <div style="font-weight:700;margin-bottom:4px">Lead nhận ${formatMonthLabel(row.m)}</div>
           ${line('Chi phí ads booking', row.report ? formatVND(sp) : 'chưa có báo cáo')}
           ${line('Hội thoại + form', formatNumber(ct))}
-          ${line('Lead MKT ghi sổ', formatNumber(t.leads))}
+          ${line('Lead MKT', formatNumber(t.leads))}
           ${line('· Đã chốt', `${formatNumber(t.won)} (${formatPercent(safeDiv(t.won, t.leads), 0)})`)}
           ${line('· Đang theo', formatNumber(t.open))}
           ${line('· Đã mất', formatNumber(t.lost))}
@@ -394,7 +394,7 @@ export const BookingView: React.FC = () => {
   const nNoExp = BK.filter(r => r.stage === 'open').reduce((a, r) => a + r.leads - r.exp_n, 0);
   const nNoBrand = brandAll ? BK.filter(r => !r.brand).reduce((a, r) => a + r.leads, 0) : 0;
   const quality: { tone: 'ok' | 'warn' | 'info'; text: React.ReactNode }[] = [
-    { tone: 'info', text: <>Phễu ghép <b>theo tháng nhận lead</b>, không nối được từng khách: sổ Sales không ghi mã hội thoại. Source = MKT gồm cả lead từ fanpage tự nhiên, nên tỷ lệ ghi sổ là <b>xấp xỉ</b>.</> },
+    { tone: 'info', text: <>Phễu ghép <b>theo tháng nhận lead</b>, không nối được từng khách: sổ Sales không ghi mã hội thoại. Source = MKT gồm cả lead từ fanpage tự nhiên, nên tỷ lệ so với liên hệ là <b>xấp xỉ</b>.</> },
     nTables > 0 && { tone: 'info', text: <>{withTables ? 'Đang gộp' : 'Đã tách riêng'} <b>{formatNumber(nTables)}</b> dòng đặt bàn nhỏ (Dinner/Lunch dưới {META.segment.table_max_guests} khách) — chúng không phải tiệc và làm tỷ lệ chốt của nguồn Sales đẹp giả.</> },
     nNoClosed > 0 && { tone: 'warn', text: <><b>{formatNumber(nNoClosed)}</b> tiệc Confirmed chưa nhập Closed Revenue → doanh thu chốt và ROAS đang <b>thấp hơn thực tế</b>.</> },
     nInqEst > 0 && { tone: 'warn', text: <><b>{formatNumber(nInqEst)}</b> lead thiếu Inquiry Date — tháng nhận lead tạm lấy theo ngày sự kiện.</> },
@@ -448,11 +448,11 @@ export const BookingView: React.FC = () => {
               customDeltaText={contacts ? `${formatNumber(contacts)} liên hệ · ${formatVND(spend / contacts)}/liên hệ` : 'chưa có hội thoại/form'}
             />
             <MetricCard
-              label="Lead MKT ghi sổ"
+              label="Lead MKT"
               subLabel="Source = MKT"
               value={formatNumber(MKT.leads)}
               unit="lead"
-              customDeltaText={`CPL ${formatVND(cpl)} · ghi sổ ${formatPercent(handoff, 0)} liên hệ`}
+              customDeltaText={`CPL ${formatVND(cpl)} · ${formatPercent(handoff, 0)} liên hệ`}
             />
             <MetricCard
               label="Tiệc chốt từ MKT"
@@ -557,7 +557,7 @@ export const BookingView: React.FC = () => {
           {/* Xu hướng */}
           <Card
             title="Xu hướng theo tháng nhận lead"
-            description="Cột nhạt: hội thoại + lead form từ Ads. Cột chồng: lead MKT được Sales ghi sổ, tô theo kết quả. Đường: chi phí ads booking."
+            description="Cột nhạt: hội thoại + lead form từ Ads. Cột chồng: lead MKT trong sổ Sales, tô theo kết quả. Đường: chi phí ads booking."
             chip="ADS × SỔ SALES"
           >
             <EChartWrapper option={trendOption} height={300} />
