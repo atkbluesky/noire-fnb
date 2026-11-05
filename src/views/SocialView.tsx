@@ -185,7 +185,11 @@ export const SocialView: React.FC = () => {
 
   const fbFollowers = 7946 + 4044 + 862 + 2428; // 15,280
   // Follower TikTok = số 'Tổng follower' của tháng mới nhất có khai (file TikTok), không gõ cứng.
-  const ttFollowers = S.page.find(p => p.platform === 'TIKTOK')?.followers ?? 574;
+  // Lấy dòng TikTok MỚI NHẤT có khai follower (tháng cuối để trống thì không rơi về hằng số cũ).
+  const ttFollowers = [...S.month]
+    .filter(r => r.platform === 'TIKTOK' && r.followers !== null)
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)))
+    .pop()?.followers ?? 574;
   const grandTotalFollowers = filters.brand === 'ALL'
     ? fbFollowers + ttFollowers
     : (filters.brand === 'NCB' ? 7946 : filters.brand === 'NDC' ? 4044 : 2428);
