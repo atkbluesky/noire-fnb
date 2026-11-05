@@ -108,7 +108,7 @@ const DashboardContent: React.FC = () => {
   } else if (activeView === 'm71') {
     customNote = 'Sổ đánh giá Pre_Analysis_2026 — dự báo theo kỳ chạy của từng chương trình (lọc bằng chip Kỳ bên dưới), không theo bộ lọc tháng.';
   } else if (activeView === 'm10') {
-    customNote = 'Tháng = tháng NHẬN LEAD. Brand lấy theo Outlet trong sổ booking; lịch doanh thu xếp theo tháng diễn ra tiệc.';
+    customNote = 'Tháng = tháng DIỄN RA TIỆC (mặc định, khớp sổ Sales) hoặc tháng NHẬN LEAD — chọn bằng nút trong màn hình. Brand lấy theo Outlet trong sổ booking.';
   } else if (activeView === 'm11' || activeView === 'm101') {
     customNote = 'Tháng = tháng của báo cáo iPOS (L0_input/06_ĐAT_BAN). Brand lọc ở nút trong phễu; đơn theo brand là ước tính phân bổ.';
   } else if (activeView === 'm8') {
