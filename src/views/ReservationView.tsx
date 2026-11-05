@@ -327,13 +327,7 @@ export const ReservationView: React.FC = () => {
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">QUẢNG CÁO CÓ RA ĐƠN ĐẶT BÀN KHÔNG</span>
-        <h2 className="mt-0.5 font-display text-xl font-extrabold text-brand-text">M11 · Đặt bàn</h2>
-        <p className="mt-1 max-w-4xl text-xs text-brand-muted">
-          Phễu từ <b>thực chi Ads</b> (Meta · Google, phễu nhà hàng của NCB · NDC · NJFB) tới <b>đơn đặt bàn iPOS</b> theo nguồn đơn.
-          Kỳ {M.months.map(m => formatMonthLabel(m.month)).join(', ')} · cửa sổ đối chiếu {M.window.from ? dm(M.window.from) : '—'} → {M.window.to ? dm(M.window.to) : '—'} ({days} ngày có đơn).
-          Số có dấu <b>≈</b> là ước tính phân bổ — iPOS chỉ xuất nguồn đơn ở cấp toàn chuỗi.
-        </p>
+        <h2 className="font-display text-xl font-extrabold text-brand-text">M11 · Đặt bàn</h2>
         {fellBack && (
           <p className="mt-2 inline-block rounded-md border border-status-warning/40 bg-status-warningBg px-2.5 py-1 text-[11px] text-status-warning">
             Kỳ đang chọn chưa có dữ liệu đặt bàn — đang hiện {formatMonthLabel(months[0])}, tháng gần nhất có báo cáo iPOS.

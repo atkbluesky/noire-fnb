@@ -256,8 +256,7 @@ export const ZaloOAView: React.FC = () => {
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 sm:p-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">OWNED CHANNEL PERFORMANCE</span>
-          <h2 className="mt-0.5 font-display text-xl font-extrabold text-brand-text">
+          <h2 className="font-display text-xl font-extrabold text-brand-text">
             M8.1 · Zalo Official Account
             {cur?.oaName && (
               <span className="ml-2 rounded-md border border-brand-gold/40 px-2 py-0.5 align-middle text-[11px] font-bold text-brand-gold">
@@ -265,13 +264,9 @@ export const ZaloOAView: React.FC = () => {
               </span>
             )}
           </h2>
-          <p className="mt-1 text-xs text-brand-muted">
-            Export OA Manager {lastExport ? `đến ${fullDate(lastExport)}` : 'chưa có'} + {live
-              ? `API realtime · cập nhật ${api.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-              : checking ? 'đang kiểm tra API…' : 'API chưa đọc được'}
-            {' · '}{fullDate(win.start)} → {fullDate(win.end)}
-            {sum.gapDays > 0 && <span className="text-status-warning"> · {sum.gapDays} ngày chưa có số</span>}
-          </p>
+          {sum.gapDays > 0 && (
+            <p className="mt-1 text-xs text-status-warning">{sum.gapDays} ngày chưa có số</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-1">

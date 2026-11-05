@@ -106,12 +106,7 @@ export const DigitalAdsView: React.FC = () => {
   return (
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">TỐN BAO NHIÊU ĐỂ BÁN</span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">M5 · Digital Ads (Meta &amp; Google)</h2>
-        <p className="text-xs text-brand-muted mt-1">
-          Đi từ tổng thể tới từng kênh. Thước đo chính là <b>Ad Cost Ratio (ACR = chi media ÷ doanh thu thuần)</b> — không dùng ROAS
-          vì POS chỉ nhận diện được 8,6% hoá đơn và Meta chỉ đo tới bước tin nhắn.
-        </p>
+        <h2 className="text-xl font-extrabold text-brand-text font-display">M5 · Digital Ads (Meta &amp; Google)</h2>
       </div>
 
       {/* Dòng nguồn — chỉ còn API (Meta Marketing API + Google Ads API), không còn công tắc Excel. */}

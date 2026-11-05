@@ -111,15 +111,9 @@ export const CRMView: React.FC = () => {
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          BÁN CHO AI, HỌ CÓ QUAY LẠI
-        </span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-xl font-extrabold text-brand-text font-display">
           M8 · CRM · Khách Hàng &amp; Voucher
         </h2>
-        <p className="text-xs text-brand-muted mt-1">
-          Theo dõi doanh thu thành viên, cơ cấu lượt chi tiêu và hiệu quả các chương trình voucher.
-        </p>
       </div>
 
       {/* CRM iPOS theo tháng: khách đăng ký · lượt chi tiêu · doanh thu thành viên · voucher · hạng */}

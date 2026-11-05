@@ -343,15 +343,9 @@ export const PromotionView: React.FC = () => {
 
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          CHI PHÍ ƯU ĐÃI THẬT SỰ ĐI ĐÂU
-        </span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-xl font-extrabold text-brand-text font-display">
           M7 · Promotion — Tổng Quan &amp; {NAT.length} Bản Chất Chi Phí
         </h2>
-        <p className="text-xs text-brand-muted mt-1">
-          Phân định theo AI TRẢ TIỀN: {NATURE_META.map(n => n.label).join(' | ')}.
-        </p>
       </div>
 
       {/* Danh mục chương trình — master chung M7 · M7.1 · M7.2 */}

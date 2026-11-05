@@ -16,14 +16,7 @@ export const PreAnalyticsView: React.FC = () => {
       <PromotionTabs />
 
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          TRƯỚC KHI CHẠY — DỰ BÁO CÓ LÃI KHÔNG · SAU KHI CHẠY — CÓ ĐÚNG NHƯ DỰ BÁO KHÔNG
-        </span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">M7.1 · Pre-Analytics · Plan</h2>
-        <p className="text-xs text-brand-muted mt-1">
-          EBITDA tăng thêm dự báo của từng chương trình theo 3 kịch bản, điểm hoà vốn và quyết định DUYỆT · CHẠY THỬ · SỬA CƠ CHẾ.
-          Chương trình đã chạy có thực tế đặt cạnh dự báo.
-        </p>
+        <h2 className="text-xl font-extrabold text-brand-text font-display">M7.1 · Pre-Analytics · Plan</h2>
       </div>
 
       <PreEvalSection brandMatches={brandMatches} />
