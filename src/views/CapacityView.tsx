@@ -422,19 +422,9 @@ export const CapacityView: React.FC = () => {
     <div className="space-y-4 sm:space-y-5 p-3 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          BÁN LÚC NÀO, Ở ĐÂU, QUA KÊNH NÀO
-        </span>
-        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display">
           M3 · Công Suất &amp; Kênh Bán
         </h2>
-        <p className="text-xs text-brand-muted mt-1 leading-relaxed">
-          F&amp;B bán công suất theo thời gian — chỗ ngồi trống lúc 15h không thể bán lại vào lúc 19h.
-        </p>
-        <p className="text-[11px] text-brand-faint mt-1 leading-relaxed">
-          Đang xem <b className="text-brand-muted">{scopeLabel}</b>. Khung giờ · kênh · ma trận giờ · thanh toán
-          lọc theo kỳ và brand; nhân viên · khu vực · thời gian ngồi bàn là luỹ kế toàn kỳ, lọc theo cửa hàng.
-        </p>
       </div>
 
       {/* Dwell time note */}

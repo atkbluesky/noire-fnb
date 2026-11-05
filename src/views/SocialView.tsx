@@ -114,10 +114,7 @@ export const SocialView: React.FC = () => {
     return (
       <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-            KÊNH SỞ HỮU — KHÔNG TRẢ TIỀN CHO TỪNG LƯỢT
-          </span>
-          <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+          <h2 className="text-xl font-extrabold text-brand-text font-display">
             M6 · Social Media (Fanpage &amp; TikTok)
           </h2>
         </div>
@@ -198,6 +195,8 @@ export const SocialView: React.FC = () => {
   const fbAudience = sumOf(fbRows, r => r.audience);
   const fbEngage = sumOf(fbRows.filter(r => r.audience), r => r.engage);
   const fbER = fbAudience > 0 ? fbEngage / fbAudience : 0;
+  // Tháng có fanpage chưa khai "Người xem trong kỳ" — thiếu số ≠ bằng 0, không được hiện 0.
+  const fbNoReachMonths = [...new Set(fbRows.filter(r => !r.audience).map(r => r.month))].sort();
   const fbClicks = sumOf(fbRows, r => r.clicks);
   const fbProfileViews = sumOf(fbRows, r => r.profile_views);
 
@@ -744,16 +743,9 @@ export const SocialView: React.FC = () => {
       {/* Header & Bộ chuyển kênh nhanh */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-            KÊNH SỞ HỮU — SỨC MẠNH NỘI DUNG TỰ THÂN
-          </span>
-          <h2 className="text-2xl font-extrabold text-brand-text font-display mt-0.5">
+          <h2 className="text-2xl font-extrabold text-brand-text font-display">
             M6 · Social Media (4 Fanpages &amp; 1 TikTok)
           </h2>
-          <p className="text-xs text-brand-muted mt-1 max-w-2xl">
-            Báo cáo toàn cảnh 4 Fanpage Facebook (<span className="text-brand-text font-semibold">NCB · NDC · NEC · NJFB</span>)
-            và kênh <span className="text-brand-text font-semibold">TikTok Official</span> trong {rangeLabel}.
-          </p>
         </div>
 
         {/* Tab switch nền tảng */}
@@ -822,9 +814,14 @@ export const SocialView: React.FC = () => {
         <MetricCard
           label="Tiếp Cận Facebook (4 Page)"
           subLabel="Tài khoản xem nội dung"
-          value={formatNumber(fbAudience)}
+          value={fbAudience > 0 ? formatNumber(fbAudience) : '—'}
           icon={<Facebook className="h-4 w-4" />}
-          customDeltaText={`ER ${formatPercent(fbER, 2)} · ${formatNumber(fbProfileViews)} lượt xem trang`}
+          customDeltaText={
+            fbAudience > 0
+              ? `ER ${formatPercent(fbER, 2)} · ${formatNumber(fbProfileViews)} lượt xem trang${
+                  fbNoReachMonths.length ? ` · chưa gồm ${fbNoReachMonths.map(formatMonthLabel).join(', ')} (chưa có số người xem cả tháng)` : ''}`
+              : `Chưa có số người xem cả tháng ${fbNoReachMonths.map(formatMonthLabel).join(', ')} · ${formatNumber(fbProfileViews)} lượt xem trang`
+          }
         />
         <MetricCard
           label="Lượt Xem Video TikTok"

@@ -399,18 +399,9 @@ export const MenuView: React.FC = () => {
     <div className="space-y-4 sm:space-y-5 p-3 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          MÓN NÀO ĐÁNG BÁN
-        </span>
-        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display">
           M2 · Menu Engineering &amp; Biên Lợi Nhuận
         </h2>
-        <p className="text-xs text-brand-muted mt-1 leading-relaxed">
-          {agg.filtered
-            ? <>Đang xem <b className="text-brand-text">{scopeLabel}</b>. </>
-            : <>Luỹ kế {nMonths} tháng. </>}
-          Phân tích ma trận 4 góc phần tư món ăn và kiểm soát rủi ro giá vốn.
-        </p>
         {/* Chưa có product_month (data_input dựng trước bản tách theo cửa hàng) → đang hiện
             bảng luỹ kế toàn chuỗi cũ. Nói thẳng ra để người đọc biết bộ lọc chưa có tác dụng. */}
         {!agg.filtered && (

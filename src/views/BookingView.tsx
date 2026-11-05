@@ -411,16 +411,9 @@ export const BookingView: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-            QUẢNG CÁO CÓ RA TIỆC KHÔNG
-          </span>
-          <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">
+          <h2 className="text-xl font-extrabold text-brand-text font-display">
             M10 · Booking &amp; Tiệc Sự Kiện
           </h2>
-          <p className="text-xs text-brand-muted mt-1 max-w-3xl">
-            Phễu từ quảng cáo Meta → hội thoại → Sales ghi sổ → chốt → doanh thu. Ghép theo <b>tháng nhận lead</b>;
-            lịch doanh thu bên dưới xếp theo <b>tháng diễn ra</b> tiệc.
-          </p>
         </div>
         <div className="inline-flex self-start rounded-lg border border-brand-border bg-brand-surface p-0.5 text-[11px] font-semibold">
           {[

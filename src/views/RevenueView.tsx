@@ -894,15 +894,9 @@ export const RevenueView: React.FC = () => {
     <div className="space-y-4 sm:space-y-5 p-3 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          BÁN ĐƯỢC BAO NHIÊU
-        </span>
-        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
+        <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display">
           M1 · Doanh Thu &amp; Tăng Trưởng
         </h2>
-        <p className="text-xs text-brand-muted mt-1 leading-relaxed">
-          Bóc tách động lực tăng trưởng theo chu kỳ ngày, thứ trong tuần, quy mô giỏ hàng và cửa hàng.
-        </p>
       </div>
 
       {/* Cumulative KPI cards */}

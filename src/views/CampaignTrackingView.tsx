@@ -693,10 +693,7 @@ export const CampaignTrackingView: React.FC = () => {
 
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-          CHƯƠNG TRÌNH TẠO THÊM ĐƯỢC BAO NHIÊU · TỐN BAO NHIÊU · LÃI HAY LỖ
-        </span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">M7.2 · Promotion Tracking</h2>
+        <h2 className="text-xl font-extrabold text-brand-text font-display">M7.2 · Promotion Tracking</h2>
       </div>
 
       {CAMPAIGN.meta.demo && (

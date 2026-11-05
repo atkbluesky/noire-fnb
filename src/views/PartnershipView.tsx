@@ -536,12 +536,7 @@ export const PartnershipView: React.FC = () => {
     <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div>
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">ĐỐI TÁC MANG LẠI GÌ</span>
-        <h2 className="text-xl font-extrabold text-brand-text font-display mt-0.5">M9 · Partnership — Aggregator + Partner</h2>
-        <p className="text-xs text-brand-muted mt-1">
-          {CHANNELS.map(c => `${c.short}: ${c.label.split('·').slice(1).join('·').trim() || c.label}`).join(' — ')}.
-          {' '}Theo dõi hiệu quả doanh thu, chi phí ưu đãi và hoa hồng đối tác theo thời gian thực.
-        </p>
+        <h2 className="text-xl font-extrabold text-brand-text font-display">M9 · Partnership — Aggregator + Partner</h2>
       </div>
 
       {/* KPI */}

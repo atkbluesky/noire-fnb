@@ -322,21 +322,13 @@ export const ScorecardView: React.FC = () => {
       {/* View Header */}
       <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-gold">
-            TỔNG THỂ ĐANG Ở ĐÂU
-          </span>
-          <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display mt-0.5">
+          <h2 className="text-lg sm:text-xl font-extrabold text-brand-text font-display">
             Scorecard Điều Hành — Kỳ {periodLabel}
           </h2>
-          <p className="text-xs text-brand-muted mt-1 leading-relaxed">
-            Hàng trên phản ánh quy mô (Volume), hàng dưới phản ánh chất lượng vận hành (Quality).
-            {' '}Số liệu cộng dồn {ms.length} tháng
-            {prevLabel
-              ? <> · so với kỳ liền trước <b>{prevLabel}</b></>
-              : cmp
-              ? <> · chưa có kỳ liền trước cùng độ dài nên thẻ so <b>{cmp.label}</b> (tháng cuối kỳ với tháng liền trước)</>
-              : ' · không có kỳ trước để so sánh'}.
-          </p>
+          {/* Thẻ đã tự ghi nhãn kỳ so sánh (deltaLabel). Chỉ báo khi KHÔNG có kỳ nào để so (QT2.3). */}
+          {!prevLabel && !cmp && (
+            <p className="text-[11px] text-brand-faint mt-1">Không có kỳ trước để so sánh.</p>
+          )}
         </div>
 
         {isPartial && (

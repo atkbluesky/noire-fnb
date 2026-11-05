@@ -23,6 +23,8 @@
 >   số làm tròn theo TikTok hiển thị. `Số bài đăng` và `Tổng follower` T10 **để trống**: ảnh ghi tổng 611 nhưng chụp ~3/11 và 611 − 593 (T9) = 18 ≠ +23 → chốt QA #13 đỏ,
 >   nên chưa dùng làm tồn cuối T10.
 > - **Hệ thống chọn file TikTok mới nhất theo giờ sửa** (`l0_latest`): file nào mới sửa sau cùng phải có sheet `Tong_hop_thang`, nếu không mất cả chuỗi T7–T9.
+> - Thẻ "Tiếp cận Facebook (4 page)": khi tháng nào chưa có `Người xem trong kỳ` thì thẻ **không cộng tháng đó** và ghi rõ "chưa gồm T10/26"; chọn riêng T10 thì hiện `—` thay vì `0`.
+> - Tiêu đề màn hình chỉ còn `M6 · Social Media (…)` — đã bỏ dòng kicker phía trên và đoạn mô tả phía dưới (áp dụng chung M0–M11, 05/11/2026).
 > - NEC: "+838 follower ròng" thật ra là lượt theo dõi MỚI — export không có bỏ theo dõi; tăng mạnh từ 14/10 trùng chiến dịch `NEC | LikePage | 2026`.
 > - View: thẻ "Tổng follower tích luỹ" lấy follower TikTok từ dòng **mới nhất có khai** (trước đây rơi về hằng số 574 khi tháng cuối trống). Follower Facebook (7946 + 4044 + 862 + 2428)
 >   vẫn là hằng số trong `SocialView.tsx` vì export Meta không có số tồn — cần nguồn thật.
