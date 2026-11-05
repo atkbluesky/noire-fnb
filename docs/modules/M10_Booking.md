@@ -73,7 +73,7 @@ của tiệc tháng 8 (nhận từ tháng 5). Sai với mọi chỉ số chi ph�
 
 | Khối | Nội dung |
 |---|---|
-| Thẻ KPI | Chi phí ads booking · Lead MKT ghi sổ (CPL) · Tiệc chốt từ MKT (tỷ lệ chốt, chi phí/tiệc) · DT chốt từ MKT (ROAS) · DT tiệc đã chốt mọi nguồn |
+| Thẻ KPI | Chi phí ads booking · Lead MKT (CPL) · Tiệc chốt từ MKT (tỷ lệ chốt, chi phí/tiệc) · DT chốt từ MKT (ROAS) · DT tiệc đã chốt mọi nguồn |
 | **Phễu Marketing → Tiệc** | 6 tầng, mỗi tầng: số thật · tỷ lệ so với tầng trên · chi phí đơn vị. Độ rộng thanh chỉ minh hoạ thứ tự |
 | **Fanpage NEC** | lượt xem, người xem, truy cập, theo dõi, người liên hệ, hội thoại + % hội thoại đến từ ads |
 | **Xu hướng theo tháng nhận lead** | hội thoại ads · lead MKT chồng theo kết quả · đường chi phí; tooltip cảnh báo tháng chưa chín (>40% đang theo) |
@@ -165,6 +165,8 @@ Lỗi sổ Sales **vẫn còn** sau lần soát này — báo nguồn sửa:
 của `Facebook_Tong_hop_10_2026.xlsx` = **cộng 31 ngày** `NEC-T10/Người xem.csv` (export Meta chỉ có số theo ngày).
 Số này **có đếm trùng** người xem nhiều ngày — cao hơn reach cả tháng của Meta (tham chiếu NCB T8: cộng ngày cao hơn ~35%),
 không so sánh trực tiếp với reach các tháng lấy số cả kỳ. Có số cả tháng từ Meta Business Suite thì thay vào. Ghi chú ở sheet `Ghi_chu` của file.
+
+**Chữ trên màn hình (05/11/2026):** bỏ chữ "ghi sổ" ở M10 (thẻ KPI, tầng phễu, tooltip, ghi chú) — nhãn là "Lead MKT", tỷ lệ hiện "% so với liên hệ"; tầng Chốt tiệc chỉ ghi `Confirmed`, bỏ đoạn "· còn N đang theo".
 
 ## 7. Còn thiếu
 
