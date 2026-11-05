@@ -161,6 +161,11 @@ Lỗi sổ Sales **vẫn còn** sau lần soát này — báo nguồn sửa:
 - `Event Type` T10: 73/74 trống → khối Loại sự kiện chưa đọc được. Toàn sổ còn 144 trống.
 - Ngày nhận vô lý loader tự sửa: `LEAD-0214` 2026-12-07 → 12/07 · `261008-0370` → 10/08 · `261009-0422` → 10/09 · `LEAD-0520` → ngày sự kiện. Nhiều ngày nhận gõ dạng chữ `29/07/2026` — vẫn đọc được.
 
+**Người xem Fanpage NEC T10 = 114.608** (05/11/2026, theo yêu cầu; cả 4 page đều điền cùng cách, xem M6): điền vào cột `Người xem trong kỳ`
+của `Facebook_Tong_hop_10_2026.xlsx` = **cộng 31 ngày** `NEC-T10/Người xem.csv` (export Meta chỉ có số theo ngày).
+Số này **có đếm trùng** người xem nhiều ngày — cao hơn reach cả tháng của Meta (tham chiếu NCB T8: cộng ngày cao hơn ~35%),
+không so sánh trực tiếp với reach các tháng lấy số cả kỳ. Có số cả tháng từ Meta Business Suite thì thay vào. Ghi chú ở sheet `Ghi_chu` của file.
+
 ## 7. Còn thiếu
 
 | Thiếu | Hệ quả | Cách lấp |

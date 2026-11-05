@@ -15,8 +15,7 @@
 > - **Fanpage** — `Facebook_Tong_hop_10_2026.xlsx`: NCB · NDC · NEC · NJFB, lượt xem / tương tác / click / truy cập / theo dõi là tổng 31 ngày CSV Meta Business Suite
 >   (`Tháng 10.2026/<BRAND>-T10`); `Tổng số người liên hệ` + `Lượt bắt đầu trò chuyện` lấy từ file "Hiệu quả nhắn tin" của từng page
 >   (NCB 284/292 · NDC 639/627 · NEC 152/149 · NJFB 559/572).
-> - **`Người xem trong kỳ` (reach) T10 còn TRỐNG cả 4 page** — thư mục chỉ có CSV theo ngày, không cộng được (đếm trùng, thổi phồng ~35%).
->   Thẻ "Tiếp cận Facebook (4 page)" và ER Facebook của T10 vì thế hiện **0 / —** = CHƯA CÓ SỐ, không phải bằng 0.
+> - **`Người xem trong kỳ` (reach) T10 = số CỘNG 31 ngày** từ `<BRAND>-T10/Người xem.csv` (điền 05/11/2026 theo yêu cầu): NCB 279.034 · NDC 253.148 · NEC 114.608 · NJFB 142.259. **Có đếm trùng** người xem nhiều ngày (cao hơn reach cả tháng của Meta ~35%) — không so trực tiếp với T7–T9 lấy số cả kỳ. Có số cả tháng từ Meta Business Suite thì thay vào cột `Người xem trong kỳ`.
 >   Cần số reach cả tháng 10 từ Meta Business Suite (chọn 01–31/10) để điền vào cột `Người xem trong kỳ`.
 > - **TikTok** — `TikTok_Tong_hop_T10.2026.xlsx` được thêm sheet `Tong_hop_thang` (T7–T10, luỹ kế) từ sheet "Tổng quan & Chỉ số" của chính file:
 >   lượt xem 50,3K · hồ sơ 2,5K · thích 709 · bình luận 5 · chia sẻ 414 · follower ròng +23. Kỳ TikTok là **30/9–30/10** (lệch 1 ngày với tháng lịch),
