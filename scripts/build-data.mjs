@@ -754,6 +754,7 @@ const stageOf = (status) => BK_STAGE.get(normName(status)) ?? BK.stage_default;
 function buildBooking(tables) {
   const booking = T(tables, 'booking').map((r) => ({
     month: r.month, ev_month: r.ev_month ?? null,
+    ev_month_plan: r.ev_month_plan ?? r.ev_month ?? null,   // THÊM 05/11/2026: trục tháng diễn ra của M10
     store: r.store ?? null, brand: r.brand ?? null, outlet: r.outlet ?? null,
     seg: r.seg ?? 'event', etype: r.etype ?? null, source: r.source ?? null,
     status: r.status ?? null, stage: r.stage ?? stageOf(r.status),

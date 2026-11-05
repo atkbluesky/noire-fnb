@@ -97,15 +97,21 @@ export const BookingView: React.FC = () => {
   const ms = selectedMonths;
   const brandAll = filters.brand === 'ALL';
   const [withTables, setWithTables] = useState(false);
+  /* Trục tháng của lead (05/11/2026):
+     'event' = tháng DIỄN RA tiệc — như sheet Dashboard Booking của sổ Sales (cột Event Month, gồm 'TBA/MM/YYYY')
+     'lead'  = tháng NHẬN LEAD (cohort) — ghép đúng chi phí ads tháng nào với lead tháng đó. */
+  const [axis, setAxis] = useState<'event' | 'lead'>('event');
+  const isEv = axis === 'event';
+  const mOf = (r: BookingRow) => (isEv ? (r.ev_month_plan ?? r.ev_month ?? null) : r.month);
 
   /* ── Lọc ────────────────────────────────────────────────────────── */
   const inScope = (r: BookingRow) =>
     (withTables || r.seg === 'event') && (brandAll || (!!r.brand && brandMatches(r.brand)));
 
   const BK = useMemo(
-    () => (HUB_DATA.booking || []).filter(r => ms.includes(r.month) && inScope(r)),
+    () => (HUB_DATA.booking || []).filter(r => { const m = mOf(r); return !!m && ms.includes(m) && inScope(r); }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ms, withTables, filters.brand],
+    [ms, withTables, filters.brand, axis],
   );
   const ADS = useMemo(
     () => (HUB_DATA.booking_ads || []).filter(a => ms.includes(a.month) && (brandAll || brandMatches(a.brand ?? ''))),
@@ -184,11 +190,11 @@ export const BookingView: React.FC = () => {
     .reduce((a, r) => a + r.result, 0);
   const pageMsgs = pageSum('msgs');
 
-  /* ── Xu hướng theo tháng nhận lead ───────────────────────────────── */
+  /* ── Xu hướng theo tháng (trục đang chọn) ────────────────────────── */
   const trendMonths = ms.filter(m =>
-    BK.some(r => r.month === m) || ADS.some(a => a.month === m));
+    BK.some(r => mOf(r) === m) || ADS.some(a => a.month === m));
   const byMonth = trendMonths.map(m => {
-    const t = tally(BK.filter(r => r.month === m && isMkt(r.source)));
+    const t = tally(BK.filter(r => mOf(r) === m && isMkt(r.source)));
     const a = ADS.filter(x => x.month === m);
     const sp = a.reduce((s, r) => s + r.spend, 0);
     const ct = a.filter(r => CONTACT_KINDS.has(r.rkind)).reduce((s, r) => s + r.result, 0);
@@ -387,17 +393,20 @@ export const BookingView: React.FC = () => {
   ];
 
   /* ── Độ tin cậy số liệu ──────────────────────────────────────────── */
-  const allInPeriod = (HUB_DATA.booking || []).filter(r => ms.includes(r.month) && (brandAll || (!!r.brand && brandMatches(r.brand))));
+  const allInPeriod = (HUB_DATA.booking || []).filter(r => { const m = mOf(r); return !!m && ms.includes(m); }).filter(r => (brandAll || (!!r.brand && brandMatches(r.brand))));
   const nTables = allInPeriod.filter(r => r.seg === 'table').reduce((a, r) => a + r.leads, 0);
   const nInqEst = BK.reduce((a, r) => a + r.inq_est, 0);
   const nNoClosed = ALL.won - ALL.closed_n;
   const nNoExp = BK.filter(r => r.stage === 'open').reduce((a, r) => a + r.leads - r.exp_n, 0);
   const nNoBrand = brandAll ? BK.filter(r => !r.brand).reduce((a, r) => a + r.leads, 0) : 0;
   const quality: { tone: 'ok' | 'warn' | 'info'; text: React.ReactNode }[] = [
-    { tone: 'info', text: <>Phễu ghép <b>theo tháng nhận lead</b>, không nối được từng khách: sổ Sales không ghi mã hội thoại. Source = MKT gồm cả lead từ fanpage tự nhiên, nên tỷ lệ so với liên hệ là <b>xấp xỉ</b>.</> },
+    isEv
+      ? { tone: 'info', text: <>Đang xếp lead theo <b>tháng diễn ra tiệc</b> (như sheet Dashboard Booking của sổ Sales; lead TBA lấy tháng ở cột Month). Chi phí ads vẫn là chi phí <b>trong tháng</b> — nhiều tiệc trong kỳ nhận lead từ các tháng trước, nên CPL, chi phí/tiệc, ROAS chỉ là <b>xấp xỉ</b>. Bấm “Tháng nhận lead” để ghép đúng chi phí với lead.</> }
+      : { tone: 'info', text: <>Đang xếp lead theo <b>tháng nhận lead</b> — chi phí ads tháng nào ghép với lead nhận tháng đó. Số sẽ khác sheet Dashboard Booking của sổ Sales (sheet đó xếp theo tháng diễn ra tiệc).</> },
+    { tone: 'info', text: <>Phễu ghép <b>theo tháng</b>, không nối được từng khách: sổ Sales không ghi mã hội thoại. Source = MKT gồm cả lead từ fanpage tự nhiên, nên tỷ lệ so với liên hệ là <b>xấp xỉ</b>.</> },
     nTables > 0 && { tone: 'info', text: <>{withTables ? 'Đang gộp' : 'Đã tách riêng'} <b>{formatNumber(nTables)}</b> dòng đặt bàn nhỏ (Dinner/Lunch dưới {META.segment.table_max_guests} khách) — chúng không phải tiệc và làm tỷ lệ chốt của nguồn Sales đẹp giả.</> },
     nNoClosed > 0 && { tone: 'warn', text: <><b>{formatNumber(nNoClosed)}</b> tiệc Confirmed chưa nhập Closed Revenue → doanh thu chốt và ROAS đang <b>thấp hơn thực tế</b>.</> },
-    nInqEst > 0 && { tone: 'warn', text: <><b>{formatNumber(nInqEst)}</b> lead thiếu Inquiry Date — tháng nhận lead tạm lấy theo ngày sự kiện.</> },
+    !isEv && nInqEst > 0 && { tone: 'warn', text: <><b>{formatNumber(nInqEst)}</b> lead thiếu Inquiry Date — tháng nhận lead tạm lấy theo ngày sự kiện.</> },
     nNoExp > 0 && { tone: 'warn', text: <><b>{formatNumber(nNoExp)}</b> lead đang theo chưa có Expected Revenue (trống/TBA) — pipeline chưa tính phần này, không coi là 0.</> },
     nNoBrand > 0 && { tone: 'info', text: <><b>{formatNumber(nNoBrand)}</b> lead chưa ghi Outlet (TBA) — chỉ hiện khi xem tất cả brand.</> },
     monthsNoReport.length > 0 && { tone: 'warn', text: <>Chưa có báo cáo Meta Ads cho {monthsNoReport.map(formatMonthLabel).join(', ')} — chi phí, CPL, ROAS của các tháng này chưa đầy đủ.</> },
@@ -415,7 +424,24 @@ export const BookingView: React.FC = () => {
             M10 · Booking &amp; Tiệc Sự Kiện
           </h2>
         </div>
-        <div className="inline-flex self-start rounded-lg border border-brand-border bg-brand-surface p-0.5 text-[11px] font-semibold">
+        <div className="flex flex-wrap gap-2 self-start">
+        <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-0.5 text-[11px] font-semibold">
+          {([
+            { v: 'event', lb: 'Tháng diễn ra tiệc' },
+            { v: 'lead', lb: 'Tháng nhận lead' },
+          ] as const).map(o => (
+            <button
+              key={o.v}
+              onClick={() => setAxis(o.v)}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 transition-colors ${
+                axis === o.v ? 'bg-brand-gold text-[#141417]' : 'text-brand-muted hover:text-brand-text'
+              }`}
+            >
+              {o.lb}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex rounded-lg border border-brand-border bg-brand-surface p-0.5 text-[11px] font-semibold">
           {[
             { v: false, lb: META.segment.labels.event },
             { v: true, lb: `Gồm ${META.segment.labels.table.toLowerCase()}` },
@@ -430,6 +456,7 @@ export const BookingView: React.FC = () => {
               {o.lb}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
@@ -484,7 +511,7 @@ export const BookingView: React.FC = () => {
             <Card
               title="Phễu Marketing → Tiệc"
               description="Mỗi tầng ghi số thật, tỷ lệ chuyển đổi so với tầng trên và chi phí đơn vị. Độ rộng thanh chỉ minh hoạ thứ tự, không tỷ lệ với số."
-              chip="COHORT THÁNG NHẬN LEAD"
+              chip={isEv ? 'THEO THÁNG DIỄN RA TIỆC' : 'COHORT THÁNG NHẬN LEAD'}
               hero
               className="xl:col-span-2"
             >
@@ -556,7 +583,7 @@ export const BookingView: React.FC = () => {
 
           {/* Xu hướng */}
           <Card
-            title="Xu hướng theo tháng nhận lead"
+            title={isEv ? 'Xu hướng theo tháng diễn ra tiệc' : 'Xu hướng theo tháng nhận lead'}
             description="Cột nhạt: hội thoại + lead form từ Ads. Cột chồng: lead MKT trong sổ Sales, tô theo kết quả. Đường: chi phí ads booking."
             chip="ADS × SỔ SALES"
           >

@@ -46,6 +46,19 @@ Không nối được từng khách: sổ Sales không ghi mã hội thoại. Ba
 Trước 17/09/2026 `month` là tháng diễn ra → chi phí ads tháng 8 bị chia cho lead
 của tiệc tháng 8 (nhận từ tháng 5). Sai với mọi chỉ số chi phí/lead.
 
+**Nút chuyển trục (05/11/2026)** — màn hình có nút *Tháng diễn ra tiệc / Tháng nhận lead*, **mặc định = tháng diễn ra tiệc**
+để khớp sheet `Dashboard Booking` của sổ Sales (cột MKT Lead / MKT Lead confirmed):
+
+| Nút | Lọc lead theo | T10/2026 · MKT |
+|---|---|---|
+| Tháng diễn ra tiệc | `ev_month_plan` = ngày sự kiện → `TBA/MM/YYYY` → cột `Month` + `Year` của sổ (giống cột Event Month/Year sheet `Validation`) | **33 lead · 7 chốt · 101,7 tr** — khớp Excel cả 12 tháng 2026 |
+| Tháng nhận lead | `month` (cohort) | 53 lead · 4 chốt · 46,0 tr |
+
+Chi phí ads luôn là chi phí **trong tháng**. Ở trục tháng diễn ra, CPL / chi phí mỗi tiệc / ROAS chỉ xấp xỉ
+(tiệc T10 có thể nhận lead từ T8–T9) — màn hình ghi rõ ở khối "Đọc số này thế nào cho đúng".
+`ev_month_plan` là cột MỚI (thêm ở `tools/build_month.py`, `data_contract.json`, `scripts/build-data.mjs`, `src/types/hub.ts`);
+`ev_month` (lịch doanh thu) giữ nguyên.
+
 ## 3. Luật ở `$booking`
 
 | Luật | Giá trị | Vì sao |
@@ -82,7 +95,7 @@ của tiệc tháng 8 (nhận từ tháng 5). Sai với mọi chỉ số chi ph�
 | **Vì sao mất lead** · **Loại sự kiện** | |
 | **Đọc số này thế nào cho đúng** | mọi giới hạn dữ liệu của kỳ đang chọn + danh sách chiến dịch được tính vào phễu |
 
-Bộ lọc: Brand (theo Outlet) · Từ/Đến (tháng nhận lead) · nút *Tiệc & sự kiện / Gồm đặt bàn nhỏ*.
+Bộ lọc: Brand (theo Outlet) · Từ/Đến (theo trục đang chọn) · nút *Tháng diễn ra tiệc / Tháng nhận lead* · nút *Tiệc & sự kiện / Gồm đặt bàn nhỏ*.
 Lọc brand thì tầng Ads chỉ còn chiến dịch gắn brand đó; fanpage NEC chỉ hiện ở "Tất cả brand".
 
 ## 6. Số T1–T8/2026 (tiệc & sự kiện, mọi brand) — tại 17/09/2026

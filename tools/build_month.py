@@ -1045,6 +1045,8 @@ def _booking_leads(path):
         k_cls = col(c0, "closed revenue")
         k_why = col(c0, "reason if lost")
         k_cmt = col(c0, exact="Comment")
+        k_mo = col(c0, exact="Month")
+        k_yr = col(c0, exact="Year")
 
         fixed, unmapped, dropped = [], set(), 0
         for r in rows:
@@ -1068,6 +1070,21 @@ def _booking_leads(path):
                 ok = swap and swap <= asof and (not ev or swap <= ev)
                 fixed.append(f"{r.get(k_id) or '?'}: {inq} → {swap if ok else 'ngày sự kiện'}")
                 inq = swap if ok else None
+            # THÊM 05/11/2026: tháng diễn ra DỰ KIẾN — như cột Event Month/Year của sổ Sales
+            # (sheet Validation): có ngày sự kiện thì theo ngày; 'TBA/MM/YYYY' thì theo MM/YYYY;
+            # không thì theo cột Month + Year. Chỉ dùng cho trục "tháng diễn ra" của M10;
+            # ev_month (lịch doanh thu) giữ nguyên.
+            ev_plan = ev[:7] if ev else None
+            if not ev_plan:
+                raw = str(r.get(k_ev) or "").strip()
+                m_tba = re.match(r"^TBA/(\d{1,2})/(\d{4})$", raw, re.I)
+                mo = yr = None
+                if m_tba:
+                    mo, yr = int(m_tba.group(1)), int(m_tba.group(2))
+                else:
+                    mo, yr = to_num(r.get(k_mo)) if k_mo else None, to_num(r.get(k_yr)) if k_yr else None
+                if mo and yr and 1 <= int(mo) <= 12 and int(yr) >= 2020:
+                    ev_plan = f"{int(yr):04d}-{int(mo):02d}"
             lead_day = inq or ev
             if not lead_day:
                 dropped += 1
@@ -1088,6 +1105,7 @@ def _booking_leads(path):
             leads.append({
                 "month": lead_day[:7],
                 "ev_month": ev[:7] if ev else None,
+                "ev_month_plan": ev_plan,
                 "store": store,
                 "brand": BRAND_OF_STORE.get(store) if store else None,
                 "outlet": outlet,
@@ -1144,7 +1162,7 @@ def read_booking(month):
     sel = [x for x in _booking_leads(path) if x["month"] == month]
     if not sel:
         return {}
-    keys = ["month", "ev_month", "store", "brand", "outlet", "seg", "etype", "source",
+    keys = ["month", "ev_month", "ev_month_plan", "store", "brand", "outlet", "seg", "etype", "source",
             "status", "stage", "lost_reason"]
     sums = ["leads", "guests", "exp", "exp_n", "closed", "closed_n", "inq_est"]
     out = agg(sel, keys, sums=sums)

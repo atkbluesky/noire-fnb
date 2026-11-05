@@ -1709,6 +1709,7 @@
       "key": [
         "month",
         "ev_month",
+        "ev_month_plan",
         "store",
         "outlet",
         "seg",
@@ -1724,6 +1725,7 @@
       "cols": [
         "month",
         "ev_month",
+        "ev_month_plan",
         "store",
         "brand",
         "outlet",
@@ -1741,7 +1743,7 @@
         "closed_n",
         "inq_est"
       ],
-      "desc": "Booking tiệc & sự kiện — gộp theo tháng NHẬN LEAD (month) × tháng DIỄN RA (ev_month) × cửa hàng × phân khúc × loại × nguồn × trạng thái. month = Inquiry Date → Input Date → (thiếu cả hai) ngày sự kiện, khi đó inq_est đếm số lead bị ước. seg ∈ event|table, stage ∈ won|open|lost — luật ở $booking. exp chỉ cộng ô có số (exp_n lead); ô trống/TBA KHÔNG tính là 0. closed_n = số lead Confirmed đã nhập Closed Revenue."
+      "desc": "Booking tiệc & sự kiện — gộp theo tháng NHẬN LEAD (month) × tháng DIỄN RA (ev_month) × cửa hàng × phân khúc × loại × nguồn × trạng thái. month = Inquiry Date → Input Date → (thiếu cả hai) ngày sự kiện, khi đó inq_est đếm số lead bị ước. ev_month_plan = tháng diễn ra dự kiến như cột Event Month của sổ Sales (ngày sự kiện → 'TBA/MM/YYYY' → cột Month/Year) — trục tháng diễn ra của M10. seg ∈ event|table, stage ∈ won|open|lost — luật ở $booking. exp chỉ cộng ô có số (exp_n lead); ô trống/TBA KHÔNG tính là 0. closed_n = số lead Confirmed đã nhập Closed Revenue."
     },
     "lead_month": {
       "tier": "monthly",
