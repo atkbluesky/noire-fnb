@@ -245,6 +245,8 @@ export type BookingStage = 'won' | 'open' | 'lost';
 export interface BookingRow {
   month: string;
   ev_month: string | null;
+  /** Tháng diễn ra DỰ KIẾN như cột Event Month của sổ Sales (gồm cả 'TBA/MM/YYYY') */
+  ev_month_plan?: string | null;
   store: string | null;
   brand: string | null;
   outlet: string | null;
