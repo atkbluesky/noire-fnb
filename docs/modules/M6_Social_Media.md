@@ -9,12 +9,23 @@
 | **Nguồn** | `monthly/YYYY-MM.xlsx` — `social_month` *(bắt buộc)* · `social_post` · `social_target`<br>`02_snapshot.xlsx` — `social_format` |
 | **ETL** | `tools/build_month.py` — `read_facebook_pages()` |
 | **Giai đoạn** | P7.5 |
-| **Trạng thái** | ✅ **4 kênh Fanpage · T7 + T8/2026** · TikTok ⛔ chưa có export số |
+| **Trạng thái** | ✅ **4 kênh Fanpage + TikTok · T7 → T10/2026** (T10 cập nhật 05/11/2026) |
 
-> **T10/2026 (02/11/2026): mới có fanpage NEC** (`Facebook_Tong_hop_10_2026.xlsx`, lập từ `Tháng 10.2026/NEC-T10`).
-> Chọn T10 thì M6 chỉ có 1 kênh: thẻ "Tiếp cận Facebook (4 page)" và "Lượt xem TikTok" hiện **0** — nghĩa là CHƯA CÓ SỐ, không phải bằng 0.
-> NCB · NDC · NJFB và TikTok T10 có thì thêm dòng vào cùng file tổng hợp rồi chạy `CAP_NHAT.bat`.
-> NEC: "+838 follower ròng" thật ra là lượt theo dõi MỚI — export không có bỏ theo dõi; tăng mạnh từ 14/10 trùng chiến dịch `NEC | LikePage | 2026`.
+> **T10/2026 (05/11/2026): đủ 4 fanpage + TikTok.**
+> - **Fanpage** — `Facebook_Tong_hop_10_2026.xlsx`: NCB · NDC · NEC · NJFB, lượt xem / tương tác / click / truy cập / theo dõi là tổng 31 ngày CSV Meta Business Suite
+>   (`Tháng 10.2026/<BRAND>-T10`); `Tổng số người liên hệ` + `Lượt bắt đầu trò chuyện` lấy từ file "Hiệu quả nhắn tin" của từng page
+>   (NCB 284/292 · NDC 639/627 · NEC 152/149 · NJFB 559/572).
+> - **`Người xem trong kỳ` (reach) T10 còn TRỐNG cả 4 page** — thư mục chỉ có CSV theo ngày, không cộng được (đếm trùng, thổi phồng ~35%).
+>   Thẻ "Tiếp cận Facebook (4 page)" và ER Facebook của T10 vì thế hiện **0 / —** = CHƯA CÓ SỐ, không phải bằng 0.
+>   Cần số reach cả tháng 10 từ Meta Business Suite (chọn 01–31/10) để điền vào cột `Người xem trong kỳ`.
+> - **TikTok** — `TikTok_Tong_hop_T10.2026.xlsx` được thêm sheet `Tong_hop_thang` (T7–T10, luỹ kế) từ sheet "Tổng quan & Chỉ số" của chính file:
+>   lượt xem 50,3K · hồ sơ 2,5K · thích 709 · bình luận 5 · chia sẻ 414 · follower ròng +23. Kỳ TikTok là **30/9–30/10** (lệch 1 ngày với tháng lịch),
+>   số làm tròn theo TikTok hiển thị. `Số bài đăng` và `Tổng follower` T10 **để trống**: ảnh ghi tổng 611 nhưng chụp ~3/11 và 611 − 593 (T9) = 18 ≠ +23 → chốt QA #13 đỏ,
+>   nên chưa dùng làm tồn cuối T10.
+> - **Hệ thống chọn file TikTok mới nhất theo giờ sửa** (`l0_latest`): file nào mới sửa sau cùng phải có sheet `Tong_hop_thang`, nếu không mất cả chuỗi T7–T9.
+> - NEC: "+838 follower ròng" thật ra là lượt theo dõi MỚI — export không có bỏ theo dõi; tăng mạnh từ 14/10 trùng chiến dịch `NEC | LikePage | 2026`.
+> - View: thẻ "Tổng follower tích luỹ" lấy follower TikTok từ dòng **mới nhất có khai** (trước đây rơi về hằng số 574 khi tháng cuối trống). Follower Facebook (7946 + 4044 + 862 + 2428)
+>   vẫn là hằng số trong `SocialView.tsx` vì export Meta không có số tồn — cần nguồn thật.
 
 ---
 
