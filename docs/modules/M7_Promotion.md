@@ -57,6 +57,9 @@ MỘT danh mục chương trình, nên một chương trình chỉ có một mã
 | Báo cáo hiệu quả LTO | `03_MARKETING/06_Promotion_Ket_Qua/` | kỳ · cửa hàng · chi phí |
 | Nội dung · giả thuyết · mục tiêu · phương án · người phụ trách | `03_MARKETING/07_Campaign_Tracking/Campaign_Tracking_2026.xlsx` | sheet `dim_campaign` — **nhập tay** |
 
+Nạp T11/2026 tới 15/11 (16/11/2026) từ `accounting_sale ngày 15.T11.2026.xlsx`: Thương mại 593,1 tr · Loyalty 27,3 tr · Đối tác 91,0 tr
+(Aggregator 90,6 tr) · CSKH 2,8 tr · Nội bộ 147,4 tr — tổng CTKM & đối tác 861,6 tr = 26,0% DT brand 3,32 tỷ.
+
 Đối soát 17/09/2026: NDC tháng 8 trên file hoá đơn gốc chỉ có một CTKM review là `BERKLEY - GOOGLE REVIEW`
 (68 hoá đơn, The Berkley) — khớp 100% với `fact_promo_day`. NDC_NTMK không có CTKM Google Review trong T8.
 

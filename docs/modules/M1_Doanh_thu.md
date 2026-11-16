@@ -72,7 +72,8 @@ Brand · Từ · Đến · scope · perday.
 | Chặn | Hệ quả |
 |---|---|
 | **Chỉ The Mett đủ 18 tháng** *(ET từ 2025-10 · SKC 2026-02 · Crest 2026-04)* | Mọi so sánh YoY **bắt buộc same-store**, nếu không tăng trưởng chuỗi bị thổi phồng bởi cửa hàng mới |
-| `daily` hiện có 01/01–13/09/2026 | Nhịp năm mới là YTD 2026; chưa có nền 2025 để tính YoY |
+| `daily` hiện có 01/01–15/11/2026 *(T11 mới 15/30 ngày — nạp 16/11/2026)* | Nhịp năm mới là YTD 2026; chưa có nền 2025 để tính YoY |
+| **HĐ `NMT23214` NDC_NTMK 10/11/2026 ghi 773.912.630 khách** (SĐT gõ nhầm vào ô Số khách) | Guest luỹ kế, TA, khách lẻ / tiệc của kỳ có T11 sai; Net · TC · Net/ngày đúng. Chờ iPOS sửa rồi xuất lại file T11 — xem M0 §5 |
 | **NDC Berkley bắt đầu có số từ T8/2026** | So sánh trước/sau phải nhận diện cửa hàng mới; TA/AOV không lấy kỳ chưa có mẫu số làm biến động |
 
 ## 6. Checklist nâng cấp

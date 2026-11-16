@@ -121,6 +121,10 @@ Bản Final không có cột "focus" theo tháng → chú thích tháng ở bả
 **Số thực tế tới hết T10/2026 (soát 02/11/2026):** Digital **68,9 tr** / plan T10 64,0 tr (API, đồng bộ tới 31/10).
 Ngoài Digital hiện `0` vì `NOIRE_Q4_ThucChi_2026.xlsx` **chưa có dòng nào** — nghĩa là *chưa nhập*, không phải chưa chi.
 
+**Số thực tế tới 15/11/2026 (soát 16/11/2026):** Digital Q4 **105,1 tr** / plan Q4 200,0 tr (52,5%) = T10 68,9 tr + T11 36,2 tr
+(Meta 35,5 tr · Google 722 k; API đồng bộ tới 15/11). Google T11 gần như dừng từ 04/11 — NCB Google T11 319 k / plan 7,1 tr.
+`NOIRE_Q4_ThucChi_2026.xlsx` vẫn 0 dòng → Ngoài Digital vẫn `0` (chưa nhập). Không có file Promotion-AGG T9–T11.
+
 ## 7. Checklist nâng cấp
 
 - [ ] **Chỉ số giải ngân** = `thực chi ÷ phần kế hoạch ĐÃ TỚI HẠN` *(không so với cả quý)*.

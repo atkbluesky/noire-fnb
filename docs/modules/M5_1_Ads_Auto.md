@@ -1,5 +1,11 @@
 # M5.1 · ADS AUTO — META MARKETING API + GOOGLE ADS API
 
+> **Cập nhật 16/11/2026 — T11/2026 tới 15/11:** đã chạy `/api/ads/sync?from=2026-11-01&to=2026-11-15` (Meta 168 dòng fetched · Google 33).
+> Chi 01–15/11: Meta **35.471.946 đ** (15/15 ngày có chi) · Google **722.203 đ** · tổng 36,2 tr, +10,9% so 17–31/10. Tiệc 11,8 tr (33,3% chi Meta).
+> DB trước lượt này chỉ tới 31/10 → cron production `/api/ads/sync` vẫn chưa chạy (như lần soát 14/10 và 02/11). Cần team Digital xác nhận:
+> Google chỉ chi 01–03/11 (~236 k/ngày), từ 04/11 gần như 0 — tạm dừng chiến dịch hay lỗi thanh toán?
+> `/api/ads/performance` ở local mất ~16 giây mỗi lượt (Neon); M4 Q4 gọi 2 lượt nên màn chờ khá lâu.
+
 > **Cập nhật 02/11/2026 — T10/2026 đủ tháng:** đã chạy `/api/ads/sync?month=2026-10` (Meta 294 dòng · Google 101).
 > Chi T10: Meta **62.107.958 đ** · Google **6.774.938 đ** · ACR **1,16%**. Trước đó DB chỉ tới 25/10; các lượt gần nhất trong
 > `ads_sync_run` đều là chạy tay, chưa thấy lượt cron — vẫn cần kiểm tra cron Vercel `/api/ads/sync`.
