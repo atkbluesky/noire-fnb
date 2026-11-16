@@ -42,6 +42,12 @@ trừ 3 mã giảm tay đã để CANCELLED (không phải chương trình): *Ch
 Phần lệch T10 thấy ở các tên POS có hoá đơn sau `date_to` đã khai (nhiều voucher đã ENDED) và một phần hoá đơn của chương trình đang chạy (vd. `Bistro - Power Breakfast` 161 HĐ, M7.2 tính 148).
 Muốn hết lệch thì team brand xem lại kỳ chạy · phạm vi cửa hàng ở `Campaign_Tracking_2026.xlsx`; ô nhập tay không được tool tự sửa.
 
+**Soát T11/2026 tới 15/11 (16/11/2026):** M7.2 1.142 HĐ · 567,9 tr (34 CT có HĐ) so với `fact_promo_day` bỏ INTERNAL 1.227 HĐ · 623,5 tr — lệch 85 HĐ · 55,6 tr (8,9%).
+Phần lớn lệch do chương trình `campaign_seed --merge` tạo ở T10 còn mang `date_to` = ngày HĐ cuối lúc tạo (31/10) hoặc phạm vi cửa hàng hẹp, nên HĐ T11 rơi ra ngoài:
+`NJFB-2026-10-MONTHLYSETLUCH` (11 HĐ · 20,0 tr) · `NCB-2026-10-CBOFFICE` (40 HĐ · 8,9 tr) · `NJFB-2026-10-RESIDENT` (chỉ khai SSV, POS có 6 HĐ · M7.2 tính 1) · `ALL-2026-03-CASHVOUCHER` (2 HĐ · 6,7 tr).
+Lượt nạp này `--merge` thêm 5 chương trình mới từ POS T11: `NCB-2026-11-CBOFFICE` (CB - Office Exclusive) · `NJFB-2026-11-WEEKLYOFFER` / `…2` / `…3` (Weekly Offer CN · T2–T3 · T5) · `NJFB-2026-11-CRESTGIAM15` (giảm 15% tiệc Ms. Dung).
+Thẻ GUEST hiện `0,0%` khách brand vì số khách brand T11 bị HĐ `NMT23214` (773,9 triệu khách) làm hỏng — xem M0 §5.
+
 ## ⓪b Kế hoạch M7.1 làm chuẩn so sánh · lọc theo quý *(23/09/2026)*
 
 | Câu hỏi | Trả lời trong hệ thống |

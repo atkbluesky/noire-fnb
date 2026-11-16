@@ -53,6 +53,10 @@ nhãn `vs T8/26`. Đã sửa lỗi thẻ Tổng khách luôn ghép dấu `+` k�
 
 ## 3b. CRM iPOS theo tháng (thêm 02/10/2026)
 
+> **Soát 16/11/2026 — T11/2026 tới 15/11:** chưa có `CRM khách hàng T11.2026.xlsx` nên khối CRM iPOS vẫn dừng ở T10
+> (chọn kỳ T11 thì thẻ hiện số T10, so `vs T9/26`). Phần lấy từ POS đã có T11: nhận diện khách **16,7%** (894 / 5.341 HĐ có SĐT).
+> Cần xuất file CRM iPOS 01–15/11 (hoặc đủ tháng) thả vào `04_CRM/06_CRM_Khach_Hang/`.
+
 Khối đầu màn M8 (`src/views/crm/CRMCustomerSection.tsx`) đọc `crm_*` trong `data_mkt.json`, dựng bởi
 `tools/crm_reader.py` (phần `crm` của `tools/build_month.py`):
 
